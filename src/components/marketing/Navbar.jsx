@@ -8,7 +8,7 @@ export default function Navbar() {
       <div className="max-w-[1500px] mx-auto px-6 sm:px-8 lg:px-12 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Image
-          src="/images/logo.png"
+          src="/images/logo.svg"
           alt="SocialPilot Logo"
           width={100}
           height={100}
