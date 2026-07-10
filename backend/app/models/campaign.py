@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float, Date
+from sqlalchemy.orm import relationship
 from database import Base
 
 
@@ -12,3 +13,5 @@ class Campaign(Base):
     end_date = Column(Date)
     budget = Column(Float)
     status = Column(String, default="Active")
+
+    posts = relationship("Post", back_populates="campaign")

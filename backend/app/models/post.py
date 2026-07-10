@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
 from database import Base
 
 
@@ -11,3 +12,6 @@ class Post(Base):
     platform = Column(String, nullable=False)
     schedule_time = Column(DateTime)
     status = Column(String, default="Pending")
+
+    campaign_id = Column(Integer, ForeignKey("campaigns.id"))
+    campaign = relationship("Campaign", back_populates="posts")
