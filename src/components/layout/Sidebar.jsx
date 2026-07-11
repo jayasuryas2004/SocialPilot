@@ -9,18 +9,18 @@ import {
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/calendar", label: "Calendar", icon: Calendar },
-  { href: "/posts", label: "Posts", icon: FileText },
-  { href: "/campaigns", label: "Campaigns", icon: Megaphone },
-  { href: "/accounts", label: "Accounts", icon: Users },
-  { href: "/analytics", label: "Analytics", icon: BarChart2 },
-  { href: "/reports", label: "Reports", icon: FileBarChart },
-  { href: "/notifications", label: "Notifications", icon: Bell },
+  { href: "/dashboard/calendar", label: "Calendar", icon: Calendar },
+  { href: "/dashboard/posts", label: "Posts", icon: FileText },
+  { href: "/dashboard/campaigns", label: "Campaigns", icon: Megaphone },
+  { href: "/dashboard/accounts", label: "Accounts", icon: Users },
+  { href: "/dashboard/analytics", label: "Analytics", icon: BarChart2 },
+  { href: "/dashboard/reports", label: "Reports", icon: FileBarChart },
+  { href: "/dashboard/notifications", label: "Notifications", icon: Bell },
 ];
 
 const adminItems = [
-  { href: "/team", label: "Team", icon: Users },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/dashboard/team", label: "Team", icon: Users },
+  { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
 export default function Sidebar() {

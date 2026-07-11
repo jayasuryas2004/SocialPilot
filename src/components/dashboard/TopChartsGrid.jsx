@@ -6,7 +6,6 @@ import {
 } from 'recharts';
 import { Filter, BarChart2, TrendingUp, Heart, MessageSquare, Share2, Bookmark, Users } from "lucide-react";
 
-// Official brand colors for the custom tooltip
 const PLATFORM_COLORS = {
   instagram: "#E1306C",
   linkedin: "#0A66C2",
@@ -19,40 +18,56 @@ const PLATFORM_COLORS = {
 };
 
 export default function TopChartsGrid({ engagement, followers }) {
-  // --- STATE FOR CHARTS ---
-  const [timeline, setTimeline] = useState('weekly');
-  const [platformView, setPlatformView] = useState('top4');
-  
-  // NEW: State for Engagement Overview Platform Filter
+  // --- INDEPENDENT STATES FOR BOTH CHARTS ---
+  // Engagement States
+  const [engagementTimeline, setEngagementTimeline] = useState('monthly');
   const [engagementPlatform, setEngagementPlatform] = useState('all');
-
-  // --- FILTERING LOGIC ---
-  const displayFollowers = platformView === 'top4' ? followers.slice(0, 4) : followers;
   
-  // NEW: Grab the correct engagement array based on dropdown. 
-  // (Fallback to Array.isArray just in case the API hasn't been updated yet)
-  const displayEngagement = Array.isArray(engagement) 
-    ? engagement 
-    : (engagement[engagementPlatform] || engagement?.all || []);
+  // Followers States
+  const [followersTimeline, setFollowersTimeline] = useState('monthly');
+  const [platformView, setPlatformView] = useState('top4');
 
-  // --- KPI CALCULATIONS (Now dynamic based on displayEngagement!) ---
+  // --- DYNAMIC DATA FILTERING ---
+  
+  // 1. Process Engagement Data
+  let displayEngagement = [];
+  if (Array.isArray(engagement)) {
+    displayEngagement = engagement; // Fallback if API hasn't updated yet
+  } else if (engagement && engagement[engagementTimeline]) {
+    // Pulls from engagement.monthly.all OR engagement.weekly.instagram etc.
+    displayEngagement = engagement[engagementTimeline][engagementPlatform] || engagement[engagementTimeline].all || [];
+  }
+
+  // 2. Process Followers Data
+  let baseFollowers = [];
+  if (Array.isArray(followers)) {
+    baseFollowers = followers; // Fallback
+  } else if (followers && followers[followersTimeline]) {
+    baseFollowers = followers[followersTimeline];
+  }
+  const displayFollowers = platformView === 'top4' ? baseFollowers.slice(0, 4) : baseFollowers;
+
+  // --- DYNAMIC KPI CALCULATIONS ---
   const totalLikes = displayEngagement.reduce((acc, curr) => acc + (curr.like || 0), 0);
   const totalCommands = displayEngagement.reduce((acc, curr) => acc + (curr.commands || 0), 0);
   const totalShares = displayEngagement.reduce((acc, curr) => acc + (curr.share || 0), 0);
   const totalSaved = displayEngagement.reduce((acc, curr) => acc + (curr.saved || 0), 0);
 
-  // --- CUSTOM TOOLTIPS ---
+  // --- FIXED CUSTOM TOOLTIPS ---
   const EngagementTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border border-slate-200 shadow-lg rounded-xl text-sm">
-          <p className="font-bold text-slate-800 mb-2">{label}</p>
+        <div className="bg-white p-4 border border-slate-200 shadow-xl rounded-xl text-sm min-w-[160px]">
+          <p className="font-bold text-slate-800 mb-3 border-b border-slate-100 pb-2">{label}</p>
           {payload.map((entry, index) => (
-            <div key={index} className="flex items-center gap-2 text-slate-600 mb-1">
-              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: entry.color }}></div>
-              <span className="capitalize">{entry.name}:</span>
-              <span className="font-semibold text-slate-900">
-                {(entry.value * 100).toFixed(1)}%
+            <div key={index} className="flex items-center justify-between mb-2 last:mb-0">
+              <div className="flex items-center gap-2 text-slate-600">
+                <div className="w-3 h-3 rounded-sm shadow-sm" style={{ backgroundColor: entry.color }}></div>
+                <span className="capitalize font-medium">{entry.name}</span>
+              </div>
+              {/* FIXED: Removed * 100 and %. Now shows clean formatted numbers! */}
+              <span className="font-bold text-slate-900 ml-4">
+                {entry.value.toLocaleString()}
               </span>
             </div>
           ))}
@@ -76,7 +91,9 @@ export default function TopChartsGrid({ engagement, followers }) {
               <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: brandColor }}></div>
               <span className="text-slate-600 font-medium">Followers</span>
             </div>
-            <span className="font-bold text-lg" style={{ color: brandColor }}>{data.value}</span>
+            <span className="font-bold text-lg" style={{ color: brandColor }}>
+              {data.value.toLocaleString()}
+            </span>
           </div>
         </div>
       );
@@ -88,7 +105,7 @@ export default function TopChartsGrid({ engagement, followers }) {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       
       {/* ----------------------------------------------------------------- */}
-      {/* 1. ENGAGEMENT OVERVIEW (100% Stacked Bar)                         */}
+      {/* 1. ENGAGEMENT OVERVIEW                                            */}
       {/* ----------------------------------------------------------------- */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[520px]">
         <div className="p-5 border-b border-slate-100 shrink-0">
@@ -101,7 +118,7 @@ export default function TopChartsGrid({ engagement, followers }) {
             </h2>
             <div className="flex gap-2">
               
-              {/* NEW: Platform Filter Dropdown */}
+              {/* Platform Filter */}
               <div className="relative">
                 <select 
                   value={engagementPlatform}
@@ -120,10 +137,14 @@ export default function TopChartsGrid({ engagement, followers }) {
                 <Filter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
               </div>
 
-              {/* Timeline Dropdown */}
-              <select className="border border-slate-200 px-3 py-1.5 rounded-lg text-sm font-medium outline-none hover:bg-slate-50 cursor-pointer bg-white">
-                <option>Weekly</option>
-                <option>Monthly</option>
+              {/* Engagement Timeline Toggle */}
+              <select 
+                value={engagementTimeline}
+                onChange={(e) => setEngagementTimeline(e.target.value)}
+                className="border border-slate-200 px-3 py-1.5 rounded-lg text-sm font-medium outline-none hover:bg-slate-50 cursor-pointer bg-white"
+              >
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
               </select>
 
             </div>
@@ -138,9 +159,9 @@ export default function TopChartsGrid({ engagement, followers }) {
 
         <div className="flex-1 px-5 pt-6 bg-slate-50/50 min-h-0">
           <ResponsiveContainer width="100%" height="100%">
-            {/* NEW: Pass displayEngagement instead of engagement */}
             <BarChart data={displayEngagement} barSize={60} stackOffset="expand">
-              <XAxis dataKey="month" axisLine={true} tickLine={false} tick={{fill: '#64748b', fontSize: 14}} stroke="#e2e8f0" />
+              {/* Uses generic 'label' so it works for both 'June' (Month) or 'Mon' (Week) */}
+              <XAxis dataKey="label" axisLine={true} tickLine={false} tick={{fill: '#64748b', fontSize: 14}} stroke="#e2e8f0" />
               <Tooltip content={<EngagementTooltip />} cursor={{fill: 'transparent'}} />
               
               <Bar dataKey="like" name="Like" stackId="a" fill="#f43f5e" stroke="#fff" strokeWidth={3} radius={[0, 0, 4, 4]} />
@@ -156,7 +177,7 @@ export default function TopChartsGrid({ engagement, followers }) {
             <div className="flex flex-col items-center gap-2">
               <div className="flex items-center gap-2 font-bold text-slate-800">
                 <div className="border border-slate-200 p-1.5 rounded-md"><Heart size={16} className="text-rose-500" fill="currentColor" /></div>
-                {totalLikes}
+                {totalLikes.toLocaleString()}
               </div>
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
                 <div className="w-4 h-4 rounded-full bg-[#f43f5e] border border-slate-900"></div> Like
@@ -165,7 +186,7 @@ export default function TopChartsGrid({ engagement, followers }) {
             <div className="flex flex-col items-center gap-2">
               <div className="flex items-center gap-2 font-bold text-slate-800">
                 <div className="border border-slate-200 p-1.5 rounded-md"><MessageSquare size={16} className="text-yellow-500" fill="currentColor" /></div>
-                {totalCommands}
+                {totalCommands.toLocaleString()}
               </div>
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
                 <div className="w-4 h-4 rounded-full bg-[#eab308] border border-slate-900"></div> Commands
@@ -174,7 +195,7 @@ export default function TopChartsGrid({ engagement, followers }) {
             <div className="flex flex-col items-center gap-2">
               <div className="flex items-center gap-2 font-bold text-slate-800">
                 <div className="border border-slate-200 p-1.5 rounded-md"><Share2 size={16} className="text-cyan-500" fill="currentColor" /></div>
-                {totalShares}
+                {totalShares.toLocaleString()}
               </div>
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
                 <div className="w-4 h-4 rounded-full bg-[#06b6d4] border border-slate-900"></div> Share
@@ -183,7 +204,7 @@ export default function TopChartsGrid({ engagement, followers }) {
             <div className="flex flex-col items-center gap-2">
               <div className="flex items-center gap-2 font-bold text-slate-800">
                 <div className="border border-slate-200 p-1.5 rounded-md"><Bookmark size={16} className="text-emerald-500" fill="currentColor" /></div>
-                {totalSaved}
+                {totalSaved.toLocaleString()}
               </div>
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
                 <div className="w-4 h-4 rounded-full bg-[#22c55e] border border-slate-900"></div> Saved
@@ -194,7 +215,7 @@ export default function TopChartsGrid({ engagement, followers }) {
       </div>
 
       {/* ----------------------------------------------------------------- */}
-      {/* 2. TOTAL FOLLOWERS (Composed Bar + Gradient Area)                 */}
+      {/* 2. TOTAL FOLLOWERS                                                */}
       {/* ----------------------------------------------------------------- */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden h-[520px]">
          <div className="p-5 border-b border-slate-100 flex justify-between items-center shrink-0">
@@ -206,10 +227,12 @@ export default function TopChartsGrid({ engagement, followers }) {
             </h2>
             
             <div className="flex gap-2">
+              
+              {/* Followers Timeline Toggle */}
               <select 
-                value={timeline}
-                onChange={(e) => setTimeline(e.target.value)}
-                className="border border-slate-200 px-3 py-1.5 rounded-lg text-sm font-medium outline-none hover:bg-slate-50 cursor-pointer"
+                value={followersTimeline}
+                onChange={(e) => setFollowersTimeline(e.target.value)}
+                className="border border-slate-200 px-3 py-1.5 rounded-lg text-sm font-medium outline-none hover:bg-slate-50 cursor-pointer bg-white"
               >
                 <option value="weekly">Weekly</option>
                 <option value="monthly">Monthly</option>
@@ -218,11 +241,12 @@ export default function TopChartsGrid({ engagement, followers }) {
               <select 
                 value={platformView}
                 onChange={(e) => setPlatformView(e.target.value)}
-                className="border border-slate-200 px-3 py-1.5 rounded-lg text-sm font-medium outline-none hover:bg-slate-50 cursor-pointer"
+                className="border border-slate-200 px-3 py-1.5 rounded-lg text-sm font-medium outline-none hover:bg-slate-50 cursor-pointer bg-white"
               >
                 <option value="top4">Top 4</option>
                 <option value="all">All Platforms</option>
               </select>
+
             </div>
          </div>
          
@@ -237,16 +261,15 @@ export default function TopChartsGrid({ engagement, followers }) {
                  </defs>
                  
                  <XAxis dataKey="platform" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 13, fontWeight: 500}} dy={10} />
-                 
                  <Tooltip cursor={{fill: '#f8fafc'}} content={<FollowersTooltip />} />
                  
                  <Bar dataKey="value" barSize={40} radius={[6, 6, 0, 0]}>
-                {displayFollowers.map((entry, index) => {
-                    const platformKey = entry.platform.toLowerCase();
-                    const barColor = PLATFORM_COLORS[platformKey] || PLATFORM_COLORS.default;
-                    return <Cell key={`cell-${index}`} fill={barColor} />;
-                })}
-                </Bar>
+                  {displayFollowers.map((entry, index) => {
+                      const platformKey = entry.platform.toLowerCase();
+                      const barColor = PLATFORM_COLORS[platformKey] || PLATFORM_COLORS.default;
+                      return <Cell key={`cell-${index}`} fill={barColor} />;
+                  })}
+                 </Bar>
                  <Area type="monotone" dataKey="value" stroke="none" fill="url(#colorFollowers)" />
                  <Line type="monotone" dataKey="value" stroke="#4f46e5" strokeWidth={3} dot={{ r: 5, fill: '#fff', stroke: '#4f46e5', strokeWidth: 2 }} activeDot={{ r: 7, fill: '#4f46e5', stroke: '#fff', strokeWidth: 2 }} />
                </ComposedChart>

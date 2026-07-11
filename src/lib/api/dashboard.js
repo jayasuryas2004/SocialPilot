@@ -12,32 +12,51 @@ export async function fetchDashboardMetrics() {
       accounts: { value: 4, platforms: ['instagram', 'facebook', 'linkedin', 'twitter'] }
     },
     engagementOverview: {
-      all: [
-        { month: 'June', like: 6503, commands: 5903, share: 6303, saved: 5953 },
-        { month: 'July', like: 7100, commands: 6100, share: 6800, saved: 6200 },
-        { month: 'August', like: 8500, commands: 7200, share: 7400, saved: 7100 },
-      ],
-      instagram: [
-        { month: 'June', like: 3000, commands: 2000, share: 2500, saved: 4000 },
-        { month: 'July', like: 3200, commands: 2100, share: 2700, saved: 4200 },
-        { month: 'August', like: 4000, commands: 2500, share: 3000, saved: 4500 },
-      ],
-      facebook: [
-        { month: 'June', like: 1500, commands: 1000, share: 1200, saved: 800 },
-        { month: 'July', like: 1600, commands: 1100, share: 1300, saved: 850 },
-        { month: 'August', like: 1800, commands: 1300, share: 1500, saved: 950 },
-      ],
-      // When your real backend is connected, it will generate these arrays for linkedin, youtube, etc.
+      weekly: {
+        all: [
+          { label: 'Mon', like: 1200, commands: 900, share: 1100, saved: 1000 },
+          { label: 'Wed', like: 1500, commands: 1100, share: 1300, saved: 1200 },
+          { label: 'Fri', like: 1800, commands: 1400, share: 1600, saved: 1500 },
+        ],
+        instagram: [
+          { label: 'Mon', like: 500, commands: 300, share: 400, saved: 600 },
+          { label: 'Wed', like: 700, commands: 400, share: 500, saved: 700 },
+          { label: 'Fri', like: 900, commands: 600, share: 700, saved: 800 },
+        ]
+      },
+      monthly: {
+        all: [
+          { label: 'June', like: 6503, commands: 5903, share: 6303, saved: 5953 },
+          { label: 'July', like: 7100, commands: 6100, share: 6800, saved: 6200 },
+          { label: 'August', like: 8500, commands: 7200, share: 7400, saved: 7100 },
+        ],
+        instagram: [
+          { label: 'June', like: 3000, commands: 2000, share: 2500, saved: 4000 },
+          { label: 'July', like: 3200, commands: 2100, share: 2700, saved: 4200 },
+          { label: 'August', like: 4000, commands: 2500, share: 3000, saved: 4500 },
+        ]
+      }
     },
-    followers: [
-      { platform: 'Instagram', value: 890 },
-      { platform: 'Facebook', value: 560 },
-      { platform: 'Pinterest', value: 700 },
-      { platform: 'LinkedIn', value: 100 },
-      { platform: 'YouTube', value: 450 },
-      { platform: 'X-Twitter', value: 320 },
-      { platform: 'Reddit', value: 210 },
-    ],
+    followers: {
+      weekly: [
+        { platform: 'Instagram', value: 120 },
+        { platform: 'Facebook', value: 85 },
+        { platform: 'Pinterest', value: 150 },
+        { platform: 'LinkedIn', value: 30 },
+        { platform: 'YouTube', value: 90 },
+        { platform: 'X-Twitter', value: 45 },
+        { platform: 'Reddit', value: 60 },
+      ],
+      monthly: [
+        { platform: 'Instagram', value: 890 },
+        { platform: 'Facebook', value: 560 },
+        { platform: 'Pinterest', value: 700 },
+        { platform: 'LinkedIn', value: 100 },
+        { platform: 'YouTube', value: 450 },
+        { platform: 'X-Twitter', value: 320 },
+        { platform: 'Reddit', value: 210 },
+      ]
+    },
     // THIS IS THE UPDATED ARRAY WITH 7 PLATFORMS
     platformDistribution: [
       { name: 'instagram', value: 450 },
