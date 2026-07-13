@@ -14,6 +14,7 @@ export default function LandingPage() {
       <FeaturesGrid />
       <Integrations />
       <Benefits />
+      <></>
       <Testimonials />
       <FooterCTA />
     </main>

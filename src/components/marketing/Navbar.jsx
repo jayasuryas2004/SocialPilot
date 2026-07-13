@@ -19,14 +19,16 @@ export default function Navbar() {
         </div>
         
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
-          <Link href="#home" className="hover:text-[#4a00ff] transition-colors">Home</Link>
-          <Link href="#features" className="hover:text-[#4a00ff] transition-colors">Features</Link>
-          <Link href="#about" className="hover:text-[#4a00ff] transition-colors">About</Link>
-          <Link href="#contact" className="hover:text-[#4a00ff] transition-colors">Contact</Link>
+          <Link href="/#home" className="hover:text-[#4a00ff] transition-colors">Home</Link>
+          <Link href="/#features" className="hover:text-[#4a00ff] transition-colors">Features</Link>
+          <Link href="/#about" className="hover:text-[#4a00ff] transition-colors">About</Link>
+          <Link href="/contact" className="hover:text-[#4a00ff] transition-colors">Contact</Link>
         </div>
 
         <div className="flex items-center gap-3">
-          <AppButton variant="outline" className="px-6 py-2 text-sm">Login</AppButton>
+          <Link href="/login">
+  <AppButton variant="outline" className="px-6 py-2 text-sm">Login</AppButton>
+</Link>
           <AppButton variant="primary" className="px-6 py-2 text-sm">Get Started</AppButton>
         </div>
       </div>

@@ -9,6 +9,15 @@ const poppins = Poppins({
   variable: "--font-poppins",
 });
 
+// ADD THIS METADATA OBJECT TO CHANGE YOUR BROWSER TAB TITLE
+export const metadata = {
+  title: "SocialPilot", // <--- CHANGE THIS TEXT
+  description: "Social media management platform",
+  icons: {
+    icon: '/favicon.ico', // <--- THIS REGISTERS YOUR FAVICON
+  },
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={poppins.variable}>

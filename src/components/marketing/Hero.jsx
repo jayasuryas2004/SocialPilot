@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 
 export default function Hero() {
   return (
-    <section className="relative pt-28 pb-24 lg:pt-32 lg:pb-32 overflow-hidden bg-[#f4f5f8] bg-[radial-gradient(#cbd5e1_1.5px,transparent_1.5px)] bg-[size:32px_32px]">
+    <section id="home" className="relative pt-28 pb-24 lg:pt-32 lg:pb-32 overflow-hidden bg-[#f4f5f8] bg-[radial-gradient(#cbd5e1_1.5px,transparent_1.5px)] bg-[size:32px_32px]">
       
       <div className="max-w-[1500px] mx-auto px-6 sm:px-8 lg:px-12">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 lg:gap-16 items-center">
@@ -15,7 +15,7 @@ export default function Hero() {
           <div className="text-left relative z-10 max-w-[1000px] flex flex-col justify-center">
             
             {/* Badge */}
-            <div className="mb-[-10]">
+            <div className="mb-[-10px]">
               <SectionBadge text="# 1 Social Media Management Platform" icon={Zap} />
             </div>
             
