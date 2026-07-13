@@ -1,5 +1,7 @@
 "use client";
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import PostComposerModal from "@/components/posts/PostComposerModal";
 import { ChevronLeft, ChevronRight, Plus, Image as ImageIcon } from 'lucide-react';
 import { FaInstagram, FaFacebook, FaLinkedin, FaYoutube, FaXTwitter, FaReddit, FaPinterest } from "react-icons/fa6";
 import { Globe } from "lucide-react";
@@ -17,7 +19,9 @@ const PLATFORM_COLORS = {
 };
 
 export default function ContentCalendarGrid({ events }) {
+  const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date(2026, 10, 1)); 
+  const router = useRouter(); 
 
   const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
   const getFirstDayOfMonth = (year, month) => {
@@ -66,7 +70,7 @@ export default function ContentCalendarGrid({ events }) {
   return (
     <div className="bg-white rounded-3xl shadow-sm border border-slate-200 flex flex-col h-full">
       
-      {/* CLEARED HEADER SECTION */}
+      {/* HEADER SECTION */}
       <div className="p-6">
         <div className="flex justify-between items-center">
           
@@ -83,8 +87,12 @@ export default function ContentCalendarGrid({ events }) {
           </div>
           
           <div className="flex items-center gap-3">
-            <button className="bg-[#311b92] text-white font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-[#4338ca] transition-colors flex items-center gap-1.5 shadow-sm">
-              Add Post <Plus size={16} strokeWidth={3} />
+            <button 
+              onClick={() => setIsComposerOpen(true)} // CHANGED: Now opens the modal instead of routing
+              className="flex items-center gap-2 bg-[#4a00ff] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#3a00cc] transition-all"
+            >
+              <Plus size={16} />
+              Add Post
             </button>
           </div>
         </div>
@@ -174,6 +182,16 @@ export default function ContentCalendarGrid({ events }) {
         </div>
         <div className="w-full border-t border-slate-200"></div>
       </div>
+
+      {/* ADDED: The Modal Component is now rendered here */}
+      <PostComposerModal 
+        isOpen={isComposerOpen} 
+        onClose={() => setIsComposerOpen(false)} 
+        onSave={(data) => {
+          console.log("Post saved from Calendar:", data);
+        }}
+      />
+      
     </div>
   );
 }

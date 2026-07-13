@@ -16,10 +16,41 @@ export default function GenerateReportModal({ open, onOpenChange, onGenerate }) 
   const [error, setError] = useState(null);
 
   async function handleSubmit() {
+    // Basic validation
+    if (!startDate || !endDate) {
+      setError("Please select both a start and end date.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
+    
     try {
-      await onGenerate({ category, format, startDate, endDate });
+      // 1. Call your parent function (e.g., to log the generation to the DB)
+      if (onGenerate) {
+        await onGenerate({ category, format, startDate, endDate });
+      }
+
+      // 2. PHYSICAL DOWNLOAD MOCK
+      // When your backend is ready, replace 'fileContent' with the real file stream/blob from your API
+      const fileContent = `SocialPilot Analytics Report\n\nCategory: ${category}\nStart Date: ${startDate}\nEnd Date: ${endDate}\nFormat: ${format}\n\n[Report Data Payload...]`;
+      
+      const blob = new Blob([fileContent], { type: "text/plain" }); 
+      const downloadUrl = window.URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      // Set dynamic file name based on category and timestamp
+      link.download = `socialpilot_${category}_report_${new Date().getTime()}.${format}`;
+      
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup the DOM
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+
+      // 3. Close modal on success
       onOpenChange(false);
     } catch (err) {
       setError(err.message || "Couldn't start report generation");
@@ -73,7 +104,9 @@ export default function GenerateReportModal({ open, onOpenChange, onGenerate }) 
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={loading}>{loading ? "Starting..." : "Generate"}</Button>
+          <Button onClick={handleSubmit} disabled={loading || !startDate || !endDate}>
+            {loading ? "Generating..." : "Generate"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

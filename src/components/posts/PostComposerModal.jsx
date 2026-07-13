@@ -1,22 +1,25 @@
 "use client";
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom'; // 1. Imported createPortal
 import {
   X, Image as ImageIcon, Calendar, Clock, Hash,
   Send, Loader2, Smile, MapPin
 } from 'lucide-react';
 import {
-  FaInstagram, FaFacebook, FaLinkedin, FaXTwitter, FaYoutube
+  FaInstagram, FaFacebook, FaLinkedin, FaXTwitter, FaYoutube, FaReddit, FaPinterest // 2. Added new icons
 } from "react-icons/fa6";
 
+// 3. Updated to 7 Platforms with matching brand colors
 const PLATFORMS = [
   { id: 'instagram', icon: FaInstagram, color: 'hover:text-[#E1306C] hover:bg-pink-50', activeColor: 'text-[#E1306C] bg-pink-50 border-pink-200' },
   { id: 'facebook', icon: FaFacebook, color: 'hover:text-[#1877F2] hover:bg-blue-50', activeColor: 'text-[#1877F2] bg-blue-50 border-blue-200' },
   { id: 'linkedin', icon: FaLinkedin, color: 'hover:text-[#0A66C2] hover:bg-blue-50', activeColor: 'text-[#0A66C2] bg-blue-50 border-blue-200' },
   { id: 'x-twitter', icon: FaXTwitter, color: 'hover:text-[#0f1419] hover:bg-slate-100', activeColor: 'text-[#0f1419] bg-slate-100 border-slate-300' },
+  { id: 'youtube', icon: FaYoutube, color: 'hover:text-[#FF0000] hover:bg-red-50', activeColor: 'text-[#FF0000] bg-red-50 border-red-200' },
+  { id: 'reddit', icon: FaReddit, color: 'hover:text-[#FF4500] hover:bg-orange-50', activeColor: 'text-[#FF4500] bg-orange-50 border-orange-200' },
+  { id: 'pinterest', icon: FaPinterest, color: 'hover:text-[#E60023] hover:bg-red-50', activeColor: 'text-[#E60023] bg-red-50 border-red-200' },
 ];
 
-// campaigns now comes in as a prop from page.js's shared state,
-// instead of a frozen local MOCK_CAMPAIGNS array.
 export default function PostComposerModal({ isOpen, onClose, initialCampaignId = '', onSave, campaigns = [] }) {
   const fileInputRef = useRef(null);
 
@@ -28,6 +31,13 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
   const [campaignId, setCampaignId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // 4. Added mounted state for Next.js Portal safety
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -38,7 +48,8 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
     return () => { document.body.style.overflow = 'unset'; };
   }, [isOpen, initialCampaignId]);
 
-  if (!isOpen) return null;
+  // Ensure we don't render until client-side hydration is complete
+  if (!isOpen || !mounted) return null;
 
   const togglePlatform = (id) => {
     setSelectedPlatforms(prev =>
@@ -95,7 +106,8 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
     }
   };
 
-  return (
+  // 5. Wrap the return JSX in createPortal attached to document.body
+  return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-8">
       <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col max-h-full">
 
@@ -110,7 +122,7 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
 
           <div className="mb-6">
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Select Platforms</label>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               {PLATFORMS.map((platform) => {
                 const Icon = platform.icon;
                 const isActive = selectedPlatforms.includes(platform.id);
@@ -197,7 +209,6 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
               </div>
             </div>
 
-            {/* Campaign Selection — now populated live from real campaigns */}
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Assign to Campaign</label>
               <div className="relative flex-1">
@@ -251,6 +262,7 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body // Closes the createPortal
   );
 }

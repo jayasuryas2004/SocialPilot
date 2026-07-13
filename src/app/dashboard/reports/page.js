@@ -3,7 +3,7 @@ import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import AppButton from "@/components/ui/AppButton";
+import { Plus } from "lucide-react"; // Added for the button icon
 import Loader from "@/components/common/Loader";
 import EmptyState from "@/components/common/EmptyState";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
@@ -11,6 +11,7 @@ import ReportsSummaryCards from "@/components/reports/ReportsSummaryCards";
 import ReportsFilterBar from "@/components/reports/ReportsFilterBar";
 import ReportsBulkBar from "@/components/reports/ReportsBulkBar";
 import ReportsTable from "@/components/reports/ReportsTable";
+// Ensure this path points to where you saved the modal we just built!
 import GenerateReportModal from "@/components/reports/GenerateReportModal";
 import { useReports } from "@/hooks/useReports";
 import { useScheduledReports } from "@/hooks/useScheduledReports";
@@ -39,18 +40,16 @@ export default function ReportsPage() {
   const { campaigns } = useCampaignOptions();
   const { showToast } = useToast();
 
-  // Dynamic tab counts computed from the already-fetched, already-filtered
-  // (by search/platform/status/campaign) result set — switching tabs is
-  // instant with no extra network call.
+  // Dynamic tab counts computed from the already-fetched, already-filtered result set
   const counts = useMemo(() => {
-    const c = { all: reports.length };
+    const c = { all: reports?.length || 0 };
     for (const cat of CATEGORIES.slice(1)) {
-      c[cat.value] = reports.filter((r) => r.category === cat.value).length;
+      c[cat.value] = (reports || []).filter((r) => r.category === cat.value).length;
     }
     return c;
   }, [reports]);
 
-  const visibleReports = activeTab === "all" ? reports : reports.filter((r) => r.category === activeTab);
+  const visibleReports = activeTab === "all" ? (reports || []) : (reports || []).filter((r) => r.category === activeTab);
 
   function toggleSelect(id) {
     setSelectedIds((prev) => {
@@ -59,6 +58,7 @@ export default function ReportsPage() {
       return next;
     });
   }
+  
   function toggleSelectAll() {
     setSelectedIds((prev) =>
       prev.size === visibleReports.length ? new Set() : new Set(visibleReports.map((r) => r.id))
@@ -71,6 +71,8 @@ export default function ReportsPage() {
       showToast("Report deleted", "success");
     } catch (err) {
       showToast(err.message, "error");
+    } finally {
+      setConfirmId(null);
     }
   }
 
@@ -81,23 +83,44 @@ export default function ReportsPage() {
       showToast("Reports deleted", "success");
     } catch (err) {
       showToast(err.message, "error");
+    } finally {
+      setConfirmBulk(false);
     }
   }
 
-  function handleBulkExport() {
-    showToast(`Exporting ${selectedIds.size} report(s)...`, "info");
-    // Real implementation once backend exists: POST /reports/bulk-export
-    // with selectedIds, then trigger the returned zip/file download.
+  // UPGRADED: Actually simulates downloading a bulk export file!
+  async function handleBulkExport() {
+    showToast(`Preparing export for ${selectedIds.size} report(s)...`, "info");
+    
+    try {
+      // Simulate backend zipping delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      const fileContent = `Bulk Export Data\nSelected IDs: ${Array.from(selectedIds).join(', ')}`;
+      const blob = new Blob([fileContent], { type: "application/zip" });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `socialpilot_bulk_export_${new Date().getTime()}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      
+      showToast("Export downloaded successfully!", "success");
+      setSelectedIds(new Set()); // Clear selection after export
+    } catch (error) {
+      showToast("Failed to export reports.", "error");
+    }
   }
 
   return (
-    <div className="p-6 md:p-8 space-y-6">
-      {/* Added page-level padding and vertical spacing so it breathes like the Posts page */}
+    <div className="p-6 md:p-8 space-y-6 min-h-screen bg-[#F8F9FA] pb-20">
       
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
         <div>
-          {/* Matched the heavy, large Poppins typography from Posts Management */}
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             Reports &amp; Exports
           </h1>
@@ -107,39 +130,40 @@ export default function ReportsPage() {
         </div>
         <Button 
           onClick={() => setModalOpen(true)}
-          className="bg-violet-700 hover:bg-violet-800 text-white rounded-full px-6 py-6 font-bold text-base shadow-md transition-colors"
+          className="bg-[#311b92] text-white font-bold text-sm px-6 py-6 rounded-xl hover:bg-[#28157a] transition-colors shadow-sm flex items-center gap-2 whitespace-nowrap"
         >
-          + Generate report
+          <Plus size={18} strokeWidth={3} /> Generate report
         </Button>
       </div>
 
       <ReportsSummaryCards
-        totalReports={loading ? "—" : reports.length}
-        scheduledCount={schedLoading ? "—" : scheduled.length}
+        totalReports={loading ? "—" : (reports?.length || 0)}
+        scheduledCount={schedLoading ? "—" : (scheduled?.length || 0)}
         formatCount={2}
         storageUsed="1.2 GB"
       />
 
-      <Card className="mb-6 shadow-sm border-gray-200">
-        <CardContent className="p-4 md:p-6">
+      <Card className="mb-6 shadow-sm border-gray-200 bg-white">
+        <CardContent className="p-4 md:p-6 overflow-hidden">
           
-          {/* FILTER BAR IS AT THE TOP NOW */}
           <ReportsFilterBar filters={filters} onChange={setFilters} campaigns={campaigns} />
 
-          {/* CUSTOM TABS: Transparent background, bold purple underline */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-8 mb-4">
-            <TabsList className="flex w-full justify-start gap-8 rounded-none border-b border-gray-200 bg-transparent p-0 h-auto">
-              {CATEGORIES.map((c) => (
-                <TabsTrigger 
-                  key={c.value} 
-                  value={c.value}
-                  className="rounded-none border-b-2 border-transparent px-1 pb-4 pt-2 font-extrabold text-base text-slate-500 shadow-none transition-none data-[state=active]:border-purple-800 data-[state=active]:text-purple-900 data-[state=active]:shadow-none hover:text-slate-800"
-                >
-                  {c.label} ({counts[c.value] ?? 0})
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+          {/* CUSTOM TABS: Scrollable on mobile, clean on desktop */}
+          <div className="w-full overflow-x-auto custom-scrollbar">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-8 mb-4 min-w-max">
+              <TabsList className="flex w-full justify-start gap-8 rounded-none border-b border-gray-200 bg-transparent p-0 h-auto">
+                {CATEGORIES.map((c) => (
+                  <TabsTrigger 
+                    key={c.value} 
+                    value={c.value}
+                    className="rounded-none border-b-2 border-transparent px-1 pb-4 pt-2 font-extrabold text-base text-slate-500 shadow-none transition-none data-[state=active]:border-purple-800 data-[state=active]:text-purple-900 data-[state=active]:shadow-none hover:text-slate-800"
+                  >
+                    {c.label} ({counts[c.value] ?? 0})
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          </div>
 
           <ReportsBulkBar
             count={selectedIds.size}
@@ -148,48 +172,52 @@ export default function ReportsPage() {
             onClear={() => setSelectedIds(new Set())}
           />
 
-          {loading && <Loader label="Loading reports..." />}
+          {loading && <div className="py-12"><Loader label="Loading reports..." /></div>}
 
           {!loading && error && (
-            <EmptyState title="Couldn't load reports" description={error} actionLabel="Try again" onAction={refetch} />
+            <div className="py-12">
+              <EmptyState title="Couldn't load reports" description={error} actionLabel="Try again" onAction={refetch} />
+            </div>
           )}
 
           {!loading && !error && visibleReports.length === 0 && (
-            <EmptyState
-              title="No reports match your filters"
-              description="Try adjusting your timeframes, or generate a new report."
-              actionLabel="Generate report"
-              onAction={() => setModalOpen(true)}
-            />
+            <div className="py-12">
+              <EmptyState
+                title="No reports match your filters"
+                description="Try adjusting your timeframes, or generate a new report."
+                actionLabel="Generate report"
+                onAction={() => setModalOpen(true)}
+              />
+            </div>
           )}
 
           {!loading && !error && visibleReports.length > 0 && (
-            <ReportsTable
-              reports={visibleReports}
-              selectedIds={selectedIds}
-              onToggleSelect={toggleSelect}
-              onToggleSelectAll={toggleSelectAll}
-              onDelete={setConfirmId}
-            />
+            <div className="mt-4">
+              <ReportsTable
+                reports={visibleReports}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelect}
+                onToggleSelectAll={toggleSelectAll}
+                onDelete={setConfirmId}
+              />
+            </div>
           )}
         </CardContent>
       </Card>
 
-      {/* This is the ONLY Scheduled Reports Card you should have. 
-        It sits directly below your main ReportsTable Card.
-      */}
-      <Card className="shadow-sm border-gray-200">
+      {/* Scheduled Reports Card */}
+      <Card className="shadow-sm border-gray-200 bg-white">
         <CardContent className="p-6 md:p-8">
           <h3 className="font-extrabold text-slate-900 mb-6 text-lg">Scheduled reports</h3>
           
           {schedLoading ? (
             <Loader label="Loading schedule..." />
-          ) : scheduled.length === 0 ? (
+          ) : scheduled?.length === 0 ? (
             <EmptyState title="No scheduled reports" description="Set a report to run automatically (Weekly/Monthly)." />
           ) : (
             <div className="flex flex-col space-y-6">
-              {scheduled.map((s) => (
-                <div key={s.id} className="flex items-center justify-between group">
+              {scheduled?.map((s) => (
+                <div key={s.id} className="flex items-center justify-between group cursor-default">
                   <div>
                     <p className="text-base font-extrabold text-slate-900 group-hover:text-purple-800 transition-colors">
                       {s.title}
@@ -198,7 +226,7 @@ export default function ReportsPage() {
                       {s.frequency}
                     </p>
                   </div>
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-md">
                     {s.format}
                   </span>
                 </div>
@@ -208,14 +236,14 @@ export default function ReportsPage() {
         </CardContent>
       </Card>
 
-
+      {/* Modals & Dialogs */}
       <GenerateReportModal open={modalOpen} onOpenChange={setModalOpen} onGenerate={generate} />
 
       <ConfirmDialog
         open={!!confirmId}
         onOpenChange={(open) => !open && setConfirmId(null)}
         title="Delete this report?"
-        description="This can't be undone."
+        description="This action cannot be undone."
         confirmLabel="Delete"
         destructive
         onConfirm={handleDelete}
@@ -225,7 +253,7 @@ export default function ReportsPage() {
         open={confirmBulk}
         onOpenChange={setConfirmBulk}
         title={`Delete ${selectedIds.size} reports?`}
-        description="This can't be undone."
+        description="This action cannot be undone."
         confirmLabel="Delete all"
         destructive
         onConfirm={handleBulkDelete}
