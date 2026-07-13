@@ -58,16 +58,19 @@ export default function Hero() {
             
             <div className="relative z-10 rounded-2xl bg-white shadow-2xl shadow-purple-500/10 overflow-hidden border border-slate-100">
               <div className="relative w-full aspect-[4/3] bg-slate-100 flex items-center justify-center">
-                <span className="text-slate-400 font-medium">Dashboard Mockup Goes Here</span>
-                {/* 
+
+                
                 <Image 
-                  src="/dashboard-mockup.png" 
+                  src="images/dashboard-mockup.svg" 
                   alt="SocialPilot Dashboard" 
-                  fill
+                  width={2000} 
+                  height={1000} 
+                  priority
+                  // fill
                   className="object-contain"
                   priority
                 />
-                */}
+               
               </div>
             </div>
             
