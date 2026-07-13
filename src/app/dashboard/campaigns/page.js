@@ -12,6 +12,7 @@ const INITIAL_DATA = [
   { id: 3, title: 'Product Launch Teaser', subtitle: 'Coming soon...', description: 'Building hype for the upcoming Q1 product reveal.', fullText: 'Building hype for the upcoming Q1 product reveal.', platforms: ['X-Twitter', 'YouTube'], objective: 'Awareness', startDate: '2026-03-10', endDate: '2026-03-15', status: 'Draft', image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=150&h=150&fit=crop' },
 ];
 
+
 export default function CampaignsMainPage() {
   const [campaigns, setCampaigns] = useState(INITIAL_DATA);
   const [isFormOpen, setIsFormOpen] = useState(false);

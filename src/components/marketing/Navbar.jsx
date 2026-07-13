@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
-import Button from "@/components/ui/Button";
+import AppButton from "@/components/ui/AppButton";
+import { Button } from "@/components/ui/button";
 
 export default function Navbar() {
   return (
@@ -24,13 +25,9 @@ export default function Navbar() {
           <Link href="#contact" className="hover:text-[#4a00ff] transition-colors">Contact</Link>
         </div>
 
-        <div className="flex items-center gap-4">
-          <Link href="/login" className="text-sm font-semibold text-[#4a00ff] px-4 py-2 border-2 border-transparent hover:border-[#4a00ff]/10 rounded-full transition-all">
-            Login
-          </Link>
-          <Link href="/register">
-            <Button variant="primary">Get Started</Button>
-          </Link>
+        <div className="flex items-center gap-3">
+          <AppButton variant="outline" className="px-6 py-2 text-sm">Login</AppButton>
+          <AppButton variant="primary" className="px-6 py-2 text-sm">Get Started</AppButton>
         </div>
       </div>
     </nav>

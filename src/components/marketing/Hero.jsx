@@ -1,7 +1,8 @@
 import Image from "next/image";
+import AppButton from "@/components/ui/AppButton";
 import { ArrowRight, PlayCircle, Zap } from "lucide-react";
 import SectionBadge from "@/components/ui/SectionBadge";
-import Button from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 
 export default function Hero() {
   return (
@@ -43,14 +44,13 @@ export default function Hero() {
             
             {/* Buttons - Properly aligned */}
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-              <Button variant="primary" icon={ArrowRight}>
-                Get Started
-              </Button>
-              <Button variant="outline" icon={PlayCircle}>
-                Watch Demo
-              </Button>
-            </div>
-            
+            <AppButton variant="primary" icon={<ArrowRight className="w-5 h-5" />}>
+              Get Started
+            </AppButton>
+            <AppButton variant="outline" icon={<PlayCircle className="w-5 h-5" />} iconPosition="left">
+              Watch Demo
+            </AppButton>
+          </div>
           </div>
 
           {/* RIGHT COLUMN: Dashboard Mockup & Floating Icons */}
