@@ -21,6 +21,11 @@ export default function Sidebar({ unreadCount = 0 }) {
     { href: "/dashboard/notifications", label: "Notifications", icon: Bell },
   ];
 
+  const adminItems = [
+  { href: "/dashboard/team", label: "Team", icon: Users },
+  { href: "/dashboard/settings", label: "Settings", icon: Settings },
+];
+
   return (
     <aside className="w-60 shrink-0 min-h-screen p-4 bg-[#1E1730] text-white hidden md:flex flex-col">
       {/* Brand Section */}
@@ -31,7 +36,9 @@ export default function Sidebar({ unreadCount = 0 }) {
 
       <nav className="flex-1 space-y-1 text-sm font-medium">
         {navItems.map((item) => {
-          const isActive = pathname.startsWith(item.href);
+          const isActive = item.href === "/dashboard" 
+          ? pathname === "/dashboard" 
+          : pathname.startsWith(item.href);
           return (
             <Link key={item.href} href={item.href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${

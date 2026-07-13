@@ -42,7 +42,7 @@ export default function AnalyticsWidgets() {
               <div className="bg-blue-50 p-1.5 rounded-lg text-blue-600"><Users size={16} /></div>
               <h3 className="font-black text-slate-900 text-lg">Reach</h3>
             </div>
-            <p className="text-4xl font-black text-slate-900 mb-3">1,245,870</p>
+            <p className="text-2xl font-bold text-slate-900 flex items-center gap-2">1,245,870</p>
             <div className="flex items-center gap-2 text-sm">
               <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md font-bold">
                 12.5% <TrendingUp size={14} />
@@ -66,7 +66,7 @@ export default function AnalyticsWidgets() {
               <div className="bg-amber-50 p-1.5 rounded-lg text-amber-600"><Eye size={16} /></div>
               <h3 className="font-black text-slate-900 text-lg">Impressions</h3>
             </div>
-            <p className="text-4xl font-black text-slate-900 mb-3">3,876,240</p>
+            <p className="text-2xl font-bold text-slate-900 flex items-center gap-2">3,876,240</p>
             <div className="flex items-center gap-2 text-sm">
               <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md font-bold">
                 8.2% <TrendingUp size={14} />

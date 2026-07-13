@@ -16,7 +16,7 @@ export default function AnalyticsPage() {
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-[28px] font-black tracking-tight text-slate-900">Analytics Dashboard</h1>
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">Analytics Dashboard</h1>
           <p className="text-slate-500 font-medium mt-1">Monitor your social media performance and track your growth</p>
         </div>
         <button className="bg-[#311b92] text-white font-bold text-sm px-6 py-3 rounded-xl hover:bg-[#28157a] transition-colors shadow-sm flex items-center gap-2 whitespace-nowrap">

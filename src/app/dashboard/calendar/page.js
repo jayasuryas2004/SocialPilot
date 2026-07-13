@@ -38,7 +38,7 @@ export default function CalendarPage() {
       
       {/* PAGE HEADER */}
       <div className="mb-6">
-        <h1 className="text-[28px] font-black tracking-tight text-slate-900">Content Calendar</h1>
+        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">Content Calendar</h1>
         <p className="text-slate-500 font-medium mt-1">Plan, schedule and track your social media activity</p>
       </div>
 

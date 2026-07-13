@@ -98,7 +98,7 @@ export default function ReportsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
         <div>
           {/* Matched the heavy, large Poppins typography from Posts Management */}
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             Reports &amp; Exports
           </h1>
           <p className="text-base text-gray-500 mt-2">

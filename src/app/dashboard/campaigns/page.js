@@ -57,7 +57,7 @@ export default function CampaignsMainPage() {
     <div className="min-h-screen bg-[#F8F9FA] p-6 text-slate-900 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-[28px] font-black tracking-tight text-slate-900">Campaign Management</h1>
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">Campaign Management</h1>
           <p className="text-slate-500 font-medium mt-1">Manage, organize and schedule all your social media content</p>
         </div>
 

@@ -17,7 +17,7 @@ export default function PostsPage() {
       {/* PAGE HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div>
-          <h1 className="text-[28px] font-black tracking-tight text-slate-900">Posts Management</h1>
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">Posts Management</h1>
           <p className="text-slate-500 font-medium mt-1">Manage, organize and schedule all your social media content</p>
         </div>
         
