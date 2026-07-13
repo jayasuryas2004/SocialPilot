@@ -216,7 +216,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -230,6 +230,11 @@ export default function LoginForm() {
   const { login } = useAuth();
 
   const [form, setForm] = useState({ email: "", password: "", remember: false });
+  const [mounted, setMounted] = useState(false);
+
+useEffect(() => {
+  setMounted(true);
+}, []);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -261,20 +266,19 @@ export default function LoginForm() {
         <div className="w-[55%] p-4">
   <div className="w-full h-full bg-[#9ca3af] relative rounded-[24px] overflow-hidden">
     <Image
-      src="/images/loginfr.svg" 
+      src="/images/loginfr.svg"
       alt="Login illustration"
       fill
       className="object-cover"
       priority
-      style={{ width: "40px", height: "40px" }}
     />
     <Link href="/">
-     <button
-  type="button"
-  className="absolute top-6 right-6 border border-[#260b79] text-[#260b79] px-5 py-1.5 rounded-full flex items-center gap-1 text-sm font-medium hover:bg-[#260b79] hover:text-white transition-colors"
->
-  <ChevronLeft size={16} /> Back
-</button>
+      <button
+        type="button"
+        className="absolute top-6 right-6 border border-[#260b79] text-[#260b79] px-5 py-1.5 rounded-full flex items-center gap-1 text-sm font-medium hover:bg-[#260b79] hover:text-white transition-colors"
+      >
+        <ChevronLeft size={16} /> Back
+      </button>
     </Link>
   </div>
 </div>
@@ -289,6 +293,7 @@ export default function LoginForm() {
                   alt="SocialPilot Logo"
                   width={100}
                   height={100}
+                  priority
                   style={{ width: "40px", height: "40px" }}
                 />
                 <h1 className="text-[24px] font-extrabold text-black tracking-tight whitespace-nowrap">
@@ -371,16 +376,16 @@ export default function LoginForm() {
 
               {/* Login Button — gated by isValid, not just loading */}
               <button
-                type="submit"
-                disabled={!isValid || loading}
-                className={`w-full h-10 rounded-lg text-[13px] font-semibold shadow-md transition-colors ${
-                  isValid && !loading
-                    ? "bg-[#260b79] hover:bg-[#1f0962] text-white"
-                    : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
-                }`}
-              >
-                {loading ? "Logging in..." : "Login"}
-              </button>
+  type="submit"
+  disabled={!mounted || !isValid || loading}
+  className={`w-full h-10 rounded-lg text-[13px] font-semibold shadow-md transition-colors ${
+    mounted && isValid && !loading
+      ? "bg-[#260b79] hover:bg-[#1f0962] text-white"
+      : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
+  }`}
+>
+  {loading ? "Logging in..." : "Login"}
+</button>
 
               {/* Google Button — wired to real redirect */}
               <button

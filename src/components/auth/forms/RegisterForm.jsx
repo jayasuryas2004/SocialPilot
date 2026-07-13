@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -17,6 +17,11 @@ export default function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const isValid = useMemo(() => {
     return (
@@ -39,7 +44,7 @@ export default function RegisterForm() {
         password: form.password,
         role: form.role,
       });
-      router.push("/connect_accounts")
+      router.push("/connect_accounts");
     } catch (err) {
       setError(err.message || "Couldn't create your account.");
     } finally {
@@ -50,26 +55,26 @@ export default function RegisterForm() {
   return (
     <div className="min-h-screen bg-[#f7f5fb] flex items-center justify-center p-6 overflow-auto">
       <div className="w-full max-w-[1100px] min-w-[950px] h-[620px] bg-white rounded-[32px] shadow-xl overflow-hidden flex">
-       <div className="w-[55%] p-4">
-  <div className="w-full h-full bg-[#9ca3af] relative rounded-[24px] flex items-center justify-center overflow-hidden">
-    <Image
-      src="/images/Registerfr.svg"
-      alt="SocialPilot Logo"
-      width={600}
-      height={500}
-      priority
-      style={{ width: "40px", height: "40px" }}
-    />
-    <Link href="/login">
-      <button
-  type="button"
-  className="absolute top-6 right-6 border border-[#260b79] text-[#260b79] px-5 py-1.5 rounded-full flex items-center gap-1 text-sm font-medium hover:bg-[#260b79] hover:text-white transition-colors"
->
-  <ChevronLeft size={16} /> Back
-</button>
-    </Link>
-  </div>
-</div>
+        <div className="w-[55%] p-4">
+          <div className="w-full h-full bg-[#9ca3af] relative rounded-[24px] flex items-center justify-center overflow-hidden">
+            <Image
+              src="/images/Registerfr.svg"
+              alt="SocialPilot Logo"
+              width={600}
+              height={500}
+              priority
+              style={{ width: "40px", height: "40px" }}
+            />
+            <Link href="/login">
+              <button
+                type="button"
+                className="absolute top-6 right-6 border border-[#260b79] text-[#260b79] px-5 py-1.5 rounded-full flex items-center gap-1 text-sm font-medium hover:bg-[#260b79] hover:text-white transition-colors"
+              >
+                <ChevronLeft size={16} /> Back
+              </button>
+            </Link>
+          </div>
+        </div>
 
         <div className="w-[45%] flex items-center justify-center px-8">
           <div className="w-full max-w-[350px]">
@@ -78,6 +83,7 @@ export default function RegisterForm() {
                 <Image
                   src="/images/logo.svg"
                   alt="SocialPilot Logo"
+                  priority
                   width={100}
                   height={100}
                   style={{ width: "40px", height: "40px" }}
@@ -178,9 +184,9 @@ export default function RegisterForm() {
 
               <button
                 type="submit"
-                disabled={!isValid || loading}
+                disabled={!mounted || !isValid || loading}
                 className={`w-full h-10 rounded-lg text-[13px] font-semibold shadow-md transition-colors ${
-                  isValid && !loading
+                  mounted && isValid && !loading
                     ? "bg-[#260b79] hover:bg-[#1f0962] text-white"
                     : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
                 }`}
