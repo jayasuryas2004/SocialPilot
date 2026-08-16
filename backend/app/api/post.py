@@ -14,7 +14,6 @@ router = APIRouter(prefix="/posts", tags=["Posts"])
 @router.post("/")
 @router.post("")
 def create_post(post: PostCreate, db: Session = Depends(get_db)):
-    # Standard iterative loop to serialize platform array if given as list
     platforms_str = "Instagram"
     if isinstance(post.platforms, list):
         platform_items = []
@@ -36,6 +35,8 @@ def create_post(post: PostCreate, db: Session = Depends(get_db)):
         else:
             title = "Untitled Post"
 
+    img_data = post.image_url or post.image or post.mediaFile
+
     new_post = Post(
         title=title,
         content=post.content,
@@ -44,7 +45,8 @@ def create_post(post: PostCreate, db: Session = Depends(get_db)):
         scheduled_date=post.scheduled_date,
         scheduled_time=post.scheduled_time,
         status=post.status or "Scheduled",
-        campaign_id=post.campaign_id
+        campaign_id=post.campaign_id,
+        image_url=img_data
     )
 
     db.add(new_post)
@@ -98,6 +100,10 @@ def update_post(post_id: int, post: PostCreate, db: Session = Depends(get_db)):
         db_post.status = post.status
     if post.campaign_id is not None:
         db_post.campaign_id = post.campaign_id
+
+    img_data = post.image_url or post.image or post.mediaFile
+    if img_data:
+        db_post.image_url = img_data
 
     db.commit()
     db.refresh(db_post)

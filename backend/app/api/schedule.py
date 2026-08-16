@@ -34,6 +34,8 @@ def create_schedule(post: PostCreate, db: Session = Depends(get_db)):
         else:
             title = "Untitled Post"
 
+    img_data = post.image_url or post.image or post.mediaFile
+
     new_post = Post(
         title=title,
         content=post.content,
@@ -42,7 +44,8 @@ def create_schedule(post: PostCreate, db: Session = Depends(get_db)):
         scheduled_date=post.scheduled_date,
         scheduled_time=post.scheduled_time,
         status=post.status or "Scheduled",
-        campaign_id=post.campaign_id
+        campaign_id=post.campaign_id,
+        image_url=img_data
     )
 
     db.add(new_post)
@@ -93,6 +96,10 @@ def update_schedule(id: int, updated_post: PostCreate, db: Session = Depends(get
         post.status = updated_post.status
     if updated_post.campaign_id is not None:
         post.campaign_id = updated_post.campaign_id
+
+    img_data = updated_post.image_url or updated_post.image or updated_post.mediaFile
+    if img_data:
+        post.image_url = img_data
 
     db.commit()
     db.refresh(post)

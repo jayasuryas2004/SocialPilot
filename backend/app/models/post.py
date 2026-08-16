@@ -4,7 +4,6 @@ from app.database import Base
 from app.models.campaign import Campaign
 
 
-
 class Post(Base):
     __tablename__ = "posts"
 
@@ -17,6 +16,7 @@ class Post(Base):
     scheduled_time = Column(String, nullable=True)
     scheduled_at = Column(DateTime, nullable=True)
     status = Column(String, default="Scheduled", nullable=True)
+    image_url = Column(String, nullable=True)
 
     campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=True)
     campaign = relationship("Campaign", back_populates="posts")

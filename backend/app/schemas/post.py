@@ -13,6 +13,9 @@ class PostCreate(BaseModel):
     scheduled_at: Optional[Union[datetime, str]] = None
     status: Optional[str] = "Scheduled"
     campaign_id: Optional[int] = None
+    image_url: Optional[str] = None
+    image: Optional[str] = None
+    mediaFile: Optional[str] = None
 
 
 class PostResponse(BaseModel):
@@ -26,6 +29,7 @@ class PostResponse(BaseModel):
     scheduled_at: Optional[datetime] = None
     status: Optional[str] = "Scheduled"
     campaign_id: Optional[int] = None
+    image_url: Optional[str] = None
 
     class Config:
         from_attributes = True

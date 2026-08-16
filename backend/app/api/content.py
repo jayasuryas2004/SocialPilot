@@ -156,6 +156,10 @@ def format_combined_content(db: Session):
 
         status_val = (p.status or "Scheduled").capitalize()
 
+        img_val = p.image_url
+        if not img_val:
+            img_val = "https://images.unsplash.com/photo-1611944212129-29977ae1398c?w=150&h=150&fit=crop" if is_linkedin else "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=150&h=150&fit=crop"
+
         item = {
             "id": p.id,
             "title": title_val,
@@ -169,11 +173,13 @@ def format_combined_content(db: Session):
             "date": post_date,
             "time": post_time,
             "status": status_val,
-            "image": "https://images.unsplash.com/photo-1611944212129-29977ae1398c?w=150&h=150&fit=crop" if is_linkedin else "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=150&h=150&fit=crop",
+            "image_url": p.image_url,
+            "image": img_val,
             "is_live": is_linkedin or True,
             "source": "live_db"
         }
         combined_items.append(item)
+
 
     # 2. Append static filler posts using standard loop
     for filler in STATIC_FILLER_TEMPLATES:

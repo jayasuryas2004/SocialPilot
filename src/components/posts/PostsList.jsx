@@ -358,12 +358,19 @@ export default function PostsList() {
                 </td>
                 <td className="py-4 px-4">
                   <div
-                    className="w-12 h-12 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity shadow-sm"
+                    className="w-12 h-12 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity shadow-sm flex items-center justify-center"
                     onClick={() => openPreview(post)}
                   >
-                    <img src={post.image} alt="preview" className="w-full h-full object-cover" />
+                    {(post.image_url || post.image) ? (
+                      <img src={post.image_url || post.image} alt="preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="flex items-center justify-center w-full h-full bg-purple-50">
+                        {getPlatformIcon(post.platform, 20)}
+                      </div>
+                    )}
                   </div>
                 </td>
+
                 <td className="py-4 px-4 cursor-pointer" onClick={() => openPreview(post)}>
                   <p className="font-bold text-slate-800 text-sm hover:text-[#311b92] transition-colors">{post.title}</p>
                   <p className="text-[11px] font-medium text-slate-400 truncate max-w-[200px] mt-0.5">{post.subtitle}</p>
@@ -525,9 +532,10 @@ export default function PostsList() {
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-8">
           <div className="bg-white rounded-3xl overflow-hidden max-w-[700px] w-full max-h-full shadow-2xl flex flex-col md:flex-row">
             <div className="w-full md:w-5/12 bg-slate-900 flex-shrink-0 h-48 md:h-auto relative">
-              <img src={previewPost.image} alt={previewPost.title} className="w-full h-full object-cover opacity-90" />
+              <img src={previewPost.image_url || previewPost.image} alt={previewPost.title} className="w-full h-full object-cover opacity-90" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
             </div>
+
 
             <div className="p-8 w-full md:w-7/12 flex flex-col relative overflow-y-auto">
               <button
