@@ -9,6 +9,7 @@ import EventListWidget from '@/components/calendar/EventListWidget';
 import QuickActionsWidget from '@/components/calendar/QuickActionsWidget';
 import PostComposerModal from '@/components/posts/PostComposerModal';
 import { getAllContent } from '@/lib/api/content';
+import { createPost } from '@/lib/api/posts';
 
 export default function CalendarPage() {
   const [contentList, setContentList] = useState([]);
@@ -31,6 +32,17 @@ export default function CalendarPage() {
   useEffect(() => {
     loadCalendarContent();
   }, [loadCalendarContent]);
+
+  const handleSavePost = async (payload) => {
+    try {
+      await createPost(payload);
+    } catch (e) {
+      console.error("Failed to save post from calendar modal:", e);
+    } finally {
+      loadCalendarContent();
+      setIsComposerOpen(false);
+    }
+  };
 
   // Format calendar events from hybrid content array
   const calendarEvents = contentList.map((item, index) => ({
@@ -55,37 +67,46 @@ export default function CalendarPage() {
     .map((item, idx) => ({
       id: item.id || `draft-${idx}`,
       type: (item.status || '').toLowerCase() === 'draft' ? 'draft' : 'post',
-      title: item.title || 'Untitled Post',
+      title: item.title || item.content?.slice(0, 40) || 'Untitled Post',
       image: item.image_url || item.image || item.media || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=150&h=150&fit=crop'
     }));
 
-  // Format list events
-  const upcomingEvents = calendarEvents
-    .filter((e) => e.status === 'scheduled' || e.status === 'published')
-    .slice(0, 4)
-    .map((e) => ({
-      id: e.id,
-      title: e.description?.length > 30 ? e.description.slice(0, 30) + '...' : e.description,
-      platform: e.platform.charAt(0).toUpperCase() + e.platform.slice(1),
-      date: e.date,
-      time: e.time,
-      status: e.status,
-      is_live: e.is_live
-    }));
+  // 1. Upcoming events: Recent or upcoming posts from real content
+  const upcomingEvents = contentList
+    .slice(0, 5)
+    .map((item, idx) => {
+      const titleStr = item.title || item.content || 'Untitled Post';
+      return {
+        id: item.id || `up-${idx}`,
+        title: titleStr.length > 35 ? titleStr.slice(0, 35) + '...' : titleStr,
+        platform: item.platform || 'Instagram',
+        date: item.date || item.scheduled_date || 'Aug 16, 2026',
+        time: item.time || item.scheduled_time || '10:00 AM',
+        status: (item.status || 'Scheduled').toLowerCase(),
+        is_live: item.is_live || item.platform?.toLowerCase() === 'linkedin'
+      };
+    });
 
-  const publishingQueue = calendarEvents
-    .filter((e) => e.status === 'scheduled' || e.status === 'draft')
-    .concat(calendarEvents)
-    .slice(0, 4)
-    .map((e) => ({
-      id: `queue-${e.id}`,
-      title: e.description?.length > 30 ? e.description.slice(0, 30) + '...' : e.description,
-      platform: e.platform.charAt(0).toUpperCase() + e.platform.slice(1),
-      date: e.date,
-      time: e.time,
-      status: e.status,
-      is_live: e.is_live
-    }));
+  // 2. Publishing Queue: Filter strictly for scheduled / queued posts
+  const scheduledItems = contentList.filter((item) => {
+    const s = (item.status || '').toLowerCase();
+    return s === 'scheduled' || s === 'pending' || s === 'draft';
+  });
+
+  const publishingQueue = (scheduledItems.length > 0 ? scheduledItems : contentList)
+    .slice(0, 5)
+    .map((item, idx) => {
+      const titleStr = item.title || item.content || 'Queued Content';
+      return {
+        id: `queue-${item.id || idx}`,
+        title: titleStr.length > 35 ? titleStr.slice(0, 35) + '...' : titleStr,
+        platform: item.platform || 'Instagram',
+        date: item.date || item.scheduled_date || 'Aug 16, 2026',
+        time: item.time || item.scheduled_time || '10:00 AM',
+        status: (item.status || 'Scheduled').toLowerCase(),
+        is_live: item.is_live || item.platform?.toLowerCase() === 'linkedin'
+      };
+    });
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-6 text-slate-900 pb-20">
@@ -106,10 +127,10 @@ export default function CalendarPage() {
       </div>
 
       {/* ROW 1: Big Calendar Grid + Drafts Sidebar */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-10 items-start">
         
         {/* Left Side: Big Grid (2/3 width) */}
-        <div className="lg:col-span-8 h-[850px]">
+        <div className="lg:col-span-8 min-h-[850px] overflow-hidden">
           <ContentCalendarGrid 
             events={calendarEvents} 
             onRefresh={loadCalendarContent} 
@@ -118,18 +139,18 @@ export default function CalendarPage() {
         </div>
 
         {/* Right Side: Drafts Widget (1/3 width) */}
-        <div className="lg:col-span-4 h-[850px]">
+        <div className="lg:col-span-4 min-h-[850px] overflow-hidden">
           <DraftsAndIdeasWidget allData={draftsData} />
         </div>
       </div>
 
       {/* ROW 2: Full Width Publishing Calendar (Horizontal Week View) */}
-      <div className="mb-8 w-full">
+      <div className="mb-10 w-full">
         <PublishingCalendar events={weeklyEvents} />
       </div>
 
       {/* ROW 3: Upcoming Events & Publishing Queue (50/50 Split) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
         <EventListWidget title="Upcoming events" events={upcomingEvents} />
         <EventListWidget title="Publishing Queue" events={publishingQueue} />
       </div>
@@ -143,12 +164,8 @@ export default function CalendarPage() {
       <PostComposerModal 
         isOpen={isComposerOpen} 
         onClose={() => setIsComposerOpen(false)} 
-        onSave={() => {
-          loadCalendarContent();
-        }}
-        onPostCreated={() => {
-          loadCalendarContent();
-        }}
+        onSave={handleSavePost}
+        onPostCreated={loadCalendarContent}
       />
 
     </div>

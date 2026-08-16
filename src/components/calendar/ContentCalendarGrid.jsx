@@ -79,7 +79,8 @@ export default function ContentCalendarGrid({ events = [], onRefresh, onOpenComp
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
   return (
-    <div className="bg-white rounded-3xl shadow-sm border border-slate-200 flex flex-col h-full">
+    <div className="bg-white rounded-3xl shadow-sm border border-slate-200 flex flex-col h-full overflow-hidden">
+
       
       {/* HEADER SECTION */}
       <div className="p-6">
