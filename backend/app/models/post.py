@@ -1,6 +1,8 @@
 from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.models.campaign import Campaign
+
 
 
 class Post(Base):
