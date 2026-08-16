@@ -139,11 +139,14 @@ def publish_posts():
         db.close()
 
 
+import urllib.parse
+
 def sync_linkedin_deletions():
     """
     Periodic background sync job that checks if posts published to LinkedIn
-    have been deleted on LinkedIn directly (returning 404).
-    If so, updates local SQLite post status to 'Deleted'.
+    have been deleted on LinkedIn directly (returning 404, 403, or 410).
+    Dynamically routes urn:li:share: to /v2/shares/ and urn:li:ugcPost: to /v2/ugcPosts/.
+    If so, updates local SQLite post status to 'Deleted' and commits immediately.
     Uses standard iterative for loops (no list comprehensions or lambda expressions).
     """
     db: Session = SessionLocal()
@@ -171,28 +174,41 @@ def sync_linkedin_deletions():
         with httpx.Client(timeout=10.0) as client:
             for post in published_posts:
                 post_urn = post.linkedin_urn
-                if post_urn:
-                    try:
-                        res = client.get(
-                            f"https://api.linkedin.com/v2/ugcPosts/{post_urn}",
-                            headers=headers
-                        )
-                        if res.status_code == 404:
-                            print(f"NOTICE: Post ID {post.id} (URN {post_urn}) was deleted directly on LinkedIn. Updating local status to Deleted.")
-                            post.status = "Deleted"
+                if not post_urn:
+                    continue
 
-                            notif_msg = f"Post '{post.title or post.content}' was deleted on LinkedIn and marked as Deleted locally."
-                            notification = Notification(message=notif_msg)
-                            db.add(notification)
-                    except Exception as err:
-                        print(f"Error checking LinkedIn post URN {post_urn}: {err}")
+                post_urn_str = str(post_urn).strip()
+                print(f"Checking sync for URN: {post_urn_str}")
 
-        db.commit()
+                try:
+                    quoted_urn = urllib.parse.quote(post_urn_str)
+                    if post_urn_str.startswith("urn:li:share:"):
+                        check_url = f"https://api.linkedin.com/v2/shares/{quoted_urn}"
+                    else:
+                        check_url = f"https://api.linkedin.com/v2/ugcPosts/{quoted_urn}"
+
+                    res = client.get(check_url, headers=headers)
+                    print(f"Sync check response for Post {post.id} ({check_url}): {res.status_code}")
+
+                    if res.status_code in [404, 403, 410]:
+                        post.status = "Deleted"
+                        db.commit()
+                        print(f"Successfully marked Post {post.id} as Deleted.")
+
+                        notif_msg = f"Post '{post.title or post.content}' was deleted on LinkedIn and marked as Deleted locally."
+                        notification = Notification(message=notif_msg)
+                        db.add(notification)
+                        db.commit()
+                except Exception as err:
+                    print(f"Error checking LinkedIn post ID {post.id} (URN {post_urn_str}): {err}")
+                    db.rollback()
+
     except Exception as e:
         print(f"ERROR in sync_linkedin_deletions: {e}")
         db.rollback()
     finally:
         db.close()
+
 
 
 def start_scheduler():

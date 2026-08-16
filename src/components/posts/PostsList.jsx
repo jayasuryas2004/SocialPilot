@@ -196,18 +196,21 @@ export default function PostsList() {
 
   // --- UI HELPERS ---
   const getStatusBadge = (status) => {
+    const s = (status || "").toLowerCase();
     const styles = {
-      published: "bg-emerald-100 text-emerald-800",
-      scheduled: "bg-purple-100 text-purple-800",
-      draft: "bg-yellow-100 text-yellow-800",
-      failed: "bg-rose-100 text-rose-800",
+      published: "bg-emerald-100 text-emerald-800 border border-emerald-200",
+      scheduled: "bg-purple-100 text-purple-800 border border-purple-200",
+      draft: "bg-yellow-100 text-yellow-800 border border-yellow-200",
+      failed: "bg-rose-100 text-rose-800 border border-rose-200",
+      deleted: "bg-slate-200 text-slate-700 border border-slate-300",
     };
     return (
-      <span className={`${styles[status.toLowerCase()]} px-3 py-1 rounded-full text-[10px] font-bold uppercase w-max`}>
+      <span className={`${styles[s] || "bg-slate-100 text-slate-800"} px-3 py-1 rounded-full text-[10px] font-bold uppercase w-max tracking-wider`}>
         {status}
       </span>
     );
   };
+
 
   const getPlatformIcon = (platform, size = 16) => {
     switch (platform.toLowerCase()) {

@@ -7,7 +7,7 @@ def publish_to_linkedin(post, db):
     """
     Publishes a scheduled post to LinkedIn using vaulted OAuth access tokens.
     Supports both text posts and full 3-step LinkedIn media image uploads with explicit tracing.
-    Stores the created UGC Post URN into post.linkedin_urn.
+    Stores the created UGC Post / Share URN into post.linkedin_urn.
     Uses standard Python iterative logic (strictly no list comprehensions or lambda expressions).
     """
     # 1. Query vaulted SocialAccount for LinkedIn
@@ -192,12 +192,16 @@ def publish_to_linkedin(post, db):
 
             if response.status_code in [200, 201]:
                 res_data = response.json() if response.text else {}
-                post_urn = res_data.get("id")
+                post_urn = res_data.get("id") or res_data.get("urn")
                 if post_urn:
-                    post.linkedin_urn = post_urn
+                    post.linkedin_urn = str(post_urn).strip()
+                    db.add(post)
                     db.commit()
+                    db.refresh(post)
+                    print(f"SUCCESS: Assigned and stored LinkedIn URN: {post.linkedin_urn} for Post ID {post.id}")
+                else:
+                    print(f"SUCCESS: Published Post ID {post.id} to LinkedIn API, but no post URN was returned: {response.text}")
 
-                print(f"SUCCESS: Published Post ID {post.id} to LinkedIn API with URN {post.linkedin_urn}: {response.text}")
                 return True, response.text
             else:
                 error_detail = f"Status {response.status_code}: {response.text}"
@@ -212,7 +216,7 @@ def publish_to_linkedin(post, db):
 
 def delete_from_linkedin(post, db):
     """
-    Deletes a published post from LinkedIn natively using the stored linkedin_urn.
+    Deletes a published post from LinkedIn natively using the stored linkedin_urn (supporting both shares and ugcPosts).
     """
     if not getattr(post, "linkedin_urn", None):
         return False, "No LinkedIn URN recorded for this post."
@@ -225,7 +229,7 @@ def delete_from_linkedin(post, db):
         return False, "No active LinkedIn OAuth token found in vault."
 
     access_token = social_account.access_token
-    post_urn = post.linkedin_urn
+    post_urn = str(post.linkedin_urn).strip()
 
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -234,9 +238,13 @@ def delete_from_linkedin(post, db):
 
     try:
         with httpx.Client(timeout=15.0) as client:
-            del_url = f"https://api.linkedin.com/v2/ugcPosts/{post_urn}"
+            if post_urn.startswith("urn:li:share:"):
+                del_url = f"https://api.linkedin.com/v2/shares/{post_urn}"
+            else:
+                del_url = f"https://api.linkedin.com/v2/ugcPosts/{post_urn}"
+
             response = client.delete(del_url, headers=headers)
-            print(f"LinkedIn native deletion for Post ID {post.id} (URN {post_urn}): {response.status_code} {response.text}")
+            print(f"LinkedIn native deletion for Post ID {post.id} (URL {del_url}): {response.status_code} {response.text}")
             if response.status_code in [200, 204, 404]:
                 return True, "Deleted from LinkedIn"
             else:
