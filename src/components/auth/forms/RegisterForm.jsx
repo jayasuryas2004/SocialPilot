@@ -7,11 +7,11 @@ import Image from "next/image";
 import {
   Mail, Eye, EyeOff, ChevronLeft, LogIn, Lock, User,
   Video, Smartphone, Building2, Megaphone, Users, Sparkles,
-  ArrowRight, CheckCircle2, Loader2
+  ArrowRight, CheckCircle2, Circle, Loader2
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { signInWithGoogle } from "@/lib/api/auth";
-import { isValidEmail, isValidPassword } from "@/lib/validators";
+import { isValidEmail } from "@/lib/validators";
 
 const ROLES = [
   {
@@ -84,15 +84,30 @@ export default function RegisterForm() {
     setMounted(true);
   }, []);
 
-  // Step 1 validation rules
+  // Real-time password strength validation rules
+  const passwordRequirements = useMemo(() => {
+    const pwd = form.password || "";
+    const hasLength = pwd.length >= 8;
+    const hasNumber = /\d/.test(pwd);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>_\-+=[\]\\/`~]/.test(pwd);
+    const isStrong = hasLength && hasNumber && hasSpecial;
+    return {
+      hasLength,
+      hasNumber,
+      hasSpecial,
+      isStrong,
+    };
+  }, [form.password]);
+
+  // Step 1 overall validation
   const isStep1Valid = useMemo(() => {
     return (
       form.name.trim().length > 1 &&
       isValidEmail(form.email) &&
-      isValidPassword(form.password) &&
+      passwordRequirements.isStrong &&
       form.password === form.confirmPassword
     );
-  }, [form]);
+  }, [form.name, form.email, form.password, form.confirmPassword, passwordRequirements.isStrong]);
 
   /**
    * Advance from Step 1 to Step 2 after client validation
@@ -100,10 +115,10 @@ export default function RegisterForm() {
   const handleProceedToStep2 = (e) => {
     if (e) e.preventDefault();
     if (!isStep1Valid) {
-      if (form.password !== form.confirmPassword) {
+      if (!passwordRequirements.isStrong) {
+        setError("Please satisfy all password strength requirements.");
+      } else if (form.password !== form.confirmPassword) {
         setError("Passwords do not match.");
-      } else if (!isValidPassword(form.password)) {
-        setError("Password must be at least 8 characters.");
       } else if (!isValidEmail(form.email)) {
         setError("Please enter a valid email address.");
       } else {
@@ -154,7 +169,7 @@ export default function RegisterForm() {
 
   return (
     <div className="min-h-screen bg-[#f7f5fb] flex items-center justify-center p-6 overflow-auto">
-      <div className="w-full max-w-[1100px] min-w-[950px] min-h-[620px] bg-white rounded-[32px] shadow-xl overflow-hidden flex">
+      <div className="w-full max-w-[1100px] min-w-[950px] min-h-[640px] bg-white rounded-[32px] shadow-xl overflow-hidden flex">
         
         {/* LEFT COLUMN (Illustration & Branding) */}
         <div className="w-[50%] p-4 flex">
@@ -238,7 +253,7 @@ export default function RegisterForm() {
 
             {/* STEP 1: ACCOUNT DETAILS */}
             {step === 1 && (
-              <form onSubmit={handleProceedToStep2} className="space-y-3">
+              <form onSubmit={handleProceedToStep2} className="space-y-2.5">
                 <div>
                   <label className="block mb-1 text-[13px] font-semibold text-gray-800">Full name</label>
                   <div className="flex w-full h-10 bg-gray-100 rounded-lg overflow-hidden focus-within:bg-white focus-within:ring-1 focus-within:ring-[#4B00D1] border border-transparent transition-all">
@@ -297,6 +312,44 @@ export default function RegisterForm() {
                   </div>
                 </div>
 
+                {/* REAL-TIME PASSWORD STRENGTH CHECKLIST */}
+                {form.password.length > 0 && (
+                  <div className="bg-[#f8f9fb] p-2.5 rounded-lg border border-slate-200/80 space-y-1 text-[11px] font-medium transition-all">
+                    <div className="flex items-center gap-2">
+                      {passwordRequirements.hasLength ? (
+                        <CheckCircle2 size={13} className="text-emerald-600 shrink-0" strokeWidth={3} />
+                      ) : (
+                        <Circle size={13} className="text-slate-300 shrink-0" />
+                      )}
+                      <span className={passwordRequirements.hasLength ? "text-emerald-700 font-semibold" : "text-slate-500"}>
+                        At least 8 characters
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {passwordRequirements.hasNumber ? (
+                        <CheckCircle2 size={13} className="text-emerald-600 shrink-0" strokeWidth={3} />
+                      ) : (
+                        <Circle size={13} className="text-slate-300 shrink-0" />
+                      )}
+                      <span className={passwordRequirements.hasNumber ? "text-emerald-700 font-semibold" : "text-slate-500"}>
+                        At least one number (0-9)
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {passwordRequirements.hasSpecial ? (
+                        <CheckCircle2 size={13} className="text-emerald-600 shrink-0" strokeWidth={3} />
+                      ) : (
+                        <Circle size={13} className="text-slate-300 shrink-0" />
+                      )}
+                      <span className={passwordRequirements.hasSpecial ? "text-emerald-700 font-semibold" : "text-slate-500"}>
+                        At least one special character (@, #, $, !, etc.)
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <label className="block mb-1 text-[13px] font-semibold text-gray-800">Confirm password</label>
                   <div className="flex w-full h-10 bg-white rounded-lg overflow-hidden border border-gray-200 focus-within:border-[#4B00D1] focus-within:ring-1 focus-within:ring-[#4B00D1] transition-all shadow-sm">
@@ -312,18 +365,18 @@ export default function RegisterForm() {
                     />
                   </div>
                   {form.confirmPassword && form.password !== form.confirmPassword && (
-                    <p className="text-[11px] text-red-500 mt-1">Passwords don't match</p>
+                    <p className="text-[11px] text-red-500 mt-0.5">Passwords don't match</p>
                   )}
                 </div>
 
                 {error && (
-                  <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>
+                  <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-1.5">{error}</p>
                 )}
 
                 <button
                   type="submit"
                   disabled={!mounted || !isStep1Valid}
-                  className={`w-full h-10 rounded-lg text-[13px] font-semibold shadow-md transition-all flex items-center justify-center gap-1.5 ${
+                  className={`w-full h-10 rounded-lg text-[13px] font-semibold shadow-md transition-all flex items-center justify-center gap-1.5 mt-1 ${
                     mounted && isStep1Valid
                       ? "bg-[#260b79] hover:bg-[#1f0962] text-white cursor-pointer"
                       : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
@@ -341,7 +394,7 @@ export default function RegisterForm() {
                   Sign up with Google
                 </button>
 
-                <div className="text-center text-[12px] font-medium text-gray-500 pt-1 flex items-center justify-center gap-1 whitespace-nowrap">
+                <div className="text-center text-[12px] font-medium text-gray-500 pt-0.5 flex items-center justify-center gap-1 whitespace-nowrap">
                   Already have an account?{" "}
                   <Link href="/login" className="text-[#260b79] font-bold flex items-center gap-1 hover:underline ml-1">
                     <LogIn size={14} /> Login
