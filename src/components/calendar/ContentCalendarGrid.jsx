@@ -18,6 +18,28 @@ const PLATFORM_COLORS = {
   pinterest: "#E60023", default: "#94a3b8" 
 };
 
+const normalizeEventDate = (event) => {
+  if (!event) return '';
+  const candidate = event.scheduled_date || event.date || event.scheduled_at || '';
+  if (typeof candidate === 'string') {
+    const trimmed = candidate.trim();
+    if (trimmed.includes('T')) {
+      return trimmed.split('T')[0];
+    }
+    if (trimmed.includes('-')) {
+      return trimmed;
+    }
+    const parts = trimmed.split(' ');
+    if (parts.length >= 2) {
+      const dayNum = parts[1].replace(/\D/g, '').padStart(2, '0');
+      if (dayNum) {
+        return `2026-08-${dayNum}`;
+      }
+    }
+  }
+  return String(candidate);
+};
+
 export default function ContentCalendarGrid({ events = [], onRefresh, onOpenComposer }) {
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date(2026, 7, 1)); // August 2026
@@ -66,7 +88,7 @@ export default function ContentCalendarGrid({ events = [], onRefresh, onOpenComp
   };
 
   const getStatusColor = (status) => {
-    switch(status) {
+    switch((status || '').toLowerCase()) {
       case 'published': return 'bg-[#86efac] text-slate-900 border-[#4ade80]'; 
       case 'scheduled': return 'bg-[#e9d5ff] text-slate-900 border-[#d8b4fe]'; 
       case 'draft': return 'bg-[#fde047] text-slate-900 border-[#facc15]';     
@@ -80,7 +102,6 @@ export default function ContentCalendarGrid({ events = [], onRefresh, onOpenComp
 
   return (
     <div className="bg-white rounded-3xl shadow-sm border border-slate-200 flex flex-col h-full overflow-hidden">
-
       
       {/* HEADER SECTION */}
       <div className="p-6">
@@ -135,7 +156,11 @@ export default function ContentCalendarGrid({ events = [], onRefresh, onOpenComp
               );
             }
 
-            const dayEvents = events.filter(e => e.date === cell.dateString);
+            const dayEvents = (events || []).filter(e => {
+              const normDate = normalizeEventDate(e);
+              return normDate === cell.dateString || e.date === cell.dateString || e.scheduled_date === cell.dateString;
+            });
+
             const isCurrentToday = cell.dateString === todayStr || (cell.date === 16 && month === 7 && year === 2026); 
 
             return (
@@ -152,7 +177,6 @@ export default function ContentCalendarGrid({ events = [], onRefresh, onOpenComp
                     <Plus size={16} strokeWidth={3} />
                   </button>
                 </div>
-
 
                 <div className="space-y-2 flex-1">
                   {dayEvents.map(event => {

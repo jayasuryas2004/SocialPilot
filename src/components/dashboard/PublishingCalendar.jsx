@@ -28,6 +28,29 @@ const PLATFORM_COLORS = {
   default: "#94a3b8" 
 };
 
+const normalizeEventDate = (event) => {
+  if (!event) return '';
+  const candidate = event.scheduled_date || event.date || event.scheduled_at || '';
+  if (typeof candidate === 'string') {
+    const trimmed = candidate.trim();
+    if (trimmed.includes('T')) {
+      return trimmed.split('T')[0];
+    }
+    if (trimmed.includes('-')) {
+      return trimmed;
+    }
+    // If format is like "Aug 18", "May 18", etc.
+    const parts = trimmed.split(' ');
+    if (parts.length >= 2) {
+      const dayNum = parts[1].replace(/\D/g, '').padStart(2, '0');
+      if (dayNum) {
+        return `2026-08-${dayNum}`;
+      }
+    }
+  }
+  return String(candidate);
+};
+
 export default function PublishingCalendar({ events = [] }) {
   // --- DYNAMIC STATE ---
   const [viewMode, setViewMode] = useState('This Week');
@@ -36,7 +59,7 @@ export default function PublishingCalendar({ events = [] }) {
 
   // --- STYLING HELPERS ---
   const getStatusColor = (status) => {
-    switch(status) {
+    switch((status || '').toLowerCase()) {
       case 'published': return 'bg-[#86efac] text-slate-900 border-[#4ade80]'; 
       case 'scheduled': return 'bg-[#e9d5ff] text-slate-900 border-[#d8b4fe]'; 
       case 'draft': return 'bg-[#fde047] text-slate-900 border-[#facc15]';     
@@ -177,12 +200,15 @@ export default function PublishingCalendar({ events = [] }) {
             const dayNumber = dayObj.getDate();
             const isToday = dayObj.toDateString() === new Date().toDateString() || (dayObj.getDate() === 16 && dayObj.getMonth() === 7 && dayObj.getFullYear() === 2026);
 
-            // Match by string date or iso date
-            const dayEvents = (events || []).filter(e => 
-              e.date === formattedDateString || 
-              e.date === isoDateString || 
-              e.scheduled_date === isoDateString
-            );
+            // Match by strict string comparison avoiding local timezone shifts
+            const dayEvents = (events || []).filter((e) => {
+              const normDate = normalizeEventDate(e);
+              if (normDate === isoDateString) return true;
+              if (e.date === formattedDateString) return true;
+              if (e.date === isoDateString) return true;
+              if (e.scheduled_date === isoDateString) return true;
+              return false;
+            });
 
             const gridColumnOffset = (viewMode === 'This Month' && index === 0) 
               ? { gridColumnStart: dayObj.getDay() + 1 } 
