@@ -11,24 +11,12 @@ import {
 import { getPosts, deletePost, updatePost, retryPost } from "@/lib/api/posts";
 
 
-// --- MOCK DATABASE ---
-const INITIAL_DATA = [
-  { id: 1, title: 'Summer sale reel', subtitle: 'Biggest sale of the year get up to 50% off', platform: 'Instagram', handle: 'socialpilot', campaign: 'Summer Sale', date: 'May 20, 2026', time: '10:00 am', status: 'Published', image: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=150&h=150&fit=crop', fullText: "Get ready for the biggest event! Our Summer Sale is live. Use code SUMMER50." },
-  { id: 2, title: 'Winter Skincare Tips', subtitle: 'Keep your skin glowing', platform: 'LinkedIn', handle: 'socialpilot_b2b', campaign: 'Winter Skincare', date: 'Dec 05, 2026', time: '09:00 am', status: 'Scheduled', image: 'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?w=150&h=150&fit=crop', fullText: "Dry skin this winter? Here are 5 tips to keep your glow." },
-  { id: 3, title: 'Product Launch Teaser', subtitle: 'Coming soon...', platform: 'Facebook', handle: 'socialpilot_hq', campaign: 'Spring Launch', date: 'Mar 10, 2026', time: '12:00 pm', status: 'Draft', image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=150&h=150&fit=crop', fullText: "Something big is coming. Can you guess what it is?" },
-  { id: 4, title: 'Holiday Giveaway', subtitle: 'Win a free subscription', platform: 'X-Twitter', handle: 'socialpilot', campaign: 'Winter Skincare', date: 'Dec 20, 2026', time: '03:00 pm', status: 'Failed', image: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=150&h=150&fit=crop', fullText: "RT & Follow to win a free year of our premium plan!" },
-  { id: 5, title: 'Summer Collection', subtitle: 'New arrivals are here', platform: 'Instagram', handle: 'socialpilot', campaign: 'Summer Sale', date: 'May 22, 2026', time: '11:00 am', status: 'Published', image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=150&h=150&fit=crop', fullText: "The summer collection just dropped. Link in bio!" },
-  { id: 6, title: 'B2B Marketing Webinar', subtitle: 'Join us live', platform: 'LinkedIn', handle: 'socialpilot_b2b', campaign: 'Spring Launch', date: 'Apr 02, 2026', time: '02:00 pm', status: 'Scheduled', image: 'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?w=150&h=150&fit=crop', fullText: "Join our CEO for a live webinar on B2B growth." },
-  { id: 7, title: 'Flash Sale Reminder', subtitle: 'Only 2 hours left', platform: 'Instagram', handle: 'socialpilot', campaign: 'Summer Sale', date: 'May 25, 2026', time: '04:00 pm', status: 'Draft', image: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=150&h=150&fit=crop', fullText: "Only 2 hours left on our biggest sale of the year!" },
-  { id: 8, title: 'Customer Success Story', subtitle: 'Read our latest case study', platform: 'LinkedIn', handle: 'socialpilot_b2b', campaign: 'Spring Launch', date: 'Jun 15, 2026', time: '10:30 am', status: 'Failed', image: 'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?w=150&h=150&fit=crop', fullText: "Read how our customer doubled engagement in 90 days." },
-];
-
 const CAMPAIGNS = ['Summer Sale', 'Winter Skincare', 'Spring Launch'];
 const PLATFORMS = ['Instagram', 'LinkedIn', 'Facebook', 'X-Twitter'];
 const STATUSES = ['Published', 'Scheduled', 'Draft', 'Failed'];
 
 export default function PostsList() {
-  const [posts, setPosts] = useState(INITIAL_DATA);
+  const [posts, setPosts] = useState([]);
   const [activeTab, setActiveTab] = useState('All posts');
   const [selectedPosts, setSelectedPosts] = useState([]);
 
@@ -37,8 +25,8 @@ export default function PostsList() {
     let isMounted = true;
     getPosts()
       .then((data) => {
-        if (isMounted && Array.isArray(data) && data.length > 0) {
-          setPosts(data);
+        if (isMounted) {
+          setPosts(Array.isArray(data) ? data : []);
         }
       })
       .catch((err) => {
@@ -48,6 +36,7 @@ export default function PostsList() {
       isMounted = false;
     };
   }, []);
+
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -354,8 +343,8 @@ export default function PostsList() {
                   </div>
                 </td>
               </tr>
-            ) : currentTableData.map((post) => (
-              <tr key={post.id} className="hover:bg-slate-50/50 transition-colors group">
+            ) : currentTableData.map((post, index) => (
+              <tr key={`post-row-${post.id || index}`} className="hover:bg-slate-50/50 transition-colors group">
                 <td className="py-4 pl-6 pr-4 relative">
                   {selectedPosts.includes(post.id) && <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#311b92] rounded-r"></div>}
                   <div
@@ -474,7 +463,7 @@ export default function PostsList() {
 
             {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
               <button
-                key={page}
+                key={`posts-page-${page}`}
                 onClick={() => setCurrentPage(page)}
                 className={`w-9 h-9 rounded-xl font-black text-sm flex items-center justify-center transition-all ${
                   currentPage === page
@@ -485,6 +474,7 @@ export default function PostsList() {
                 {page}
               </button>
             ))}
+
 
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}

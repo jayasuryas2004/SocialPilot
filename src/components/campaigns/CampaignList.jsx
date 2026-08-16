@@ -222,7 +222,7 @@ export default function CampaignList({ campaigns, setCampaigns, onEditExternal }
         if (!Icon) return null;
         return (
           <div
-            key={p}
+            key={`plat-${p}-${i}`}
             style={{ zIndex: platforms.length - i }}
             className={`w-6 h-6 rounded-full flex items-center justify-center border-2 border-white -ml-2 first:ml-0 shadow-sm ${PLATFORM_COLOR_MAP[p]}`}
           >
@@ -232,6 +232,7 @@ export default function CampaignList({ campaigns, setCampaigns, onEditExternal }
       })}
     </div>
   );
+
 
   const TABS = [
     { name: 'All Campaigns', count: campaignsMatchingNonTabFilters.length },
@@ -349,8 +350,8 @@ export default function CampaignList({ campaigns, setCampaigns, onEditExternal }
                   </div>
                 </td>
               </tr>
-            ) : currentTableData.map((camp) => (
-              <tr key={camp.id} className="hover:bg-slate-50/50 transition-colors group">
+            ) : currentTableData.map((camp, index) => (
+              <tr key={`campaign-row-${camp.id || index}`} className="hover:bg-slate-50/50 transition-colors group">
                 <td className="py-4 pl-6 pr-4 relative">
                   {selectedCampaigns.includes(camp.id) && <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#311b92] rounded-r" />}
                   <div
@@ -362,6 +363,7 @@ export default function CampaignList({ campaigns, setCampaigns, onEditExternal }
                     {selectedCampaigns.includes(camp.id) && <CheckCircle2 size={12} className="text-white" strokeWidth={4} />}
                   </div>
                 </td>
+
 
                 <td className="py-4 px-4">
                   <div className="flex items-center gap-4 cursor-pointer" onClick={() => openPreview(camp)}>

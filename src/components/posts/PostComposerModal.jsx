@@ -251,9 +251,10 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
                   className="w-full h-full min-h-[44px] pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-[#311b92] text-sm font-bold text-slate-700 cursor-pointer appearance-none"
                 >
                   <option value="">None (Independent Post)</option>
-                  {loadedCampaigns.map(camp => (
-                    <option key={camp.id} value={camp.id}>{camp.title || camp.campaign_name}</option>
+                  {loadedCampaigns.map((camp, index) => (
+                    <option key={`post-composer-camp-${camp.id || index}`} value={camp.id}>{camp.title || camp.campaign_name}</option>
                   ))}
+
                 </select>
               </div>
               {loadedCampaigns.length === 0 ? (

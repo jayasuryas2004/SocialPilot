@@ -9,14 +9,8 @@ import { getCampaigns, createCampaign, updateCampaign } from '@/lib/api/campaign
 import { createPost } from '@/lib/api/posts';
 
 
-const INITIAL_DATA = [
-  { id: 1, title: 'Summer sale reel', subtitle: 'Biggest sale of the year get up to 50% off', description: 'Driving sales for the new summer collection across all visual channels.', fullText: 'Driving sales for the new summer collection across all visual channels.', platforms: ['Instagram', 'Facebook'], objective: 'Sales', startDate: '2026-05-20', endDate: '2026-06-20', status: 'Active', image: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=150&h=150&fit=crop' },
-  { id: 2, title: 'Winter Skincare Tips', subtitle: 'Keep your skin glowing', description: 'Educational campaign targeting B2B professionals.', fullText: 'Educational campaign targeting B2B professionals.', platforms: ['LinkedIn'], objective: 'Awareness', startDate: '2026-12-05', endDate: '2026-12-25', status: 'Scheduled', image: 'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?w=150&h=150&fit=crop' },
-  { id: 3, title: 'Product Launch Teaser', subtitle: 'Coming soon...', description: 'Building hype for the upcoming Q1 product reveal.', fullText: 'Building hype for the upcoming Q1 product reveal.', platforms: ['X-Twitter', 'YouTube'], objective: 'Awareness', startDate: '2026-03-10', endDate: '2026-03-15', status: 'Draft', image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=150&h=150&fit=crop' },
-];
-
 export default function CampaignsMainPage() {
-  const [campaigns, setCampaigns] = useState(INITIAL_DATA);
+  const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -34,9 +28,7 @@ export default function CampaignsMainPage() {
         setLoading(true);
         const data = await getCampaigns();
         if (isMounted) {
-          if (Array.isArray(data) && data.length > 0) {
-            setCampaigns(data);
-          }
+          setCampaigns(Array.isArray(data) ? data : []);
           setError(null);
         }
       } catch (err) {
@@ -57,6 +49,7 @@ export default function CampaignsMainPage() {
       isMounted = false;
     };
   }, []);
+
 
   /**
    * Handle creating a new campaign or updating an existing campaign

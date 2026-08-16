@@ -14,7 +14,7 @@ export default function PostsKpiGrid() {
       {kpis.map((kpi) => {
         const IconObj = kpi.icon;
         return (
-          <div key={kpi.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center justify-center gap-4 transition-transform hover:-translate-y-1 hover:shadow-md">
+          <div key={`posts-kpi-${kpi.id}`} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center justify-center gap-4 transition-transform hover:-translate-y-1 hover:shadow-md">
             <div className={`w-16 h-16 rounded-2xl ${kpi.bg} ${kpi.color} flex items-center justify-center shadow-inner`}>
               <IconObj size={32} strokeWidth={2} />
             </div>
@@ -25,6 +25,7 @@ export default function PostsKpiGrid() {
           </div>
         );
       })}
+
     </div>
   );
 }
