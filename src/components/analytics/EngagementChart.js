@@ -3,22 +3,72 @@ import { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { BarChart2, Filter, TrendingUp, Heart, MessageSquare, Share2, Bookmark, ChevronDown } from 'lucide-react';
 
-// --- MOCK DATABASE ---
-const MOCK_WEEKLY = [
-  { label: 'Mon', like: 4200, comments: 1200, share: 800, saved: 400 },
-  { label: 'Tue', like: 3800, comments: 900, share: 600, saved: 300 },
-  { label: 'Wed', like: 5100, comments: 1500, share: 1100, saved: 600 },
-  { label: 'Thu', like: 4800, comments: 1300, share: 950, saved: 550 },
-  { label: 'Fri', like: 5900, comments: 1800, share: 1400, saved: 800 },
-  { label: 'Sat', like: 7200, comments: 2400, share: 2100, saved: 1200 },
-  { label: 'Sun', like: 6800, comments: 2100, share: 1800, saved: 1000 },
-];
-
-const MOCK_MONTHLY = [
-  { label: 'June', like: 145000, comments: 42000, share: 28000, saved: 15000 },
-  { label: 'July', like: 162000, comments: 48000, share: 34000, saved: 18000 },
-  { label: 'August', like: 188000, comments: 55000, share: 41000, saved: 22000 },
-];
+const MOCK_PLATFORM_DATA = {
+  all: {
+    weekly: [
+      { label: 'Mon', like: 4200, comments: 1200, share: 800, saved: 400 },
+      { label: 'Tue', like: 3800, comments: 900, share: 600, saved: 300 },
+      { label: 'Wed', like: 5100, comments: 1500, share: 1100, saved: 600 },
+      { label: 'Thu', like: 4800, comments: 1300, share: 950, saved: 550 },
+      { label: 'Fri', like: 5900, comments: 1800, share: 1400, saved: 800 },
+      { label: 'Sat', like: 7200, comments: 2400, share: 2100, saved: 1200 },
+      { label: 'Sun', like: 6800, comments: 2100, share: 1800, saved: 1000 },
+    ],
+    monthly: [
+      { label: 'June', like: 145000, comments: 42000, share: 28000, saved: 15000 },
+      { label: 'July', like: 162000, comments: 48000, share: 34000, saved: 18000 },
+      { label: 'August', like: 188000, comments: 55000, share: 41000, saved: 22000 },
+    ]
+  },
+  linkedin: {
+    weekly: [
+      { label: 'Mon', like: 1800, comments: 650, share: 450, saved: 250 },
+      { label: 'Tue', like: 1600, comments: 500, share: 380, saved: 190 },
+      { label: 'Wed', like: 2400, comments: 850, share: 620, saved: 340 },
+      { label: 'Thu', like: 2100, comments: 720, share: 510, saved: 280 },
+      { label: 'Fri', like: 2800, comments: 980, share: 790, saved: 420 },
+      { label: 'Sat', like: 3400, comments: 1200, share: 1100, saved: 600 },
+      { label: 'Sun', like: 3100, comments: 1050, share: 950, saved: 510 },
+    ],
+    monthly: [
+      { label: 'June', like: 62000, comments: 21000, share: 16000, saved: 8500 },
+      { label: 'July', like: 74000, comments: 26000, share: 19500, saved: 10200 },
+      { label: 'August', like: 89000, comments: 31000, share: 24000, saved: 13000 },
+    ]
+  },
+  instagram: {
+    weekly: [
+      { label: 'Mon', like: 1500, comments: 350, share: 220, saved: 120 },
+      { label: 'Tue', like: 1300, comments: 280, share: 160, saved: 90 },
+      { label: 'Wed', like: 1800, comments: 420, share: 310, saved: 180 },
+      { label: 'Thu', like: 1700, comments: 390, share: 270, saved: 160 },
+      { label: 'Fri', like: 2100, comments: 510, share: 410, saved: 240 },
+      { label: 'Sat', like: 2600, comments: 720, share: 610, saved: 380 },
+      { label: 'Sun', like: 2400, comments: 640, share: 530, saved: 320 },
+    ],
+    monthly: [
+      { label: 'June', like: 51000, comments: 14000, share: 8200, saved: 4500 },
+      { label: 'July', like: 58000, comments: 16200, share: 9800, saved: 5300 },
+      { label: 'August', like: 65000, comments: 18500, share: 11400, saved: 6200 },
+    ]
+  },
+  facebook: {
+    weekly: [
+      { label: 'Mon', like: 600, comments: 150, share: 90, saved: 20 },
+      { label: 'Tue', like: 550, comments: 110, share: 50, saved: 15 },
+      { label: 'Wed', like: 620, comments: 160, share: 120, saved: 60 },
+      { label: 'Thu', like: 680, comments: 140, share: 110, saved: 70 },
+      { label: 'Fri', like: 720, comments: 210, share: 140, saved: 100 },
+      { label: 'Sat', like: 820, comments: 290, share: 240, saved: 140 },
+      { label: 'Sun', like: 850, comments: 260, share: 210, saved: 110 },
+    ],
+    monthly: [
+      { label: 'June', like: 21000, comments: 5000, share: 2800, saved: 1200 },
+      { label: 'July', like: 23000, comments: 5800, share: 3400, saved: 1500 },
+      { label: 'August', like: 25000, comments: 6200, share: 4100, saved: 1800 },
+    ]
+  }
+};
 
 // Custom Tooltip for the Stacked Bar
 const EngagementTooltip = ({ active, payload, label }) => {
@@ -41,14 +91,14 @@ const EngagementTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-export default function EngagementChart() {
+export default function EngagementChart({ trends, linkedin }) {
   const [platform, setPlatform] = useState('all');
   const [timeline, setTimeline] = useState('monthly');
 
-  // Dynamically compute the data based on the timeline filter
+  // Dynamically compute the data based on the platform and timeline filter
   const displayData = useMemo(() => {
-    // In production, this is where you would filter your API payload by 'platform' too.
-    return timeline === 'weekly' ? MOCK_WEEKLY : MOCK_MONTHLY;
+    const platformData = MOCK_PLATFORM_DATA[platform.toLowerCase()] || MOCK_PLATFORM_DATA.all;
+    return platformData[timeline] || platformData.monthly;
   }, [timeline, platform]);
 
   // Dynamically sum up the KPIs based on the current active data
@@ -83,9 +133,9 @@ export default function EngagementChart() {
                 className="appearance-none border border-slate-200 pl-8 pr-10 py-2.5 rounded-xl text-sm font-bold outline-none hover:bg-slate-50 cursor-pointer bg-white text-slate-700 w-full min-w-[140px]"
               >
                 <option value="all">All Platforms</option>
+                <option value="linkedin">LinkedIn (Live)</option>
                 <option value="instagram">Instagram</option>
                 <option value="facebook">Facebook</option>
-                <option value="linkedin">LinkedIn</option>
                 <option value="youtube">YouTube</option>
                 <option value="x-twitter">X-Twitter</option>
               </select>

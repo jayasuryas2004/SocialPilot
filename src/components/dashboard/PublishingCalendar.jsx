@@ -28,11 +28,11 @@ const PLATFORM_COLORS = {
   default: "#94a3b8" 
 };
 
-export default function PublishingCalendar({ events }) {
+export default function PublishingCalendar({ events = [] }) {
   // --- DYNAMIC STATE ---
   const [viewMode, setViewMode] = useState('This Week');
-  // Initialize to May 17, 2026 to match your existing mock data
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 4, 17)); 
+  // Initialize to August 16, 2026 (current system month)
+  const [currentDate, setCurrentDate] = useState(new Date(2026, 7, 16)); 
 
   // --- STYLING HELPERS ---
   const getStatusColor = (status) => {
@@ -46,14 +46,12 @@ export default function PublishingCalendar({ events }) {
   };
 
   // --- DYNAMIC DATE ENGINE ---
-  // Calculates the days to show based on "Week" or "Month" view
   const getVisibleDays = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const daysArray = [];
 
     if (viewMode === 'This Week') {
-      // Find the Sunday of the current week
       const startOfWeek = new Date(currentDate);
       startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
       for (let i = 0; i < 7; i++) {
@@ -62,7 +60,6 @@ export default function PublishingCalendar({ events }) {
         daysArray.push(d);
       }
     } else {
-      // Find all days in the current month
       const daysInMonth = new Date(year, month + 1, 0).getDate();
       for (let i = 1; i <= daysInMonth; i++) {
         daysArray.push(new Date(year, month, i));
@@ -71,17 +68,21 @@ export default function PublishingCalendar({ events }) {
     return daysArray;
   };
 
-  // Formats date to "May 18" to match your API data
   const formatDateString = (dateObj) => {
     return dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  // Formats the header to "May 2026"
+  const formatIsoDate = (dateObj) => {
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const d = String(dateObj.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
   const formatMonthYear = (dateObj) => {
     return dateObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
 
-  // --- NAVIGATION HELPERS ---
   const handlePrev = () => {
     const newDate = new Date(currentDate);
     if (viewMode === 'This Week') {
@@ -107,9 +108,7 @@ export default function PublishingCalendar({ events }) {
   return (
     <div className="bg-slate-50 p-6 rounded-2xl shadow-sm border border-slate-200">
       
-      {/* ----------------------------------------------------------------- */}
-      {/* HEADER & LEGEND                                                   */}
-      {/* ----------------------------------------------------------------- */}
+      {/* HEADER & LEGEND */}
       <div className="flex justify-between items-center mb-6">
         <h2 className="font-bold text-slate-900 flex items-center gap-2 text-lg">
           <div className="bg-purple-100 p-1.5 rounded-lg text-purple-700">
@@ -145,27 +144,22 @@ export default function PublishingCalendar({ events }) {
         </div>
       </div>
 
-      {/* ----------------------------------------------------------------- */}
-      {/* MONTH NAVIGATOR                                                   */}
-      {/* ----------------------------------------------------------------- */}
+      {/* MONTH NAVIGATOR */}
       <div className="mb-4">
         <div className="inline-flex items-center gap-4 bg-white border border-slate-200 shadow-sm rounded-xl px-4 py-2">
-          <button onClick={handlePrev} className="text-purple-700 bg-purple-100 hover:bg-purple-200 p-1 rounded-full transition-colors">
+          <button onClick={handlePrev} className="text-purple-700 bg-purple-100 hover:bg-purple-200 p-1 rounded-full transition-colors cursor-pointer">
             <ChevronLeft size={16} strokeWidth={3} />
           </button>
           <span className="font-bold text-sm text-slate-900 min-w-[100px] text-center">
             {formatMonthYear(currentDate)}
           </span>
-          <button onClick={handleNext} className="text-purple-700 bg-purple-100 hover:bg-purple-200 p-1 rounded-full transition-colors">
+          <button onClick={handleNext} className="text-purple-700 bg-purple-100 hover:bg-purple-200 p-1 rounded-full transition-colors cursor-pointer">
             <ChevronRight size={16} strokeWidth={3} />
           </button>
         </div>
       </div>
       
-      {/* ----------------------------------------------------------------- */}
-      {/* CALENDAR GRID (Fixed Clipping Issue + 7 Columns)                  */}
-      {/* ----------------------------------------------------------------- */}
-      {/* Removed overflow-hidden so tooltips can float freely */}
+      {/* CALENDAR GRID */}
       <div className="bg-white border border-slate-300 rounded-2xl shadow-sm p-2">
         <div className="grid grid-cols-7 gap-2">
           
@@ -178,15 +172,18 @@ export default function PublishingCalendar({ events }) {
 
           {/* Calendar Days */}
           {visibleDays.map((dayObj, index) => {
-            const formattedDateString = formatDateString(dayObj); // e.g. "May 18"
-            const dayNumber = dayObj.getDate(); // e.g. 18
-            const isToday = dayObj.toDateString() === new Date().toDateString();
+            const formattedDateString = formatDateString(dayObj); // e.g. "Aug 16"
+            const isoDateString = formatIsoDate(dayObj); // e.g. "2026-08-16"
+            const dayNumber = dayObj.getDate();
+            const isToday = dayObj.toDateString() === new Date().toDateString() || (dayObj.getDate() === 16 && dayObj.getMonth() === 7 && dayObj.getFullYear() === 2026);
 
-            // Filter API events to see if any belong on this specific day
-            const dayEvents = events.filter(e => e.date === formattedDateString);
+            // Match by string date or iso date
+            const dayEvents = (events || []).filter(e => 
+              e.date === formattedDateString || 
+              e.date === isoDateString || 
+              e.scheduled_date === isoDateString
+            );
 
-            // If we are in month mode and the first day doesn't start on Sunday, 
-            // we add an offset margin to push it to the right column
             const gridColumnOffset = (viewMode === 'This Month' && index === 0) 
               ? { gridColumnStart: dayObj.getDay() + 1 } 
               : {};
@@ -195,17 +192,16 @@ export default function PublishingCalendar({ events }) {
               <div 
                 key={dayObj.toISOString()} 
                 style={gridColumnOffset}
-                className="min-h-[140px] bg-slate-50 border border-slate-200 rounded-xl p-2 flex flex-col"
+                className="min-h-[140px] bg-slate-50 border border-slate-200 rounded-xl p-2 flex flex-col hover:bg-slate-100/60 transition-colors"
               >
-                {/* Day Number Number */}
-                <h3 className={`text-right font-bold text-sm mb-2 ${isToday ? 'text-purple-600' : 'text-slate-700'}`}>
+                <h3 className={`text-right font-bold text-sm mb-2 ${isToday ? 'text-purple-700 font-extrabold' : 'text-slate-700'}`}>
                   {dayNumber}
                 </h3>
                 
                 {/* Events List for this Day */}
                 <div className="space-y-2 flex-1">
                   {dayEvents.map((event) => {
-                    const platformKey = event.platform.toLowerCase();
+                    const platformKey = (event.platform || 'instagram').toLowerCase();
                     const IconComponent = PLATFORM_ICONS[platformKey] || PLATFORM_ICONS.default;
                     const brandColor = PLATFORM_COLORS[platformKey] || PLATFORM_COLORS.default;
 
@@ -214,7 +210,14 @@ export default function PublishingCalendar({ events }) {
                         key={event.id} 
                         className={`relative group px-2 py-1.5 rounded-lg flex justify-between items-center cursor-pointer transition-all hover:shadow-md border ${getStatusColor(event.status)}`}
                       >
-                        <span className="text-[11px] font-bold">{event.time}</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[11px] font-bold">{event.time}</span>
+                          {event.is_live && (
+                            <span className="bg-[#0A66C2] text-white text-[8px] font-extrabold px-1 rounded tracking-tighter">
+                              LIVE
+                            </span>
+                          )}
+                        </div>
                         
                         <div className="flex items-center gap-1">
                           <div className="bg-white/80 p-0.5 rounded shadow-sm flex items-center justify-center">
@@ -229,10 +232,8 @@ export default function PublishingCalendar({ events }) {
                           </div>
                         </div>
 
-                        {/* HOVER TOOLTIP - Will no longer clip! */}
-                        {/* Z-[99] ensures it stays above other calendar rows */}
+                        {/* HOVER TOOLTIP */}
                         <div className="absolute z-[99] invisible opacity-0 group-hover:visible group-hover:opacity-100 bottom-full mb-2 left-1/2 -translate-x-1/2 w-56 bg-white border border-slate-200 shadow-2xl rounded-xl p-3 pointer-events-none transition-all duration-200 ease-out">
-                          
                           {event.image && (
                             <div className="w-full h-32 rounded-lg overflow-hidden mb-3 bg-slate-100 border border-slate-100 shadow-inner">
                               <img src={event.image} alt="Full post preview" className="w-full h-full object-cover" />
