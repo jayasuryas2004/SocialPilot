@@ -108,8 +108,8 @@ def format_combined_content(db: Session):
     campaigns = db.query(Campaign).all()
     social_accounts = db.query(SocialAccount).all()
 
-    # Find real connected LinkedIn user
-    linkedin_user_name = "Jayasurya Subramanian"
+    # Find real connected LinkedIn user from vault
+    linkedin_user_name = "LinkedIn Member"
     for acc in social_accounts:
         if acc.platform == "linkedin" and acc.account_name:
             linkedin_user_name = acc.account_name

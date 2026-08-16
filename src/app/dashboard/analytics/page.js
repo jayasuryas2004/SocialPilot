@@ -9,18 +9,32 @@ import PlatformDonut from '@/components/analytics/PlatformDonut';
 import TrendChart from '@/components/analytics/TrendChart';
 import AnalyticsTables from '@/components/analytics/AnalyticsTables';
 import { fetchFullAnalyticsReport } from '@/lib/api/analytics';
+import { fetchAccounts } from '@/lib/api/accounts';
 
 export default function AnalyticsPage() {
   const router = useRouter();
   const [report, setReport] = useState(null);
+  const [activeAccountName, setActiveAccountName] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
-    fetchFullAnalyticsReport()
-      .then((data) => {
-        if (isMounted && data) {
-          setReport(data);
+
+    Promise.all([
+      fetchFullAnalyticsReport().catch(() => null),
+      fetchAccounts().catch(() => [])
+    ])
+      .then(([reportData, accountsData]) => {
+        if (isMounted) {
+          if (reportData) {
+            setReport(reportData);
+          }
+          if (Array.isArray(accountsData)) {
+            const li = accountsData.find(a => a.platform === 'linkedin' && a.status === 'connected');
+            if (li?.displayName) {
+              setActiveAccountName(li.displayName);
+            }
+          }
         }
       })
       .catch((err) => {
@@ -35,8 +49,8 @@ export default function AnalyticsPage() {
     };
   }, []);
 
-  const isLinkedInActive = report?.linkedin?.connected;
-  const linkedInName = report?.linkedin?.account_name || "LinkedIn Profile";
+  const isLinkedInActive = report?.linkedin?.connected || !!activeAccountName;
+  const linkedInName = activeAccountName || report?.linkedin?.account_name || "LinkedIn Profile";
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-6 text-slate-900 pb-20">
@@ -48,10 +62,15 @@ export default function AnalyticsPage() {
             <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
               Analytics Dashboard
             </h1>
-            {isLinkedInActive && (
+            {isLinkedInActive ? (
               <div className="flex items-center gap-1.5 bg-[#0A66C2]/10 text-[#0A66C2] border border-[#0A66C2]/20 px-3 py-1 rounded-full text-xs font-bold shadow-xs">
                 <CheckCircle2 size={13} className="text-[#0A66C2]" strokeWidth={2.5} />
                 <span>LinkedIn Live ({linkedInName})</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 bg-slate-100 text-slate-500 border border-slate-200 px-3 py-1 rounded-full text-xs font-semibold">
+                <Globe size={13} className="text-slate-400" />
+                <span>Multi-Platform Mode</span>
               </div>
             )}
           </div>

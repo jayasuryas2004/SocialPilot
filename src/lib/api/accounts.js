@@ -94,7 +94,7 @@ export async function fetchAccounts() {
 
   // Fallback if backend temporarily unavailable
   return [
-    { id: 'acc_db_1', platform: 'linkedin', handle: '@etoL0U0UPG', displayName: 'Jayasurya Subramanian', status: 'connected', posts: 18, reach: 125000, engagementRate: 12.4, connectedAt: '2026-08-16', tokenExpiresAt: '2026-11-16', avatar: null, is_live_oauth: true },
+    { id: 'acc_db_1', platform: 'linkedin', handle: '@linkedin_creator', displayName: 'LinkedIn Member', status: 'connected', posts: 18, reach: 125000, engagementRate: 12.4, connectedAt: '2026-08-16', tokenExpiresAt: '2026-11-16', avatar: null, is_live_oauth: true },
     { id: 'acc_mock_fb', platform: 'facebook', handle: '@socialpilot_fb', displayName: "SocialPilot Official", status: 'connected', posts: 24, reach: 580000, engagementRate: 10.02, connectedAt: '2026-05-01', tokenExpiresAt: '2026-11-01', avatar: null, is_live_oauth: false },
     { id: 'acc_mock_ig', platform: 'instagram', handle: '@socialpilot_app', displayName: "SocialPilot App", status: 'connected', posts: 41, reach: 902000, engagementRate: 14.6, connectedAt: '2026-04-12', tokenExpiresAt: '2026-10-12', avatar: null, is_live_oauth: false },
   ];
