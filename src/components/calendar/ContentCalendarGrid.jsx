@@ -146,7 +146,14 @@ export default function ContentCalendarGrid({ events }) {
 
                     return (
                       <div key={event.id} className={`relative group/pill px-2 py-1.5 rounded-lg flex justify-between items-center cursor-pointer transition-all hover:shadow-md border ${getStatusColor(event.status)}`}>
-                        <span className="text-[10px] font-bold">{event.time}</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] font-bold">{event.time}</span>
+                          {event.is_live && (
+                            <span className="bg-[#0A66C2] text-white text-[8px] font-extrabold px-1 rounded tracking-tighter">
+                              LIVE
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-1">
                           <div className="bg-white/80 p-0.5 rounded shadow-sm flex items-center justify-center">
                             <IconComponent size={10} color={brandColor} />
@@ -155,6 +162,7 @@ export default function ContentCalendarGrid({ events }) {
                             {event.image ? <img src={event.image} alt="post" className="w-full h-full object-cover" /> : <ImageIcon size={8} className="text-slate-800" strokeWidth={2.5} />}
                           </div>
                         </div>
+
 
                         {/* PREMIUM TOOLTIP */}
                         <div className="absolute z-[999] invisible opacity-0 group-hover/pill:visible group-hover/pill:opacity-100 bottom-full mb-2 left-1/2 -translate-x-1/2 w-56 bg-white border border-slate-200 shadow-2xl rounded-xl p-3 pointer-events-none transition-all duration-200 ease-out">

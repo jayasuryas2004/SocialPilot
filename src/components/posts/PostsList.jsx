@@ -9,6 +9,7 @@ import {
   FaInstagram, FaFacebook, FaLinkedin, FaXTwitter
 } from "react-icons/fa6";
 import { getPosts, deletePost, updatePost, retryPost } from "@/lib/api/posts";
+import { getAllContent } from "@/lib/api/content";
 
 
 const CAMPAIGNS = ['Summer Sale', 'Winter Skincare', 'Spring Launch'];
@@ -20,10 +21,10 @@ export default function PostsList() {
   const [activeTab, setActiveTab] = useState('All posts');
   const [selectedPosts, setSelectedPosts] = useState([]);
 
-  // Fetch live posts from the FastAPI backend on mount
+  // Fetch hybrid posts (live SQLite records + multi-platform filler) on mount
   useEffect(() => {
     let isMounted = true;
-    getPosts()
+    getAllContent()
       .then((data) => {
         if (isMounted) {
           setPosts(Array.isArray(data) ? data : []);
@@ -36,6 +37,7 @@ export default function PostsList() {
       isMounted = false;
     };
   }, []);
+
 
 
   // Filter state
@@ -370,11 +372,19 @@ export default function PostsList() {
                   <div className="flex items-center gap-2">
                     {getPlatformIcon(post.platform)}
                     <div className="flex flex-col">
-                      <span className="text-xs font-bold text-slate-800">{post.platform}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-slate-800">{post.platform}</span>
+                        {post.is_live && (
+                          <span className="bg-[#0A66C2] text-white text-[8px] font-extrabold px-1.5 py-0.2 rounded-full tracking-tight">
+                            LIVE
+                          </span>
+                        )}
+                      </div>
                       <span className="text-[10px] text-slate-400">@{post.handle}</span>
                     </div>
                   </div>
                 </td>
+
                 <td className="py-4 px-4 text-xs font-bold text-slate-800">{post.campaign}</td>
                 <td className="py-4 px-4">
                   <p className="text-xs font-bold text-slate-600">{post.date}</p>
