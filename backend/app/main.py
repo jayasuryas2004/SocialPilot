@@ -1,14 +1,17 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from scheduler import start_scheduler
-from database import Base, engine
+from app.scheduler import start_scheduler
+from app.database import Base, engine
 
-import models.post
-import models.campaign
-import models.notification
-import models.user
+import app.models.post
+import app.models.campaign
+import app.models.notification
+import app.models.user
 
-from api import schedule, campaign, post, auth
+from app.api.auth import router as auth_router
+from app.api.schedule import router as schedule_router
+from app.api.campaign import router as campaign_router
+from app.api.post import router as post_router
 
 app = FastAPI(
     title="SocialPilot Backend",
@@ -40,15 +43,15 @@ def startup_event():
 Base.metadata.create_all(bind=engine)
 
 # Register API Routers
-app.include_router(auth.router)
-app.include_router(schedule.router)
-app.include_router(campaign.router)
-app.include_router(post.router)
-
+app.include_router(auth_router)
+app.include_router(schedule_router)
+app.include_router(campaign_router)
+app.include_router(post_router)
 
 
 @app.get("/")
 def home():
     return {
         "message": "Backend Working Fine 🚀"
-    }
+    }
+

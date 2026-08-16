@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from database import SessionLocal
-from models.post import Post
-from schemas.post import PostCreate
+from app.database import SessionLocal
+from app.models.post import Post
+from app.schemas.post import PostCreate
+
 
 router = APIRouter(prefix="/posts", tags=["Posts"])
 

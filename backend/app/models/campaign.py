@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Float, Date
 from sqlalchemy.orm import relationship
-from database import Base
+from app.database import Base
+
 
 
 class Campaign(Base):

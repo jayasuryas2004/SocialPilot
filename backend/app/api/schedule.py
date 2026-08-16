@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from database import get_db
-from models.post import Post
-from schemas.post import PostCreate
+from app.database import get_db
+from app.models.post import Post
+from app.schemas.post import PostCreate
+
 
 router = APIRouter()
 

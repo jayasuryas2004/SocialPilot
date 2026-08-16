@@ -4,9 +4,10 @@ from sqlalchemy.orm import Session
 import bcrypt
 import jwt
 
-from database import get_db
-from models.user import User
-from schemas.auth import RegisterRequest, LoginRequest
+from app.database import get_db
+from app.models.user import User
+from app.schemas.auth import RegisterRequest, LoginRequest
+
 
 # Create API router for authentication endpoints
 router = APIRouter(prefix="/auth", tags=["Authentication"])

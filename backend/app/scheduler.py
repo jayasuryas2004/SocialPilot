@@ -2,16 +2,17 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from database import SessionLocal
-from models.post import Post
-from models.notification import Notification
+from app.database import SessionLocal
+from app.models.post import Post
+from app.models.notification import Notification
 
-from services.social_media import (
+from app.services.social_media import (
     publish_to_instagram,
     publish_to_facebook,
     publish_to_linkedin,
     publish_to_twitter,
 )
+
 
 scheduler = BackgroundScheduler()
 

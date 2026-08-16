@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from database import get_db
-from models.campaign import Campaign
-from schemas.campaign import CampaignCreate
+from app.database import get_db
+from app.models.campaign import Campaign
+from app.schemas.campaign import CampaignCreate
+
 
 router = APIRouter()
 
