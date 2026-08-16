@@ -1,13 +1,24 @@
 import { NextResponse } from "next/server";
 
 export function middleware(request) {
+  const { pathname } = request.nextUrl;
+
   // Read authentication token from cookie
   const token = request.cookies.get("sp_token")?.value;
 
-  // Redirect to login if user attempts to access protected routes without a valid session token
-  if (!token) {
-    const loginUrl = new URL("/login", request.url);
-    return NextResponse.redirect(loginUrl);
+  const isAuthRoute = pathname.startsWith("/login") ||
+                      pathname.startsWith("/register") ||
+                      pathname.startsWith("/forgot-password") ||
+                      pathname.startsWith("/reset-password");
+
+  // If already authenticated and trying to access login/register, redirect to /dashboard
+  if (token && isAuthRoute) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
+  // If not authenticated and trying to access protected routes, redirect to /login
+  if (!token && !isAuthRoute) {
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   return NextResponse.next();
@@ -15,6 +26,7 @@ export function middleware(request) {
 
 export const config = {
   matcher: [
+    "/dashboard",
     "/dashboard/:path*",
     "/calendar/:path*",
     "/posts/:path*",
@@ -25,5 +37,8 @@ export const config = {
     "/notifications/:path*",
     "/team/:path*",
     "/settings/:path*",
+    "/login",
+    "/register",
   ],
-};
+};
+
