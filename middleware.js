@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 
 export function middleware(request) {
-  // Placeholder for now — always allows the request through.
-  // Once login is built, this will check for a valid session/JWT
-  // and redirect to /login if the user is trying to reach a
-  // (dashboard) route without one.
+  // Read authentication token from cookie
+  const token = request.cookies.get("sp_token")?.value;
+
+  // Redirect to login if user attempts to access protected routes without a valid session token
+  if (!token) {
+    const loginUrl = new URL("/login", request.url);
+    return NextResponse.redirect(loginUrl);
+  }
+
   return NextResponse.next();
 }
 
@@ -21,4 +26,4 @@ export const config = {
     "/team/:path*",
     "/settings/:path*",
   ],
-};
+};

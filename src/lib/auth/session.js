@@ -1,28 +1,101 @@
-// JWT must live in a COOKIE, not localStorage — Next.js middleware runs on
-// the server/edge and can only read cookies, not browser storage.
+// Storage keys for authentication credentials
 const TOKEN_KEY = "sp_token";
 const USER_KEY = "sp_user";
 
+/**
+ * Persist the authentication token and user information.
+ * Stores the JWT token in cookies (for Next.js SSR / middleware access)
+ * and in localStorage (for fast client-side access).
+ */
 export function setSession(token, user) {
-  if (typeof document === "undefined") return;
-  document.cookie = `${TOKEN_KEY}=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  // Store JWT in cookie with a 7-day expiration and Lax SameSite policy
+  if (token) {
+    document.cookie = `${TOKEN_KEY}=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+    try {
+      localStorage.setItem(TOKEN_KEY, token);
+    } catch (err) {
+      console.error("Failed to save token to localStorage:", err);
+    }
+  }
+
+  // Store user profile JSON in localStorage
+  if (user) {
+    try {
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+    } catch (err) {
+      console.error("Failed to save user data to localStorage:", err);
+    }
+  }
 }
 
+/**
+ * Retrieve the active JWT token from cookies or localStorage.
+ */
 export function getToken() {
-  if (typeof document === "undefined") return null;
-  const match = document.cookie.match(new RegExp(`${TOKEN_KEY}=([^;]+)`));
-  return match ? match[1] : null;
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  // 1. Try reading the token from cookies
+  const cookieMatch = document.cookie.match(new RegExp(`${TOKEN_KEY}=([^;]+)`));
+  if (cookieMatch && cookieMatch[1]) {
+    return cookieMatch[1];
+  }
+
+  // 2. Fall back to localStorage if available
+  if (typeof window !== "undefined") {
+    try {
+      return localStorage.getItem(TOKEN_KEY);
+    } catch (err) {
+      return null;
+    }
+  }
+
+  return null;
 }
 
+/**
+ * Retrieve the stored user object from localStorage.
+ */
 export function getUser() {
-  if (typeof window === "undefined") return null;
-  const raw = localStorage.getItem(USER_KEY);
-  return raw ? JSON.parse(raw) : null;
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const rawUser = localStorage.getItem(USER_KEY);
+    if (!rawUser) {
+      return null;
+    }
+    return JSON.parse(rawUser);
+  } catch (err) {
+    console.error("Failed to parse user from localStorage:", err);
+    return null;
+  }
 }
 
+/**
+ * Clear the current session, removing cookies and localStorage items.
+ */
 export function clearSession() {
-  if (typeof document === "undefined") return;
-  document.cookie = `${TOKEN_KEY}=; path=/; max-age=0`;
-  localStorage.removeItem(USER_KEY);
-}
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  // Expire the authentication cookie
+  document.cookie = `${TOKEN_KEY}=; path=/; max-age=0; SameSite=Lax`;
+
+  // Remove stored items from localStorage
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+    } catch (err) {
+      console.error("Failed to clear localStorage session:", err);
+    }
+  }
+}

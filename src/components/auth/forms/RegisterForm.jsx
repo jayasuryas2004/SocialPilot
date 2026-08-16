@@ -13,16 +13,26 @@ export default function RegisterForm() {
   const router = useRouter();
   const { register } = useAuth();
 
-  const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "", role: "creator" });
+  // Registration form inputs state
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    role: "creator",
+  });
+
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [mounted, setMounted] = useState(false);
 
+  // Prevent SSR hydration mismatches
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Form input validation rules
   const isValid = useMemo(() => {
     return (
       form.name.trim().length > 1 &&
@@ -32,25 +42,45 @@ export default function RegisterForm() {
     );
   }, [form]);
 
+  /**
+   * Handle user registration form submission
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!isValid) return;
+
+    // Guard against invalid submissions
+    if (!isValid) {
+      return;
+    }
+
     setLoading(true);
     setError(null);
+
     try {
-      await register({
+      // Send registration POST request to FastAPI backend
+      const result = await register({
         name: form.name,
         email: form.email,
         password: form.password,
         role: form.role,
       });
-      router.push("/connect_accounts");
+
+      // If registration returns an active session token, go straight to dashboard
+      if (result && result.token) {
+        router.push("/dashboard");
+      } else {
+        // Otherwise route the user to login page
+        router.push("/login");
+      }
     } catch (err) {
-      setError(err.message || "Couldn't create your account.");
+      // Display standard failure message
+      const message = err?.message || "Registration failed. Please verify your details and try again.";
+      setError(message);
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-[#f7f5fb] flex items-center justify-center p-6 overflow-auto">
