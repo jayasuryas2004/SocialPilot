@@ -91,6 +91,32 @@ REPORTS_DB = [
         "campaignName": "Summer collection",
         "createdAt": "2026-05-10",
         "fileUrl": "http://localhost:8000/api/reports/5/download"
+    },
+    {
+        "id": "6",
+        "name": "LinkedIn B2B Lead Conversion Report",
+        "category": "engagement",
+        "format": "pdf",
+        "size": "2.9 MB",
+        "status": "ready",
+        "platform": "linkedin",
+        "campaignId": "2",
+        "campaignName": "Winter Skincare",
+        "createdAt": "2026-05-08",
+        "fileUrl": "http://localhost:8000/api/reports/6/download"
+    },
+    {
+        "id": "7",
+        "name": "Multi-Platform Audience Benchmark",
+        "category": "platform_comparison",
+        "format": "csv",
+        "size": "1.4 MB",
+        "status": "ready",
+        "platform": "all",
+        "campaignId": "1",
+        "campaignName": "Summer collection",
+        "createdAt": "2026-05-05",
+        "fileUrl": "http://localhost:8000/api/reports/7/download"
     }
 ]
 
@@ -120,11 +146,13 @@ def get_reports(
     category: Optional[str] = None,
     status: Optional[str] = None,
     platform: Optional[str] = None,
+    campaignId: Optional[str] = None,
     search: Optional[str] = None,
+    timeframe: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     """
-    Returns dynamically compiled report records and KPI metrics using standard iterative loops.
+    Returns dynamically filtered report records and KPI metrics using standard iterative loops.
     """
     posts = db.query(Post).all()
     campaigns = db.query(Campaign).all()
@@ -158,15 +186,40 @@ def get_reports(
     filtered_items = []
     for r in REPORTS_DB:
         match = True
+        
+        # Category Filter
+        if category and category != "all" and r.get("category") != category:
+            match = False
+            
+        # Status Filter
         if status and status != "all" and r.get("status") != status:
             match = False
-        if platform and platform != "all" and r.get("platform") != platform:
-            match = False
+            
+        # Platform Filter (handles "linkedin", "instagram", "facebook", "x", "all")
+        if platform and platform != "all":
+            rep_plat = (r.get("platform") or "").lower()
+            target_plat = platform.lower()
+            if rep_plat != "all" and rep_plat != target_plat and target_plat not in rep_plat:
+                match = False
+                
+        # Campaign Filter
+        if campaignId and campaignId != "all":
+            if str(r.get("campaignId") or "") != str(campaignId):
+                match = False
+                
+        # Search Query Matching
         if search and search.strip():
             query_str = search.lower().strip()
             name_str = r.get("name", "").lower()
-            if query_str not in name_str:
+            cat_str = r.get("category", "").lower()
+            plat_str = (r.get("platform") or "").lower()
+            camp_str = (r.get("campaignName") or "").lower()
+            if (query_str not in name_str and 
+                query_str not in cat_str and 
+                query_str not in plat_str and 
+                query_str not in camp_str):
                 match = False
+                
         if match:
             filtered_items.append(r)
 
