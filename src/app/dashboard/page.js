@@ -45,7 +45,7 @@ export default function DashboardPage() {
     };
   }, []);
 
-  const userName = user?.name || "James Okonkwo";
+  const userName = user?.name || "Creator";
 
   return (
     <div className="p-8 bg-[#f8f9fc] min-h-screen space-y-6">
