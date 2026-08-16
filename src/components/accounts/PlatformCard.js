@@ -30,8 +30,8 @@ export default function PlatformCard({ account, onManage, onReconnect }) {
             <Icon size={20} />
           </div>
           <div>
-            <p className="font-bold text-slate-800 text-sm">{config.name}</p>
-            <p className="text-xs font-medium text-slate-400">{account.handle}</p>
+            <p className="font-bold text-slate-800 text-sm">{account.displayName || config.name}</p>
+            <p className="text-xs font-medium text-slate-400">{account.handle || config.name}</p>
           </div>
         </div>
 

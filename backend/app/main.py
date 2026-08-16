@@ -24,6 +24,7 @@ from app.api.workspace import (
     notif_router,
     notif_router_alt
 )
+from app.api.accounts import router as accounts_router, router_alt as accounts_alt_router
 
 app = FastAPI(
     title="SocialPilot Backend",
@@ -71,6 +72,9 @@ app.include_router(workspace_router)
 app.include_router(workspace_alt_router)
 app.include_router(notif_router)
 app.include_router(notif_router_alt)
+app.include_router(accounts_router)
+app.include_router(accounts_alt_router)
+
 
 
 

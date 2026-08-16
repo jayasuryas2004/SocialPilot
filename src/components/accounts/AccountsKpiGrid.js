@@ -1,15 +1,16 @@
 "use client";
 import { Users, CheckCircle2, AlertTriangle, TrendingUp } from 'lucide-react';
 
-export default function AccountsKpiGrid({ accounts }) {
-  const connected = accounts.filter(a => a.status === 'connected').length;
-  const expired = accounts.filter(a => a.status === 'expired').length;
-  const successRate = accounts.length
-    ? Math.round((connected / accounts.length) * 100)
-    : 0;
+export default function AccountsKpiGrid({ accounts = [] }) {
+  const safeAccounts = Array.isArray(accounts) ? accounts : [];
+  const connected = safeAccounts.filter(a => (a.status || '').toLowerCase() === 'connected').length;
+  const expired = safeAccounts.filter(a => (a.status || '').toLowerCase() === 'expired').length;
+  const successRate = safeAccounts.length
+    ? Math.round((connected / safeAccounts.length) * 100)
+    : 100;
 
   const kpis = [
-    { label: 'Connected Accounts', value: accounts.length, icon: Users, color: 'text-[#311b92] bg-[#f3e8ff]' },
+    { label: 'Connected Accounts', value: safeAccounts.length, icon: Users, color: 'text-[#311b92] bg-[#f3e8ff]' },
     { label: 'Active Accounts', value: connected, icon: CheckCircle2, color: 'text-green-600 bg-green-50' },
     { label: 'Expired Tokens', value: expired, icon: AlertTriangle, color: 'text-amber-600 bg-amber-50' },
     { label: 'Publishing Success', value: `${successRate}%`, icon: TrendingUp, color: 'text-blue-600 bg-blue-50' },
