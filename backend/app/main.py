@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from scheduler import start_scheduler
 from database import Base, engine
 
@@ -11,6 +12,21 @@ from api import schedule, campaign, post
 app = FastAPI(
     title="SocialPilot Backend",
     version="1.0.0"
+)
+
+# Explicitly allowed frontend origins for Next.js app
+origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000"
+]
+
+# Add CORS middleware to allow frontend API requests with credentials
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -32,4 +48,4 @@ app.include_router(post.router)
 def home():
     return {
         "message": "Backend Working Fine 🚀"
-    }
+    }
