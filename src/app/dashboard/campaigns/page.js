@@ -1,10 +1,11 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import CampaignKpiGrid from '@/components/campaigns/CampaignKpiGrid';
 import CampaignAnalytics from '@/components/campaigns/CampaignAnalytics';
 import CampaignList from '@/components/campaigns/CampaignList';
 import CampaignForm from '@/components/campaigns/CampaignForm';
 import PostComposerModal from '@/components/posts/PostComposerModal';
+import { getCampaigns, createCampaign, updateCampaign } from '@/lib/api/campaigns';
 
 const INITIAL_DATA = [
   { id: 1, title: 'Summer sale reel', subtitle: 'Biggest sale of the year get up to 50% off', description: 'Driving sales for the new summer collection across all visual channels.', fullText: 'Driving sales for the new summer collection across all visual channels.', platforms: ['Instagram', 'Facebook'], objective: 'Sales', startDate: '2026-05-20', endDate: '2026-06-20', status: 'Active', image: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=150&h=150&fit=crop' },
@@ -12,31 +13,73 @@ const INITIAL_DATA = [
   { id: 3, title: 'Product Launch Teaser', subtitle: 'Coming soon...', description: 'Building hype for the upcoming Q1 product reveal.', fullText: 'Building hype for the upcoming Q1 product reveal.', platforms: ['X-Twitter', 'YouTube'], objective: 'Awareness', startDate: '2026-03-10', endDate: '2026-03-15', status: 'Draft', image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=150&h=150&fit=crop' },
 ];
 
-
 export default function CampaignsMainPage() {
   const [campaigns, setCampaigns] = useState(INITIAL_DATA);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState(null);
 
   // NEW: Post composer state
   const [isPostOpen, setIsPostOpen] = useState(false);
 
-  const handleSaveCampaign = async (campaignData) => {
-    await new Promise((resolve) => setTimeout(resolve, 800));
+  // Fetch campaigns from the live FastAPI backend on mount
+  useEffect(() => {
+    let isMounted = true;
 
+    async function loadCampaigns() {
+      try {
+        setLoading(true);
+        const data = await getCampaigns();
+        if (isMounted) {
+          if (Array.isArray(data) && data.length > 0) {
+            setCampaigns(data);
+          }
+          setError(null);
+        }
+      } catch (err) {
+        console.error("Failed to load campaigns from backend:", err);
+        if (isMounted) {
+          setError(err?.message || "Failed to load campaigns.");
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadCampaigns();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  /**
+   * Handle creating a new campaign or updating an existing campaign
+   */
+  const handleSaveCampaign = async (campaignData) => {
     try {
       if (editingCampaign) {
-        setCampaigns((prev) =>
-          prev.map((c) => (c.id === editingCampaign.id ? { ...c, ...campaignData, fullText: campaignData.description } : c))
-        );
+        // Update existing campaign via PUT /campaign/{id}
+        const updated = await updateCampaign(editingCampaign.id, campaignData);
+        setCampaigns((prev) => {
+          const updatedList = [];
+          for (let i = 0; i < prev.length; i++) {
+            const c = prev[i];
+            if (c.id === editingCampaign.id) {
+              updatedList.push({ ...c, ...updated, fullText: campaignData.description || c.fullText });
+            } else {
+              updatedList.push(c);
+            }
+          }
+          return updatedList;
+        });
       } else {
-        const newCampaign = {
-          ...campaignData,
-          fullText: campaignData.description,
-          id: Date.now(),
-          image: 'https://images.unsplash.com/photo-1557683316-973673baf926?w=150&h=150&fit=crop',
-        };
-        setCampaigns((prev) => [newCampaign, ...prev]);
+        // Create new campaign via POST /campaign
+        const created = await createCampaign(campaignData);
+        setCampaigns((prev) => [created, ...prev]);
       }
       setIsFormOpen(false);
       setEditingCampaign(null);
@@ -47,7 +90,7 @@ export default function CampaignsMainPage() {
     }
   };
 
-  // NEW: handle scheduled post (swap this simulated call for a real API POST later)
+  // Handle scheduled post
   const handleSavePost = async (postPayload) => {
     await new Promise((resolve) => setTimeout(resolve, 800));
     console.log('Post scheduled:', postPayload);
@@ -105,3 +148,4 @@ export default function CampaignsMainPage() {
     </div>
   );
 }
+

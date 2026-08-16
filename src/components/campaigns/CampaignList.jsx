@@ -5,8 +5,10 @@ import {
   ChevronRight, ChevronLeft, AlertTriangle, Save,
 } from 'lucide-react';
 import { FaInstagram, FaFacebook, FaLinkedin, FaXTwitter, FaYoutube } from "react-icons/fa6";
+import { deleteCampaign, updateCampaign } from "@/lib/api/campaigns";
 
 const PLATFORMS_LIST = [
+
   { id: 'Instagram', icon: FaInstagram, color: 'hover:text-[#E1306C] hover:bg-pink-50', activeColor: 'text-[#E1306C] bg-pink-50 border-pink-200' },
   { id: 'Facebook', icon: FaFacebook, color: 'hover:text-[#1877F2] hover:bg-blue-50', activeColor: 'text-[#1877F2] bg-blue-50 border-blue-200' },
   { id: 'LinkedIn', icon: FaLinkedin, color: 'hover:text-[#0A66C2] hover:bg-blue-50', activeColor: 'text-[#0A66C2] bg-blue-50 border-blue-200' },
@@ -106,20 +108,34 @@ export default function CampaignList({ campaigns, setCampaigns, onEditExternal }
   };
 
   // --- DELETE ---
-  const executeDelete = () => {
+  const executeDelete = async () => {
     setIsDeleting(true);
-    setTimeout(() => {
+    try {
       if (deleteTarget === 'bulk') {
+        for (let i = 0; i < selectedCampaigns.length; i++) {
+          const targetId = selectedCampaigns[i];
+          try {
+            await deleteCampaign(targetId);
+          } catch (e) {
+            console.error("Delete campaign failed:", targetId, e);
+          }
+        }
         setCampaigns((prev) => prev.filter((c) => !selectedCampaigns.includes(c.id)));
         setSelectedCampaigns([]);
       } else {
+        try {
+          await deleteCampaign(deleteTarget);
+        } catch (e) {
+          console.error("Delete campaign failed:", deleteTarget, e);
+        }
         setCampaigns((prev) => prev.filter((c) => c.id !== deleteTarget));
         setSelectedCampaigns((prev) => prev.filter((id) => id !== deleteTarget));
         if (previewCampaign?.id === deleteTarget) closePreview();
       }
+    } finally {
       setIsDeleting(false);
       setDeleteTarget(null);
-    }, 600);
+    }
   };
 
   // --- EDIT ---
@@ -145,16 +161,27 @@ export default function CampaignList({ campaigns, setCampaigns, onEditExternal }
     setShowUpdateConfirm(true);
   };
 
-  const confirmSaveEdit = () => {
+  const confirmSaveEdit = async () => {
     setIsUpdating(true);
-    setTimeout(() => {
-      setCampaigns((prev) => prev.map((c) => (c.id === previewCampaign.id ? { ...c, ...editForm } : c)));
-      setPreviewCampaign((prev) => ({ ...prev, ...editForm }));
-      setIsUpdating(false);
-      setShowUpdateConfirm(false);
+    try {
+      let updatedData = editForm;
+      try {
+        const res = await updateCampaign(previewCampaign.id, editForm);
+        if (res) {
+          updatedData = res;
+        }
+      } catch (e) {
+        console.error("Update campaign failed:", e);
+      }
+      setCampaigns((prev) => prev.map((c) => (c.id === previewCampaign.id ? { ...c, ...updatedData } : c)));
+      setPreviewCampaign((prev) => ({ ...prev, ...updatedData }));
       setIsEditing(false);
-    }, 1000);
+      setShowUpdateConfirm(false);
+    } finally {
+      setIsUpdating(false);
+    }
   };
+
 
   const handleCancelEdit = () => {
     setIsEditing(false);
