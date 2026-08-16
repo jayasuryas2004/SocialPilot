@@ -1,11 +1,13 @@
-"use server";
-// Pointing to the file we created/located in Step 1
-import { db } from "@/lib/db"; 
+import client from "./client";
+import { getWorkspaceStatus, getNotifications, markNotificationRead, markAllNotificationsRead } from "./workspace";
 
 export async function getUnreadNotificationCount() {
-  // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  
-  // Return the count you want to see in your sidebar badge
-  return 10; 
+  try {
+    const data = await getWorkspaceStatus();
+    return typeof data.unread_count === "number" ? data.unread_count : 0;
+  } catch (err) {
+    return 0;
+  }
 }
+
+export { getWorkspaceStatus, getNotifications, markNotificationRead, markAllNotificationsRead };
