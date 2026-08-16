@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.scheduler import start_scheduler
-from app.database import Base, engine
+from app.database import Base, engine, run_database_migrations
 
 import app.models.post
 import app.models.campaign
@@ -53,11 +53,12 @@ app.add_middleware(
 
 @app.on_event("startup")
 def startup_event():
+    run_database_migrations()
     start_scheduler()
 
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
+# Create database tables and run schema migrations
+run_database_migrations()
 
 # Register API Routers
 app.include_router(auth_router)
