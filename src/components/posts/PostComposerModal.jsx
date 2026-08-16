@@ -173,6 +173,7 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
       campaign_id: campaignId ? Number(campaignId) : null,
     };
 
+    console.log("Submitting Post Payload:", postPayload);
 
     try {
       if (onSave) {
@@ -183,6 +184,7 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
       resetForm();
       onClose();
     } catch (err) {
+
       console.error("Failed to save post:", err);
       alert("Failed to schedule post. Please try again.");
     } finally {

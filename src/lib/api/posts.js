@@ -34,6 +34,8 @@ export function normalizePost(item) {
   const dateStr = item.scheduled_date || (item.scheduled_at ? String(item.scheduled_at).split("T")[0] : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
   const timeStr = item.scheduled_time || (item.scheduled_at ? String(item.scheduled_at).split("T")[1]?.slice(0, 5) : "10:00 am");
 
+  const resolvedImage = item.image_url || item.image || item.media || item.media_url || item.mediaFile || null;
+
   return {
     id: item.id,
     title: item.title || (item.content ? item.content.slice(0, 40) + "..." : "Untitled Post"),
@@ -51,7 +53,10 @@ export function normalizePost(item) {
     scheduled_date: item.scheduled_date || null,
     scheduled_time: item.scheduled_time || null,
     status: item.status || "Scheduled",
-    image: item.image || item.media_url || "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=150&h=150&fit=crop",
+    image_url: resolvedImage,
+    image: resolvedImage || "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=150&h=150&fit=crop",
+    media: resolvedImage,
+    media_url: resolvedImage,
   };
 }
 
@@ -105,6 +110,8 @@ export async function createPost(payload) {
     platformStr = payload.platform;
   }
 
+  const imgData = payload.image_url || payload.image || payload.media || payload.media_url || payload.mediaFile || null;
+
   const backendPayload = {
     content: payload.content || "",
     title: payload.title || (payload.content ? payload.content.slice(0, 50) : "Untitled Post"),
@@ -114,7 +121,17 @@ export async function createPost(payload) {
     scheduled_time: payload.scheduled_time || (payload.scheduledAt ? payload.scheduledAt.split("T")[1] : (payload.scheduleTime || null)),
     status: payload.status || "Scheduled",
     campaign_id: payload.campaign_id || payload.campaignId ? Number(payload.campaign_id || payload.campaignId) : null,
+    image_url: imgData,
+    image: imgData,
+    media: imgData,
+    media_url: imgData,
+    mediaFile: imgData,
   };
+
+  console.log("Submitting Post Payload to /posts/:", {
+    ...backendPayload,
+    image_url_length: imgData ? imgData.length : 0
+  });
 
   const response = await client.post("/posts/", backendPayload);
   const created = response.data?.data || response.data?.post || response.data;
@@ -132,6 +149,8 @@ export async function updatePost(id, payload) {
     platformStr = payload.platform;
   }
 
+  const imgData = payload.image_url || payload.image || payload.media || payload.media_url || payload.mediaFile || null;
+
   const backendPayload = {
     content: payload.content || payload.fullText || "",
     title: payload.title || "Untitled Post",
@@ -142,6 +161,13 @@ export async function updatePost(id, payload) {
     status: payload.status || "Scheduled",
     campaign_id: payload.campaign_id || payload.campaignId ? Number(payload.campaign_id || payload.campaignId) : null,
   };
+
+  if (imgData) {
+    backendPayload.image_url = imgData;
+    backendPayload.image = imgData;
+    backendPayload.media = imgData;
+    backendPayload.media_url = imgData;
+  }
 
   const response = await client.put(`/posts/${id}`, backendPayload);
   const updated = response.data?.data || response.data?.post || response.data;

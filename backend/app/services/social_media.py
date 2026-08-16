@@ -6,8 +6,8 @@ from app.models.social_account import SocialAccount
 def publish_to_linkedin(post, db):
     """
     Publishes a scheduled post to LinkedIn using vaulted OAuth access tokens.
-    Supports both text posts and full 3-step LinkedIn media image uploads.
-    Uses standard Python iterative logic.
+    Supports both text posts and full 3-step LinkedIn media image uploads with explicit tracing.
+    Uses standard Python iterative logic (strictly no list comprehensions or lambda expressions).
     """
     # 1. Query vaulted SocialAccount for LinkedIn
     social_account = db.query(SocialAccount).filter(
@@ -64,12 +64,13 @@ def publish_to_linkedin(post, db):
 
             # --- 3-STEP LINKEDIN MEDIA IMAGE UPLOAD PROTOCOL ---
             if image_data_str and len(image_data_str.strip()) > 0:
+                print(f"Processing media for Post ID {post.id}, raw string length: {len(image_data_str)}")
                 image_bytes = None
                 try:
                     # Convert Base64 or URL to raw binary bytes
                     if image_data_str.startswith("data:"):
-                        # Extract base64 payload after header
-                        parts = image_data_str.split(",")
+                        # Extract base64 payload after data URI prefix
+                        parts = image_data_str.split(",", 1)
                         if len(parts) > 1:
                             b64_str = parts[1]
                         else:
@@ -87,7 +88,9 @@ def publish_to_linkedin(post, db):
                     image_bytes = None
 
                 if image_bytes is not None and len(image_bytes) > 0:
-                    # Step A: Register upload with LinkedIn
+                    print(f"Image bytes decoded successfully: {len(image_bytes)} bytes.")
+
+                    # Step 1: Register upload with LinkedIn
                     register_payload = {
                         "registerUploadRequest": {
                             "recipes": [
@@ -105,6 +108,7 @@ def publish_to_linkedin(post, db):
                         json=register_payload,
                         headers=headers
                     )
+                    print("Step 1 (Register):", reg_res.status_code, reg_res.text)
 
                     if reg_res.status_code in [200, 201]:
                         reg_data = reg_res.json()
@@ -117,7 +121,7 @@ def publish_to_linkedin(post, db):
                         upload_url = http_upload_req.get("uploadUrl")
 
                         if asset_urn and upload_url:
-                            # Step B: Upload image binary bytes to LinkedIn uploadUrl
+                            # Step 2: Upload image binary bytes to LinkedIn uploadUrl
                             upload_headers = {
                                 "Authorization": f"Bearer {access_token}",
                                 "Content-Type": "image/jpeg"
@@ -127,11 +131,11 @@ def publish_to_linkedin(post, db):
                                 content=image_bytes,
                                 headers=upload_headers
                             )
-                            print(f"LinkedIn image binary upload status for Post ID {post.id}: {up_res.status_code}")
+                            print("Step 2 (Upload):", up_res.status_code, up_res.text)
                     else:
-                        print(f"Notice: LinkedIn registerUpload failed ({reg_res.status_code}): {reg_res.text}")
+                        print("Notice: LinkedIn registerUpload failed:", reg_res.status_code, reg_res.text)
 
-            # --- STEP C: CONSTRUCT UGC POST PAYLOAD (IMAGE VS TEXT) ---
+            # --- STEP 3: CONSTRUCT UGC POST PAYLOAD (IMAGE VS TEXT) ---
             if asset_urn:
                 ugc_payload = {
                     "author": author_urn,
@@ -183,6 +187,7 @@ def publish_to_linkedin(post, db):
                 json=ugc_payload,
                 headers=headers
             )
+            print("Step 3 (Publish):", response.status_code, response.text)
 
             if response.status_code in [200, 201]:
                 print(f"SUCCESS: Published Post ID {post.id} ({'with image' if asset_urn else 'text-only'}) to LinkedIn API: {response.text}")

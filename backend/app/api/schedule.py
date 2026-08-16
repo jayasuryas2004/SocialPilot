@@ -35,6 +35,7 @@ def create_schedule(post: PostCreate, db: Session = Depends(get_db)):
             title = "Untitled Post"
 
     img_data = post.image_url or post.image or post.media or post.media_url or post.mediaFile
+    print(f"Received image_url length in /schedule: {len(img_data) if img_data else 0}")
 
     new_post = Post(
         title=title,
@@ -51,6 +52,8 @@ def create_schedule(post: PostCreate, db: Session = Depends(get_db)):
     db.add(new_post)
     db.commit()
     db.refresh(new_post)
+    print(f"Persisted Scheduled Post ID {new_post.id} with image_url length: {len(new_post.image_url) if new_post.image_url else 0}")
+
 
     return {
         "message": "Post scheduled successfully",
