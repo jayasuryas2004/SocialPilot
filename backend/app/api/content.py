@@ -175,10 +175,13 @@ def format_combined_content(db: Session):
             "status": status_val,
             "image_url": p.image_url,
             "image": img_val,
+            "media": p.image_url or img_val,
+            "media_url": p.image_url or img_val,
             "is_live": is_linkedin or True,
             "source": "live_db"
         }
         combined_items.append(item)
+
 
 
     # 2. Append static filler posts using standard loop

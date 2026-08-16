@@ -35,7 +35,7 @@ def create_post(post: PostCreate, db: Session = Depends(get_db)):
         else:
             title = "Untitled Post"
 
-    img_data = post.image_url or post.image or post.mediaFile
+    img_data = post.image_url or post.image or post.media or post.media_url or post.mediaFile
 
     new_post = Post(
         title=title,
@@ -101,9 +101,10 @@ def update_post(post_id: int, post: PostCreate, db: Session = Depends(get_db)):
     if post.campaign_id is not None:
         db_post.campaign_id = post.campaign_id
 
-    img_data = post.image_url or post.image or post.mediaFile
+    img_data = post.image_url or post.image or post.media or post.media_url or post.mediaFile
     if img_data:
         db_post.image_url = img_data
+
 
     db.commit()
     db.refresh(db_post)

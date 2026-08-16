@@ -161,14 +161,18 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
       platform: selectedPlatforms.join(", "),
       title: content.trim().slice(0, 40) || "SocialPilot Post",
       content: fullCaption,
-      mediaFile: media,
+      image_url: media,
       image: media,
+      media: media,
+      media_url: media,
+      mediaFile: media,
       scheduledAt: `${scheduleDate}T${scheduleTime}`,
       scheduled_date: scheduleDate,
       scheduled_time: scheduleTime,
       campaignId: campaignId ? Number(campaignId) : null,
       campaign_id: campaignId ? Number(campaignId) : null,
     };
+
 
     try {
       if (onSave) {

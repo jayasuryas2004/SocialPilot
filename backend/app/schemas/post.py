@@ -15,6 +15,8 @@ class PostCreate(BaseModel):
     campaign_id: Optional[int] = None
     image_url: Optional[str] = None
     image: Optional[str] = None
+    media: Optional[str] = None
+    media_url: Optional[str] = None
     mediaFile: Optional[str] = None
 
 
@@ -30,6 +32,9 @@ class PostResponse(BaseModel):
     status: Optional[str] = "Scheduled"
     campaign_id: Optional[int] = None
     image_url: Optional[str] = None
+    image: Optional[str] = None
+    media: Optional[str] = None
+    media_url: Optional[str] = None
 
     class Config:
         from_attributes = True
