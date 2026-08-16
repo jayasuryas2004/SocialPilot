@@ -278,28 +278,22 @@ export default function ConnectAccounts() {
         {/* Footer Actions */}
         <div className="flex items-center justify-between border-t border-slate-200 pt-8 pb-12">
           <button
-            onClick={() => router.push("/login")}
-            className="text-slate-400 hover:text-slate-600 font-medium transition-colors"
+            type="button"
+            onClick={() => router.push("/dashboard")}
+            className="text-slate-400 hover:text-slate-700 font-medium text-sm transition-colors cursor-pointer"
           >
-            Back
+            Skip for now
           </button>
 
-          {/* Conditional element instead of a disabled attribute keeps server
-              and client markup identical on first render, avoiding hydration
-              mismatches. */}
-          {hasConnectedAccounts ? (
-            <button
-              onClick={() => router.push("/dashboard")}
-              className="px-6 py-3 rounded-lg font-semibold transition-all bg-[#5b21b6] hover:bg-[#4c1d95] text-white shadow-md cursor-pointer"
-            >
-              Continue to dashboard
-            </button>
-          ) : (
-            <div className="px-6 py-3 rounded-lg font-semibold bg-slate-200 text-slate-400 cursor-not-allowed">
-              Continue to dashboard
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={() => router.push("/dashboard")}
+            className="px-6 py-3 rounded-lg font-semibold transition-all bg-[#5b21b6] hover:bg-[#4c1d95] text-white shadow-md cursor-pointer flex items-center gap-2"
+          >
+            Continue to dashboard →
+          </button>
         </div>
+
       </div>
 
       {/* Connection Modal Overlay */}

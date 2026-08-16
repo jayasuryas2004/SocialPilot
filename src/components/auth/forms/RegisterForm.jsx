@@ -62,9 +62,6 @@ export default function RegisterForm() {
   const router = useRouter();
   const { register } = useAuth();
 
-  // Explicit mount tracker to prevent SSR/client hydration disparities
-  const [isMounted, setIsMounted] = useState(false);
-
   // Multi-step state: 1 for Account Details, 2 for Role Selection
   const [step, setStep] = useState(1);
 
@@ -80,11 +77,6 @@ export default function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
-  // Guaranteed single mount trigger for safe hydration
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   // Real-time password strength validation rules
   const passwordRequirements = useMemo(() => {
@@ -134,6 +126,7 @@ export default function RegisterForm() {
 
   /**
    * Final Step 2 Submission to live backend
+   * On success: Redirects to /connect_accounts onboarding flow
    */
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -155,9 +148,9 @@ export default function RegisterForm() {
         role: form.role,
       });
 
-      // If registration returns an active session token, go straight to dashboard
+      // Redirect user to Connect Accounts onboarding flow
       if (result && (result.token || result.access_token)) {
-        router.push("/dashboard");
+        router.push("/connect_accounts");
       } else {
         router.push("/login");
       }
@@ -255,7 +248,7 @@ export default function RegisterForm() {
 
             {/* STEP 1: ACCOUNT DETAILS */}
             {step === 1 && (
-              <form onSubmit={handleProceedToStep2} className="space-y-2.5">
+              <form onSubmit={handleProceedToStep2} className="space-y-2.5" suppressHydrationWarning>
                 <div>
                   <label className="block mb-1 text-[13px] font-semibold text-gray-800">Full name</label>
                   <div className="flex w-full h-10 bg-gray-100 rounded-lg overflow-hidden focus-within:bg-white focus-within:ring-1 focus-within:ring-[#4B00D1] border border-transparent transition-all">
@@ -380,9 +373,9 @@ export default function RegisterForm() {
 
                 <button
                   type="submit"
-                  disabled={!isMounted || !isStep1Valid}
+                  suppressHydrationWarning
                   className={`w-full h-10 rounded-lg text-[13px] font-semibold shadow-md transition-all flex items-center justify-center gap-1.5 mt-1 ${
-                    isMounted && isStep1Valid
+                    isStep1Valid
                       ? "bg-[#260b79] hover:bg-[#1f0962] text-white cursor-pointer"
                       : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
                   }`}
@@ -466,7 +459,7 @@ export default function RegisterForm() {
                     type="button"
                     onClick={handleSubmit}
                     disabled={loading}
-                    className="w-2/3 h-10 bg-[#260b79] hover:bg-[#1f0962] text-white font-semibold rounded-lg text-[13px] shadow-md transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+                    className="w-2/3 h-10 bg-[#260b79] hover:bg-[#1f0962] text-white font-semibold rounded-lg text-[13px] shadow-md transition-colors flex items-center justify-center gap-2 disabled:opacity-70 cursor-pointer"
                   >
                     {loading ? (
                       <><Loader2 size={16} className="animate-spin" /> Creating Account...</>
