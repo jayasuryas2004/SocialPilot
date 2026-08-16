@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import NotificationList from "@/components/notifications/NotificationList";
-import { getWorkspaceStatus } from "@/lib/api/workspace";
+import { getWorkspaceStatus, markNotificationRead, markAllNotificationsRead } from "@/lib/api/workspace";
 
 export default function NotificationsPage() {
   const [activeTab, setActiveTab] = useState("all");
@@ -36,6 +36,15 @@ export default function NotificationsPage() {
   const visibleNotifications = useMemo(() => {
     if (activeTab === "all") return notifications;
     if (activeTab === "unread") return notifications.filter(n => !n.isRead);
+    if (activeTab === "publishing") {
+      return notifications.filter(n => n.category === "publishing" || n.category === "social" || n.type === "publishing");
+    }
+    if (activeTab === "system") {
+      return notifications.filter(n => n.category === "system" || n.type === "system");
+    }
+    if (activeTab === "reports") {
+      return notifications.filter(n => n.category === "reports" || n.type === "report");
+    }
     return notifications.filter(n => n.category === activeTab);
   }, [notifications, activeTab]);
 
@@ -44,19 +53,35 @@ export default function NotificationsPage() {
     return {
       all: notifications.length,
       unread: notifications.filter(n => !n.isRead).length,
-      reports: notifications.filter(n => n.category === "reports").length,
-      social: notifications.filter(n => n.category === "social").length,
-      system: notifications.filter(n => n.category === "system").length,
+      publishing: notifications.filter(n => n.category === "publishing" || n.category === "social" || n.type === "publishing").length,
+      system: notifications.filter(n => n.category === "system" || n.type === "system").length,
+      reports: notifications.filter(n => n.category === "reports" || n.type === "report").length,
     };
   }, [notifications]);
 
   // Actions
-  const handleMarkAsRead = (id) => {
+  const handleMarkAsRead = async (id) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    try {
+      await markNotificationRead(id);
+    } catch (err) {
+      console.error("Mark as read error:", err);
+    }
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("notifications_updated"));
+    }
   };
 
-  const handleMarkAllAsRead = () => {
+  const handleMarkAllAsRead = async () => {
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    try {
+      await markAllNotificationsRead();
+    } catch (err) {
+      console.error("Mark all as read error:", err);
+    }
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("notifications_updated"));
+    }
   };
 
   return (
@@ -94,14 +119,14 @@ export default function NotificationsPage() {
                 {[
                   { value: "all", label: "All" },
                   { value: "unread", label: "Unread" },
-                  { value: "social", label: "Publishing" },
+                  { value: "publishing", label: "Publishing" },
                   { value: "system", label: "System Alerts" },
                   { value: "reports", label: "Reports" },
                 ].map((tab) => (
                   <TabsTrigger 
                     key={tab.value} 
                     value={tab.value}
-                    className="rounded-none border-b-2 border-transparent px-1 pb-4 pt-2 font-extrabold text-sm md:text-base text-slate-500 shadow-none transition-none data-[state=active]:border-violet-800 data-[state=active]:text-violet-900 data-[state=active]:shadow-none hover:text-slate-800 whitespace-nowrap"
+                    className="rounded-none border-b-2 border-transparent px-1 pb-4 pt-2 font-extrabold text-sm md:text-base text-slate-500 shadow-none transition-none data-[state=active]:border-violet-800 data-[state=active]:text-violet-900 data-[state=active]:shadow-none hover:text-slate-800 whitespace-nowrap cursor-pointer"
                   >
                     {tab.label} {counts[tab.value] > 0 && `(${counts[tab.value]})`}
                   </TabsTrigger>
