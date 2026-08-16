@@ -13,22 +13,31 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     let isMounted = true;
-    getWorkspaceStatus()
-      .then((data) => {
-        if (isMounted) {
-          const notifs = data?.notifications || [];
-          setNotifications(Array.isArray(notifs) ? notifs : []);
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to load live workspace notifications:", err);
-      })
-      .finally(() => {
-        if (isMounted) setLoading(false);
-      });
 
+    const loadNotifs = () => {
+      getWorkspaceStatus()
+        .then((data) => {
+          if (isMounted) {
+            const notifs = data?.notifications || [];
+            if (Array.isArray(notifs)) {
+              setNotifications(notifs);
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn("Workspace status fetch notice:", err);
+        })
+        .finally(() => {
+          if (isMounted) setLoading(false);
+        });
+    };
+
+    loadNotifs();
+
+    window.addEventListener("notifications_updated", loadNotifs);
     return () => {
       isMounted = false;
+      window.removeEventListener("notifications_updated", loadNotifs);
     };
   }, []);
 
@@ -137,10 +146,16 @@ export default function NotificationsPage() {
 
           {/* NOTIFICATIONS SECTION (CONTENT) */}
           <div className="w-full">
-            <NotificationList 
-              notifications={visibleNotifications} 
-              onMarkAsRead={handleMarkAsRead} 
-            />
+            {loading ? (
+              <div className="p-12 text-center text-slate-400 font-medium animate-pulse">
+                Loading notifications...
+              </div>
+            ) : (
+              <NotificationList 
+                notifications={visibleNotifications} 
+                onMarkAsRead={handleMarkAsRead} 
+              />
+            )}
           </div>
           
         </CardContent>
