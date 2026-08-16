@@ -57,39 +57,54 @@ const STORAGE_KEY = "socialpilot_connected_platforms";
 export default function ConnectAccounts() {
   const router = useRouter();
 
-  // NOTE: state is initialized identically on server and client (empty array),
-  // so the very first render always matches. We load the real, persisted
-  // value inside a useEffect (client-only, runs after hydration) — that
-  // keeps SSR/CSR markup in sync on first paint and avoids the
-  // disabled={true} vs disabled={null} style hydration mismatches, while
-  // still restoring the user's connections after a refresh.
   const [connectedPlatforms, setConnectedPlatforms] = useState([]);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [platformToDisconnect, setPlatformToDisconnect] = useState(null);
+  const [oauthFeedback, setOauthFeedback] = useState(null);
 
-  // Restore previously connected platforms after mount (client-only).
+  // Restore previously connected platforms and check OAuth return params after mount (client-only).
   useEffect(() => {
     try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const statusParam = urlParams.get("status");
+      const platformParam = urlParams.get("platform");
+      const messageParam = urlParams.get("message");
+
       const stored = window.localStorage.getItem(STORAGE_KEY);
+      let initialPlatforms = [];
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
-          setConnectedPlatforms(parsed);
+          initialPlatforms = parsed;
         }
       }
+
+      if (statusParam === "success" && platformParam) {
+        if (!initialPlatforms.includes(platformParam)) {
+          initialPlatforms.push(platformParam);
+        }
+        setOauthFeedback({
+          type: "success",
+          message: `Successfully connected your ${platformParam.toUpperCase()} account!`
+        });
+      } else if (statusParam === "error") {
+        setOauthFeedback({
+          type: "error",
+          message: messageParam || "Failed to connect social account. Please try again."
+        });
+      }
+
+      setConnectedPlatforms(initialPlatforms);
     } catch (err) {
-      // Corrupt or inaccessible storage — fall back to the empty default.
       console.warn("Could not read saved connections:", err);
     } finally {
       setHasLoaded(true);
     }
   }, []);
 
-  // Persist connections whenever they change, but only after the initial
-  // load has completed — otherwise we'd overwrite saved data with the
-  // empty starting array before it's had a chance to load.
+  // Persist connections whenever they change, after initial load.
   useEffect(() => {
     if (!hasLoaded) return;
     try {
@@ -108,20 +123,36 @@ export default function ConnectAccounts() {
   const unconnectedList = platformsData.filter(
     (p) => !connectedPlatforms.includes(p.id)
   );
-  const hasConnectedAccounts = connectedPlatforms.length > 0;
 
   const handlePlatformClick = (platform) => {
     if (connectedPlatforms.includes(platform.id)) return;
     setSelectedPlatform(platform);
   };
 
-  const handleConnect = () => {
+  const handleConnect = async () => {
+    if (selectedPlatform?.id === "linkedin") {
+      setIsConnecting(true);
+      try {
+        const { getLinkedInAuthUrl } = await import("@/lib/api/oauth");
+        const authUrl = await getLinkedInAuthUrl();
+        if (authUrl) {
+          window.location.href = authUrl;
+          return;
+        }
+      } catch (err) {
+        console.warn("Could not load OAuth authUrl, proceeding with instant connect:", err);
+      }
+    }
+
     setIsConnecting(true);
     setTimeout(() => {
-      setConnectedPlatforms((prev) => [...prev, selectedPlatform.id]);
+      setConnectedPlatforms((prev) => {
+        if (prev.includes(selectedPlatform.id)) return prev;
+        return [...prev, selectedPlatform.id];
+      });
       setIsConnecting(false);
       setSelectedPlatform(null);
-    }, 2000);
+    }, 1500);
   };
 
   const handleDisconnectClick = (e, platform) => {
@@ -142,7 +173,7 @@ export default function ConnectAccounts() {
       <div className="w-full max-w-4xl mb-8 flex items-center">
         <div className="flex items-center gap-2">
           <Image
-            src="images/logo.svg"
+            src="/images/logo.svg"
             alt="SocialPilot Logo"
             width={40}
             height={40}
@@ -158,7 +189,7 @@ export default function ConnectAccounts() {
         {/* Breadcrumbs */}
         <div className="flex items-center gap-2 text-sm font-medium mb-8">
           <Link
-            href="/login"
+            href="/register"
             className="text-[#5b21b6] hover:underline cursor-pointer"
           >
             Account
@@ -168,6 +199,25 @@ export default function ConnectAccounts() {
           <span className="text-slate-300">→</span>
           <span className="text-slate-400">Dashboard</span>
         </div>
+
+        {/* Feedback Alert if OAuth redirected back */}
+        {oauthFeedback && (
+          <div
+            className={`mb-6 p-4 rounded-xl flex items-center justify-between text-sm font-medium ${
+              oauthFeedback.type === "success"
+                ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                : "bg-red-50 text-red-800 border border-red-200"
+            }`}
+          >
+            <span>{oauthFeedback.message}</span>
+            <button
+              onClick={() => setOauthFeedback(null)}
+              className="text-slate-400 hover:text-slate-600 ml-4"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* Header */}
         <h1 className="text-3xl font-bold text-slate-900 mb-2">
@@ -224,7 +274,7 @@ export default function ConnectAccounts() {
                     <h3 className="font-semibold text-slate-900">
                       {platform.name}
                     </h3>
-                    <p className="text-sm text-green-600 flex items-center gap-1">
+                    <p className="text-sm text-green-600 flex items-center gap-1 font-medium">
                       <Check className="w-3.5 h-3.5" /> Connected
                     </p>
                   </div>
@@ -293,7 +343,6 @@ export default function ConnectAccounts() {
             Continue to dashboard →
           </button>
         </div>
-
       </div>
 
       {/* Connection Modal Overlay */}
@@ -334,14 +383,16 @@ export default function ConnectAccounts() {
             ) : (
               <div className="flex gap-4">
                 <button
+                  type="button"
                   onClick={() => setSelectedPlatform(null)}
                   className="flex-1 py-3 px-4 border border-slate-200 text-slate-600 font-semibold rounded-lg hover:bg-slate-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
+                  type="button"
                   onClick={handleConnect}
-                  className="flex-1 py-3 px-4 bg-[#5b21b6] hover:bg-[#4c1d95] text-white font-semibold rounded-lg transition-colors shadow-md"
+                  className="flex-1 py-3 px-4 bg-[#5b21b6] hover:bg-[#4c1d95] text-white font-semibold rounded-lg transition-colors shadow-md cursor-pointer"
                 >
                   Allow access
                 </button>
@@ -370,12 +421,14 @@ export default function ConnectAccounts() {
 
             <div className="flex gap-4">
               <button
+                type="button"
                 onClick={() => setPlatformToDisconnect(null)}
                 className="flex-1 py-3 px-4 border border-slate-200 text-slate-600 font-semibold rounded-lg hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={confirmDisconnect}
                 className="flex-1 py-3 px-4 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg transition-colors shadow-md"
               >

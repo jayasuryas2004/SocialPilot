@@ -7,6 +7,8 @@ import app.models.post
 import app.models.campaign
 import app.models.notification
 import app.models.user
+import app.models.social_account
+
 
 from app.api.auth import router as auth_router
 from app.api.schedule import router as schedule_router
