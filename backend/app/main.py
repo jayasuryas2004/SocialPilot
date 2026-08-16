@@ -12,6 +12,7 @@ from app.api.auth import router as auth_router
 from app.api.schedule import router as schedule_router
 from app.api.campaign import router as campaign_router
 from app.api.post import router as post_router
+from app.api.reports import router as reports_router
 
 app = FastAPI(
     title="SocialPilot Backend",
@@ -47,6 +48,8 @@ app.include_router(auth_router)
 app.include_router(schedule_router)
 app.include_router(campaign_router)
 app.include_router(post_router)
+app.include_router(reports_router)
+
 
 
 @app.get("/")

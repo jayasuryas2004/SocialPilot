@@ -40,8 +40,11 @@ export async function listReports(params = {}) {
     return { items: filtered, total: filtered.length };
   }
   const { data } = await client.get("/reports", { params });
-  return data;
+  const items = data?.items || (Array.isArray(data) ? data : []);
+  const total = data?.total !== undefined ? data.total : items.length;
+  return { items, total, kpis: data?.kpis };
 }
+
 
 export async function generateReport(payload) {
   if (USE_MOCK) {
