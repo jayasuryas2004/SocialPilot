@@ -1,15 +1,16 @@
 "use client";
 import { useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom'; // 1. Imported createPortal
+import { createPortal } from 'react-dom';
 import {
   X, Image as ImageIcon, Calendar, Clock, Hash,
   Send, Loader2, Smile, MapPin
 } from 'lucide-react';
 import {
-  FaInstagram, FaFacebook, FaLinkedin, FaXTwitter, FaYoutube, FaReddit, FaPinterest // 2. Added new icons
+  FaInstagram, FaFacebook, FaLinkedin, FaXTwitter, FaYoutube, FaReddit, FaPinterest
 } from "react-icons/fa6";
+import { getCampaigns } from "@/lib/api/campaigns";
+import { createPost } from "@/lib/api/posts";
 
-// 3. Updated to 7 Platforms with matching brand colors
 const PLATFORMS = [
   { id: 'instagram', icon: FaInstagram, color: 'hover:text-[#E1306C] hover:bg-pink-50', activeColor: 'text-[#E1306C] bg-pink-50 border-pink-200' },
   { id: 'facebook', icon: FaFacebook, color: 'hover:text-[#1877F2] hover:bg-blue-50', activeColor: 'text-[#1877F2] bg-blue-50 border-blue-200' },
@@ -30,25 +31,48 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
   const [scheduleTime, setScheduleTime] = useState('');
   const [campaignId, setCampaignId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadedCampaigns, setLoadedCampaigns] = useState(campaigns);
 
-  // 4. Added mounted state for Next.js Portal safety
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Synchronize campaigns from prop if provided
   useEffect(() => {
+    if (campaigns && campaigns.length > 0) {
+      setLoadedCampaigns(campaigns);
+    }
+  }, [campaigns]);
+
+  // Dynamically fetch live campaigns from the database when modal opens
+  useEffect(() => {
+    let isMounted = true;
+
     if (isOpen) {
       document.body.style.overflow = 'hidden';
       setCampaignId(initialCampaignId ? String(initialCampaignId) : '');
+
+      getCampaigns()
+        .then((data) => {
+          if (isMounted && Array.isArray(data) && data.length > 0) {
+            setLoadedCampaigns(data);
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to load campaigns for post composer:", err);
+        });
     } else {
       document.body.style.overflow = 'unset';
     }
-    return () => { document.body.style.overflow = 'unset'; };
+
+    return () => {
+      isMounted = false;
+      document.body.style.overflow = 'unset';
+    };
   }, [isOpen, initialCampaignId]);
 
-  // Ensure we don't render until client-side hydration is complete
   if (!isOpen || !mounted) return null;
 
   const togglePlatform = (id) => {
@@ -88,14 +112,22 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
 
     const postPayload = {
       platforms: selectedPlatforms,
+      platform: selectedPlatforms.join(", "),
       content: content.trim(),
       mediaFile: media,
       scheduledAt: `${scheduleDate}T${scheduleTime}`,
-      campaignId: campaignId || null,
+      scheduled_date: scheduleDate,
+      scheduled_time: scheduleTime,
+      campaignId: campaignId ? Number(campaignId) : null,
+      campaign_id: campaignId ? Number(campaignId) : null,
     };
 
     try {
-      if (onSave) await onSave(postPayload);
+      if (onSave) {
+        await onSave(postPayload);
+      } else {
+        await createPost(postPayload);
+      }
       resetForm();
       onClose();
     } catch (err) {
@@ -106,7 +138,6 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
     }
   };
 
-  // 5. Wrap the return JSX in createPortal attached to document.body
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-8">
       <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col max-h-full">
@@ -129,6 +160,7 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
                 return (
                   <button
                     key={platform.id}
+                    type="button"
                     onClick={() => togglePlatform(platform.id)}
                     className={`w-12 h-12 rounded-xl flex items-center justify-center border-2 transition-all duration-200 shadow-sm
                       ${isActive ? platform.activeColor : `border-slate-200 text-slate-400 bg-white ${platform.color}`}
@@ -219,12 +251,12 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
                   className="w-full h-full min-h-[44px] pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-[#311b92] text-sm font-bold text-slate-700 cursor-pointer appearance-none"
                 >
                   <option value="">None (Independent Post)</option>
-                  {campaigns.map(camp => (
-                    <option key={camp.id} value={camp.id}>{camp.title}</option>
+                  {loadedCampaigns.map(camp => (
+                    <option key={camp.id} value={camp.id}>{camp.title || camp.campaign_name}</option>
                   ))}
                 </select>
               </div>
-              {campaigns.length === 0 ? (
+              {loadedCampaigns.length === 0 ? (
                 <p className="text-[10px] text-amber-600 mt-3 leading-snug font-bold">
                   No campaigns yet — create one first to assign this post to it.
                 </p>
@@ -263,6 +295,6 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
 
       </div>
     </div>,
-    document.body // Closes the createPortal
+    document.body
   );
 }

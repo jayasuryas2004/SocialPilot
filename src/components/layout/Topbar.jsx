@@ -1,7 +1,8 @@
 "use client";
 import { useState } from "react";
 import { Search, Plus } from "lucide-react";
-import PostComposerModal from "@/components/posts/PostComposerModal"; // Import the modal
+import PostComposerModal from "@/components/posts/PostComposerModal";
+import { createPost } from "@/lib/api/posts";
 
 export default function Topbar() {
   // State to control the global post composer
@@ -46,11 +47,16 @@ export default function Topbar() {
       <PostComposerModal 
         isOpen={isComposerOpen} 
         onClose={() => setIsComposerOpen(false)} 
-        onSave={(data) => {
-          console.log("Global post saved:", data);
-          // Trigger your global backend API call here
+        onSave={async (data) => {
+          try {
+            await createPost(data);
+          } catch (err) {
+            console.error("Failed to save global post:", err);
+            throw err;
+          }
         }}
       />
     </div>
   );
 }
+

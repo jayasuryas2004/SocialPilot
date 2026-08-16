@@ -1,15 +1,31 @@
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import date, datetime
+from typing import Optional, List, Union
+
 
 class PostCreate(BaseModel):
-    title: str
     content: str
-    platform: str
-    schedule_time: datetime
+    platforms: Optional[Union[List[str], str]] = None
+    platform: Optional[str] = None
+    title: Optional[str] = None
+    scheduled_date: Optional[date] = None
+    scheduled_time: Optional[str] = None
+    scheduled_at: Optional[Union[datetime, str]] = None
+    status: Optional[str] = "Scheduled"
+    campaign_id: Optional[int] = None
 
-class PostResponse(PostCreate):
+
+class PostResponse(BaseModel):
     id: int
-    status: str
+    content: str
+    platforms: Optional[str] = None
+    platform: Optional[str] = None
+    title: Optional[str] = None
+    scheduled_date: Optional[date] = None
+    scheduled_time: Optional[str] = None
+    scheduled_at: Optional[datetime] = None
+    status: Optional[str] = "Scheduled"
+    campaign_id: Optional[int] = None
 
     class Config:
         from_attributes = True

@@ -6,6 +6,8 @@ import CampaignList from '@/components/campaigns/CampaignList';
 import CampaignForm from '@/components/campaigns/CampaignForm';
 import PostComposerModal from '@/components/posts/PostComposerModal';
 import { getCampaigns, createCampaign, updateCampaign } from '@/lib/api/campaigns';
+import { createPost } from '@/lib/api/posts';
+
 
 const INITIAL_DATA = [
   { id: 1, title: 'Summer sale reel', subtitle: 'Biggest sale of the year get up to 50% off', description: 'Driving sales for the new summer collection across all visual channels.', fullText: 'Driving sales for the new summer collection across all visual channels.', platforms: ['Instagram', 'Facebook'], objective: 'Sales', startDate: '2026-05-20', endDate: '2026-06-20', status: 'Active', image: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=150&h=150&fit=crop' },
@@ -92,9 +94,15 @@ export default function CampaignsMainPage() {
 
   // Handle scheduled post
   const handleSavePost = async (postPayload) => {
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    console.log('Post scheduled:', postPayload);
+    try {
+      const created = await createPost(postPayload);
+      console.log('Post scheduled on backend from Campaign Page:', created);
+    } catch (err) {
+      console.error('Failed to schedule post:', err);
+      throw err;
+    }
   };
+
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-6 text-slate-900 pb-20">

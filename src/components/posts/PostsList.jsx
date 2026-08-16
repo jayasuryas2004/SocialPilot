@@ -8,6 +8,8 @@ import {
 import {
   FaInstagram, FaFacebook, FaLinkedin, FaXTwitter
 } from "react-icons/fa6";
+import { getPosts, deletePost, updatePost, retryPost } from "@/lib/api/posts";
+
 
 // --- MOCK DATABASE ---
 const INITIAL_DATA = [
@@ -29,6 +31,23 @@ export default function PostsList() {
   const [posts, setPosts] = useState(INITIAL_DATA);
   const [activeTab, setActiveTab] = useState('All posts');
   const [selectedPosts, setSelectedPosts] = useState([]);
+
+  // Fetch live posts from the FastAPI backend on mount
+  useEffect(() => {
+    let isMounted = true;
+    getPosts()
+      .then((data) => {
+        if (isMounted && Array.isArray(data) && data.length > 0) {
+          setPosts(data);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load posts from API:", err);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -101,11 +120,23 @@ export default function PostsList() {
     );
   };
 
-  const executeDelete = () => {
+  const executeDelete = async () => {
     if (deleteTarget === 'bulk') {
+      for (let i = 0; i < selectedPosts.length; i++) {
+        try {
+          await deletePost(selectedPosts[i]);
+        } catch (e) {
+          console.error("Failed to delete post:", selectedPosts[i], e);
+        }
+      }
       setPosts(prev => prev.filter(p => !selectedPosts.includes(p.id)));
       setSelectedPosts([]);
     } else {
+      try {
+        await deletePost(deleteTarget);
+      } catch (e) {
+        console.error("Failed to delete post:", deleteTarget, e);
+      }
       setPosts(prev => prev.filter(p => p.id !== deleteTarget));
       setSelectedPosts(prev => prev.filter(id => id !== deleteTarget));
       if (previewPost?.id === deleteTarget) closePreview();
@@ -114,14 +145,18 @@ export default function PostsList() {
     setActiveDropdown(null);
   };
 
-  const handleRetry = (id) => {
+  const handleRetry = async (id) => {
     setIsRetrying(id);
-    setTimeout(() => {
+    try {
+      await retryPost(id);
       setPosts(prev => prev.map(p => p.id === id ? { ...p, status: 'Published' } : p));
+    } catch (e) {
+      console.error("Failed to retry post:", e);
+    } finally {
       setIsRetrying(null);
       setPreviewPost(null);
       setActiveDropdown(null);
-    }, 1500);
+    }
   };
 
   const handleEdit = (post) => {
@@ -138,11 +173,18 @@ export default function PostsList() {
     setActiveDropdown(null);
   };
 
-  const handleSaveEdit = () => {
-    setPosts(prev => prev.map(p => p.id === previewPost.id ? { ...p, ...editForm } : p));
-    setPreviewPost(prev => ({ ...prev, ...editForm }));
-    setIsEditing(false);
+  const handleSaveEdit = async () => {
+    try {
+      await updatePost(previewPost.id, editForm);
+      setPosts(prev => prev.map(p => p.id === previewPost.id ? { ...p, ...editForm } : p));
+      setPreviewPost(prev => ({ ...prev, ...editForm }));
+    } catch (e) {
+      console.error("Failed to update post:", e);
+    } finally {
+      setIsEditing(false);
+    }
   };
+
 
   const handleCancelEdit = () => {
     setIsEditing(false);

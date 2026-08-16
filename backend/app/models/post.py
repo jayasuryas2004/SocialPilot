@@ -1,18 +1,20 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from app.database import Base
-
 
 
 class Post(Base):
     __tablename__ = "posts"
 
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, nullable=False)
+    title = Column(String, nullable=True)
     content = Column(String, nullable=False)
-    platform = Column(String, nullable=False)
-    schedule_time = Column(DateTime)
-    status = Column(String, default="Pending")
+    platforms = Column(String, nullable=True)
+    platform = Column(String, nullable=True)
+    scheduled_date = Column(Date, nullable=True)
+    scheduled_time = Column(String, nullable=True)
+    scheduled_at = Column(DateTime, nullable=True)
+    status = Column(String, default="Scheduled", nullable=True)
 
-    campaign_id = Column(Integer, ForeignKey("campaigns.id"))
+    campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=True)
     campaign = relationship("Campaign", back_populates="posts")

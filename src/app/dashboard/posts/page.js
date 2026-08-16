@@ -1,15 +1,26 @@
-"use client"; // We need this now because we are using useState
+"use client";
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import PostsKpiGrid from '@/components/posts/PostsKpiGrid';
 import PostsList from '@/components/posts/PostsList';
 import PostComposerModal from '@/components/posts/PostComposerModal';
+import { createPost } from '@/lib/api/posts';
 
 export default function PostsPage() {
   // State to control when the modal is visible
   const [isComposerOpen, setIsComposerOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  console.log("DEBUG IMPORTS:", { PostsKpiGrid, PostsList, PostComposerModal });
+  const handleSavePost = async (postPayload) => {
+    try {
+      const created = await createPost(postPayload);
+      console.log("Post scheduled successfully on backend:", created);
+      setRefreshKey((prev) => prev + 1);
+    } catch (err) {
+      console.error("Failed to schedule post:", err);
+      throw err;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-6 text-slate-900 pb-20">
@@ -34,16 +45,13 @@ export default function PostsPage() {
       <PostsKpiGrid />
 
       {/* MAIN LIST SECTION */}
-      <PostsList />
+      <PostsList key={refreshKey} />
 
       {/* THE COMPOSER MODAL */}
       <PostComposerModal 
         isOpen={isComposerOpen} 
         onClose={() => setIsComposerOpen(false)} 
-        onSave={(data) => {
-          // This will log to your browser console when you hit Schedule
-          console.log("Post data ready for Backend:", data);
-        }}
+        onSave={handleSavePost}
       />
 
     </div>

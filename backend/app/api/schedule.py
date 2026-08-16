@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from app.database import get_db
 from app.models.post import Post
@@ -12,11 +13,36 @@ router = APIRouter()
 # CREATE
 @router.post("/schedule")
 def create_schedule(post: PostCreate, db: Session = Depends(get_db)):
+    platforms_str = "Instagram"
+    if isinstance(post.platforms, list):
+        platform_items = []
+        for p in post.platforms:
+            if p:
+                platform_items.append(str(p).strip())
+        if len(platform_items) > 0:
+            platforms_str = ", ".join(platform_items)
+    elif isinstance(post.platforms, str) and len(post.platforms.strip()) > 0:
+        platforms_str = post.platforms.strip()
+    elif post.platform:
+        platforms_str = post.platform.strip()
+
+    title = post.title
+    if not title or len(title.strip()) == 0:
+        content_lines = post.content.strip().split("\n")
+        if len(content_lines) > 0 and len(content_lines[0].strip()) > 0:
+            title = content_lines[0].strip()[:50]
+        else:
+            title = "Untitled Post"
+
     new_post = Post(
-        title=post.title,
+        title=title,
         content=post.content,
-        platform=post.platform,
-        schedule_time=post.schedule_time
+        platforms=platforms_str,
+        platform=platforms_str,
+        scheduled_date=post.scheduled_date,
+        scheduled_time=post.scheduled_time,
+        status=post.status or "Scheduled",
+        campaign_id=post.campaign_id
     )
 
     db.add(new_post)
@@ -31,8 +57,13 @@ def create_schedule(post: PostCreate, db: Session = Depends(get_db)):
 
 # READ
 @router.get("/schedule")
-def get_schedules(db: Session = Depends(get_db)):
-    posts = db.query(Post).all()
+def get_schedules(campaign_id: Optional[int] = None, db: Session = Depends(get_db)):
+    query = db.query(Post)
+    if campaign_id is not None:
+        query = query.filter(Post.campaign_id == campaign_id)
+
+    posts = query.all()
+
     return {
         "data": posts
     }
@@ -46,10 +77,22 @@ def update_schedule(id: int, updated_post: PostCreate, db: Session = Depends(get
     if not post:
         return {"error": "Post not found"}
 
-    post.title = updated_post.title
-    post.content = updated_post.content
-    post.platform = updated_post.platform
-    post.schedule_time = updated_post.schedule_time
+    if updated_post.title:
+        post.title = updated_post.title
+    if updated_post.content:
+        post.content = updated_post.content
+    if updated_post.platform or updated_post.platforms:
+        platforms_str = updated_post.platform or (", ".join(updated_post.platforms) if isinstance(updated_post.platforms, list) else updated_post.platforms)
+        post.platforms = platforms_str
+        post.platform = platforms_str
+    if updated_post.scheduled_date:
+        post.scheduled_date = updated_post.scheduled_date
+    if updated_post.scheduled_time:
+        post.scheduled_time = updated_post.scheduled_time
+    if updated_post.status:
+        post.status = updated_post.status
+    if updated_post.campaign_id is not None:
+        post.campaign_id = updated_post.campaign_id
 
     db.commit()
     db.refresh(post)

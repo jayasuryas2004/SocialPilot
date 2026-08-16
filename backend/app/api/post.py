@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from typing import Optional
 
-from app.database import SessionLocal
+from app.database import get_db
 from app.models.post import Post
 from app.schemas.post import PostCreate
 
@@ -9,23 +10,41 @@ from app.schemas.post import PostCreate
 router = APIRouter(prefix="/posts", tags=["Posts"])
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
 # CREATE POST
 @router.post("/")
+@router.post("")
 def create_post(post: PostCreate, db: Session = Depends(get_db)):
+    # Standard iterative loop to serialize platform array if given as list
+    platforms_str = "Instagram"
+    if isinstance(post.platforms, list):
+        platform_items = []
+        for p in post.platforms:
+            if p:
+                platform_items.append(str(p).strip())
+        if len(platform_items) > 0:
+            platforms_str = ", ".join(platform_items)
+    elif isinstance(post.platforms, str) and len(post.platforms.strip()) > 0:
+        platforms_str = post.platforms.strip()
+    elif post.platform:
+        platforms_str = post.platform.strip()
+
+    title = post.title
+    if not title or len(title.strip()) == 0:
+        content_lines = post.content.strip().split("\n")
+        if len(content_lines) > 0 and len(content_lines[0].strip()) > 0:
+            title = content_lines[0].strip()[:50]
+        else:
+            title = "Untitled Post"
+
     new_post = Post(
-        title=post.title,
+        title=title,
         content=post.content,
-        platform=post.platform,
-        schedule_time=post.schedule_time,
-        status="Pending"
+        platforms=platforms_str,
+        platform=platforms_str,
+        scheduled_date=post.scheduled_date,
+        scheduled_time=post.scheduled_time,
+        status=post.status or "Scheduled",
+        campaign_id=post.campaign_id
     )
 
     db.add(new_post)
@@ -34,19 +53,25 @@ def create_post(post: PostCreate, db: Session = Depends(get_db)):
 
     return {
         "message": "Post created successfully",
-        "post": new_post
+        "post": new_post,
+        "data": new_post
     }
-@router.get("/")
-def get_posts(db: Session = Depends(get_db)):
-    posts = db.query(Post).all()
-    return posts
 
 
 # GET ALL POSTS
 @router.get("/")
-def get_posts(db: Session = Depends(get_db)):
-    posts = db.query(Post).all()
-    return posts
+@router.get("")
+def get_posts(campaign_id: Optional[int] = None, db: Session = Depends(get_db)):
+    query = db.query(Post)
+    if campaign_id is not None:
+        query = query.filter(Post.campaign_id == campaign_id)
+
+    posts = query.all()
+
+    return {
+        "data": posts,
+        "items": posts
+    }
 
 
 # UPDATE POST
@@ -55,19 +80,32 @@ def update_post(post_id: int, post: PostCreate, db: Session = Depends(get_db)):
     db_post = db.query(Post).filter(Post.id == post_id).first()
 
     if not db_post:
-        return {"message": "Post not found"}
+        return {"error": "Post not found", "message": "Post not found"}
 
-    db_post.title = post.title
-    db_post.content = post.content
-    db_post.platform = post.platform
-    db_post.schedule_time = post.schedule_time
+    if post.title:
+        db_post.title = post.title
+    if post.content:
+        db_post.content = post.content
+    if post.platform or post.platforms:
+        platforms_str = post.platform or (", ".join(post.platforms) if isinstance(post.platforms, list) else post.platforms)
+        db_post.platforms = platforms_str
+        db_post.platform = platforms_str
+    if post.scheduled_date:
+        db_post.scheduled_date = post.scheduled_date
+    if post.scheduled_time:
+        db_post.scheduled_time = post.scheduled_time
+    if post.status:
+        db_post.status = post.status
+    if post.campaign_id is not None:
+        db_post.campaign_id = post.campaign_id
 
     db.commit()
     db.refresh(db_post)
 
     return {
         "message": "Post updated successfully",
-        "post": db_post
+        "post": db_post,
+        "data": db_post
     }
 
 
@@ -77,7 +115,7 @@ def delete_post(post_id: int, db: Session = Depends(get_db)):
     db_post = db.query(Post).filter(Post.id == post_id).first()
 
     if not db_post:
-        return {"message": "Post not found"}
+        return {"error": "Post not found", "message": "Post not found"}
 
     db.delete(db_post)
     db.commit()
