@@ -20,16 +20,14 @@ scheduler = BackgroundScheduler()
 def extract_post_datetime(post):
     """
     Extracts or constructs a datetime object for comparison from post fields.
-    Uses standard control flow and error handling.
+    Uses post.scheduled_date and post.scheduled_time (aligned with Post model).
     """
-    if isinstance(post.scheduled_at, datetime):
+    if getattr(post, "scheduled_at", None) and isinstance(post.scheduled_at, datetime):
         return post.scheduled_at
 
-    if isinstance(post.schedule_time, datetime):
-        return post.schedule_time
-
-    if post.scheduled_date:
-        d = post.scheduled_date
+    scheduled_date_val = getattr(post, "scheduled_date", None)
+    if scheduled_date_val:
+        d = scheduled_date_val
         if isinstance(d, str):
             try:
                 d = datetime.strptime(d.strip(), "%Y-%m-%d").date()
@@ -39,8 +37,9 @@ def extract_post_datetime(post):
         if d:
             hour_val = 0
             min_val = 0
-            if post.scheduled_time and isinstance(post.scheduled_time, str):
-                time_str = post.scheduled_time.strip()
+            scheduled_time_val = getattr(post, "scheduled_time", None)
+            if scheduled_time_val and isinstance(scheduled_time_val, str):
+                time_str = scheduled_time_val.strip()
                 try:
                     time_parts = time_str.split(":")
                     if len(time_parts) >= 2:
@@ -71,17 +70,16 @@ def publish_posts():
 
         current_time = datetime.now()
 
-        # Standard iterative for loop
+        # Standard iterative for loop (no list comprehensions or lambdas)
         for post in scheduled_posts:
             post_due_time = extract_post_datetime(post)
 
-            # If no target time was set or target time is reached
+            # If target time is set and reached, or if no target time was set
             is_due = False
             if post_due_time is not None:
                 if post_due_time <= current_time:
                     is_due = True
             else:
-                # If neither date nor time was set, consider it due
                 is_due = True
 
             if is_due:
