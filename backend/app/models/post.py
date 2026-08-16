@@ -17,6 +17,7 @@ class Post(Base):
     scheduled_at = Column(DateTime, nullable=True)
     status = Column(String, default="Scheduled", nullable=True)
     image_url = Column(Text, nullable=True)
+    linkedin_urn = Column(String, nullable=True)
 
     campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=True)
     campaign = relationship("Campaign", back_populates="posts")

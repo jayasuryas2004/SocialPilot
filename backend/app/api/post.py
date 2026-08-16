@@ -5,14 +5,17 @@ from typing import Optional
 from app.database import get_db
 from app.models.post import Post
 from app.schemas.post import PostCreate
-
+from app.services.social_media import delete_from_linkedin
 
 router = APIRouter(prefix="/posts", tags=["Posts"])
+router_api = APIRouter(prefix="/api/posts", tags=["Posts"])
 
 
 # CREATE POST
 @router.post("/")
 @router.post("")
+@router_api.post("/")
+@router_api.post("")
 def create_post(post: PostCreate, db: Session = Depends(get_db)):
     platforms_str = "Instagram"
     if isinstance(post.platforms, list):
@@ -55,7 +58,6 @@ def create_post(post: PostCreate, db: Session = Depends(get_db)):
     db.refresh(new_post)
     print(f"Persisted Post ID {new_post.id} with image_url length: {len(new_post.image_url) if new_post.image_url else 0}")
 
-
     return {
         "message": "Post created successfully",
         "post": new_post,
@@ -66,6 +68,8 @@ def create_post(post: PostCreate, db: Session = Depends(get_db)):
 # GET ALL POSTS
 @router.get("/")
 @router.get("")
+@router_api.get("/")
+@router_api.get("")
 def get_posts(campaign_id: Optional[int] = None, db: Session = Depends(get_db)):
     query = db.query(Post)
     if campaign_id is not None:
@@ -81,6 +85,7 @@ def get_posts(campaign_id: Optional[int] = None, db: Session = Depends(get_db)):
 
 # UPDATE POST
 @router.put("/{post_id}")
+@router_api.put("/{post_id}")
 def update_post(post_id: int, post: PostCreate, db: Session = Depends(get_db)):
     db_post = db.query(Post).filter(Post.id == post_id).first()
 
@@ -108,7 +113,6 @@ def update_post(post_id: int, post: PostCreate, db: Session = Depends(get_db)):
     if img_data:
         db_post.image_url = img_data
 
-
     db.commit()
     db.refresh(db_post)
 
@@ -119,17 +123,23 @@ def update_post(post_id: int, post: PostCreate, db: Session = Depends(get_db)):
     }
 
 
-# DELETE POST
+# DELETE POST (Local-to-LinkedIn bi-directional deletion)
 @router.delete("/{post_id}")
+@router_api.delete("/{post_id}")
 def delete_post(post_id: int, db: Session = Depends(get_db)):
     db_post = db.query(Post).filter(Post.id == post_id).first()
 
     if not db_post:
         return {"error": "Post not found", "message": "Post not found"}
 
+    # If post was published to LinkedIn and has a URN, delete it from LinkedIn first
+    if getattr(db_post, "linkedin_urn", None):
+        print(f"Triggering native LinkedIn deletion for post ID {db_post.id} (URN: {db_post.linkedin_urn})")
+        delete_from_linkedin(db_post, db)
+
     db.delete(db_post)
     db.commit()
 
     return {
-        "message": "Post deleted successfully"
+        "message": "Post deleted successfully from database and connected platforms"
     }

@@ -18,9 +18,9 @@ const PLATFORM_COLORS = {
   pinterest: "#E60023", default: "#94a3b8" 
 };
 
-export default function ContentCalendarGrid({ events }) {
+export default function ContentCalendarGrid({ events = [], onRefresh }) {
   const [isComposerOpen, setIsComposerOpen] = useState(false);
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 10, 1)); 
+  const [currentDate, setCurrentDate] = useState(new Date(2026, 7, 1)); // August 2026
   const router = useRouter(); 
 
   const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
@@ -67,6 +67,9 @@ export default function ContentCalendarGrid({ events }) {
     }
   };
 
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
   return (
     <div className="bg-white rounded-3xl shadow-sm border border-slate-200 flex flex-col h-full">
       
@@ -88,7 +91,7 @@ export default function ContentCalendarGrid({ events }) {
           
           <div className="flex items-center gap-3">
             <button 
-              onClick={() => setIsComposerOpen(true)} // CHANGED: Now opens the modal instead of routing
+              onClick={() => setIsComposerOpen(true)}
               className="flex items-center gap-2 bg-[#4a00ff] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#3a00cc] transition-all"
             >
               <Plus size={16} />
@@ -124,23 +127,26 @@ export default function ContentCalendarGrid({ events }) {
             }
 
             const dayEvents = events.filter(e => e.date === cell.dateString);
-            const isToday = cell.date === 1; 
+            const isCurrentToday = cell.dateString === todayStr || (cell.date === 16 && month === 7 && year === 2026); 
 
             return (
               <div key={cell.dateString} className={`bg-white p-2 flex flex-col group hover:bg-slate-50/50 transition-colors relative min-h-[120px] ${borderClasses}`}>
                 
                 <div className="flex justify-between items-start mb-2 px-1 pt-1">
-                  <span className={`text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-[#311b92] text-white' : 'text-slate-800'}`}>
+                  <span className={`text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full ${isCurrentToday ? 'bg-[#311b92] text-white shadow-sm' : 'text-slate-800'}`}>
                     {String(cell.date).padStart(2, '0')}
                   </span>
-                  <button className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[#311b92] transition-opacity">
+                  <button 
+                    onClick={() => setIsComposerOpen(true)}
+                    className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[#311b92] transition-opacity"
+                  >
                     <Plus size={16} strokeWidth={3} />
                   </button>
                 </div>
 
                 <div className="space-y-2 flex-1">
                   {dayEvents.map(event => {
-                    const platformKey = event.platform.toLowerCase();
+                    const platformKey = (event.platform || 'instagram').toLowerCase();
                     const IconComponent = PLATFORM_ICONS[platformKey] || PLATFORM_ICONS.default;
                     const brandColor = PLATFORM_COLORS[platformKey] || PLATFORM_COLORS.default;
 
@@ -163,8 +169,7 @@ export default function ContentCalendarGrid({ events }) {
                           </div>
                         </div>
 
-
-                        {/* PREMIUM TOOLTIP */}
+                        {/* TOOLTIP */}
                         <div className="absolute z-[999] invisible opacity-0 group-hover/pill:visible group-hover/pill:opacity-100 bottom-full mb-2 left-1/2 -translate-x-1/2 w-56 bg-white border border-slate-200 shadow-2xl rounded-xl p-3 pointer-events-none transition-all duration-200 ease-out">
                           {event.image && (
                             <div className="w-full h-32 rounded-lg overflow-hidden mb-3 bg-slate-100 border border-slate-100 shadow-inner">
@@ -191,12 +196,12 @@ export default function ContentCalendarGrid({ events }) {
         <div className="w-full border-t border-slate-200"></div>
       </div>
 
-      {/* ADDED: The Modal Component is now rendered here */}
+      {/* Post Composer Modal */}
       <PostComposerModal 
         isOpen={isComposerOpen} 
         onClose={() => setIsComposerOpen(false)} 
-        onSave={(data) => {
-          console.log("Post saved from Calendar:", data);
+        onSave={() => {
+          if (onRefresh) onRefresh();
         }}
       />
       

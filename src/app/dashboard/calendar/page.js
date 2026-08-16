@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import ContentCalendarGrid from '@/components/calendar/ContentCalendarGrid';
 import DraftsAndIdeasWidget from '@/components/calendar/DraftsAndIdeasWidget';
 import PublishingCalendar from '@/components/dashboard/PublishingCalendar';
@@ -12,34 +12,31 @@ export default function CalendarPage() {
   const [contentList, setContentList] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let isMounted = true;
+  const loadCalendarContent = useCallback(() => {
     getAllContent()
       .then((items) => {
-        if (isMounted) {
-          setContentList(Array.isArray(items) ? items : []);
-        }
+        setContentList(Array.isArray(items) ? items : []);
       })
       .catch((err) => {
         console.error("Failed to load content for calendar:", err);
       })
       .finally(() => {
-        if (isMounted) setLoading(false);
+        setLoading(false);
       });
-
-    return () => {
-      isMounted = false;
-    };
   }, []);
+
+  useEffect(() => {
+    loadCalendarContent();
+  }, [loadCalendarContent]);
 
   // Format calendar events from hybrid content array
   const calendarEvents = contentList.map((item, index) => ({
     id: item.id || `cal-${index}`,
-    date: item.date || '2026-11-02',
-    time: item.time || '10:00 AM',
+    date: item.date || item.scheduled_date || '2026-08-16',
+    time: item.time || item.scheduled_time || '10:00 AM',
     status: (item.status || 'scheduled').toLowerCase(),
     platform: (item.platform || 'instagram').toLowerCase(),
-    image: item.image || 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=150&h=150&fit=crop',
+    image: item.image_url || item.image || item.media || 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=150&h=150&fit=crop',
     description: item.description || item.content || item.title || 'Scheduled Social Media Post',
     is_live: item.is_live || item.platform?.toLowerCase() === 'linkedin'
   }));
@@ -56,7 +53,7 @@ export default function CalendarPage() {
       id: item.id || `draft-${idx}`,
       type: (item.status || '').toLowerCase() === 'draft' ? 'draft' : 'post',
       title: item.title || 'Untitled Post',
-      image: item.image || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=150&h=150&fit=crop'
+      image: item.image_url || item.image || item.media || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=150&h=150&fit=crop'
     }));
 
   // Format list events
@@ -101,7 +98,7 @@ export default function CalendarPage() {
         
         {/* Left Side: Big Grid (2/3 width) */}
         <div className="lg:col-span-8 h-[850px]">
-          <ContentCalendarGrid events={calendarEvents} />
+          <ContentCalendarGrid events={calendarEvents} onRefresh={loadCalendarContent} />
         </div>
 
         {/* Right Side: Drafts Widget (1/3 width) */}

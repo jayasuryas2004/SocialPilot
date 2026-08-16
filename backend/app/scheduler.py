@@ -1,3 +1,4 @@
+import httpx
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime, date
 from sqlalchemy.orm import Session
@@ -7,7 +8,6 @@ from app.models.post import Post
 from app.models.campaign import Campaign
 from app.models.notification import Notification
 from app.models.social_account import SocialAccount
-
 
 from app.services.social_media import (
     publish_to_instagram,
@@ -139,6 +139,62 @@ def publish_posts():
         db.close()
 
 
+def sync_linkedin_deletions():
+    """
+    Periodic background sync job that checks if posts published to LinkedIn
+    have been deleted on LinkedIn directly (returning 404).
+    If so, updates local SQLite post status to 'Deleted'.
+    Uses standard iterative for loops (no list comprehensions or lambda expressions).
+    """
+    db: Session = SessionLocal()
+
+    try:
+        social_account = db.query(SocialAccount).filter(
+            SocialAccount.platform == "linkedin"
+        ).first()
+
+        if not social_account or not social_account.access_token:
+            return
+
+        access_token = social_account.access_token
+
+        published_posts = db.query(Post).filter(
+            Post.status == "Published",
+            Post.linkedin_urn.isnot(None)
+        ).all()
+
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "X-Restli-Protocol-Version": "2.0.0"
+        }
+
+        with httpx.Client(timeout=10.0) as client:
+            for post in published_posts:
+                post_urn = post.linkedin_urn
+                if post_urn:
+                    try:
+                        res = client.get(
+                            f"https://api.linkedin.com/v2/ugcPosts/{post_urn}",
+                            headers=headers
+                        )
+                        if res.status_code == 404:
+                            print(f"NOTICE: Post ID {post.id} (URN {post_urn}) was deleted directly on LinkedIn. Updating local status to Deleted.")
+                            post.status = "Deleted"
+
+                            notif_msg = f"Post '{post.title or post.content}' was deleted on LinkedIn and marked as Deleted locally."
+                            notification = Notification(message=notif_msg)
+                            db.add(notification)
+                    except Exception as err:
+                        print(f"Error checking LinkedIn post URN {post_urn}: {err}")
+
+        db.commit()
+    except Exception as e:
+        print(f"ERROR in sync_linkedin_deletions: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+
 def start_scheduler():
     """
     Initializes and starts the APScheduler background job runner.
@@ -151,5 +207,12 @@ def start_scheduler():
             id="publish_posts_job",
             replace_existing=True
         )
+        scheduler.add_job(
+            sync_linkedin_deletions,
+            "interval",
+            seconds=30,
+            id="sync_linkedin_deletions_job",
+            replace_existing=True
+        )
         scheduler.start()
-        print("Scheduler Started Successfully! Checking for due posts every 10 seconds.")
+        print("Scheduler Started Successfully! Checking for due posts every 10s and syncing LinkedIn deletions every 30s.")

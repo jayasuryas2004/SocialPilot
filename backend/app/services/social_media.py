@@ -7,6 +7,7 @@ def publish_to_linkedin(post, db):
     """
     Publishes a scheduled post to LinkedIn using vaulted OAuth access tokens.
     Supports both text posts and full 3-step LinkedIn media image uploads with explicit tracing.
+    Stores the created UGC Post URN into post.linkedin_urn.
     Uses standard Python iterative logic (strictly no list comprehensions or lambda expressions).
     """
     # 1. Query vaulted SocialAccount for LinkedIn
@@ -190,7 +191,13 @@ def publish_to_linkedin(post, db):
             print("Step 3 (Publish):", response.status_code, response.text)
 
             if response.status_code in [200, 201]:
-                print(f"SUCCESS: Published Post ID {post.id} ({'with image' if asset_urn else 'text-only'}) to LinkedIn API: {response.text}")
+                res_data = response.json() if response.text else {}
+                post_urn = res_data.get("id")
+                if post_urn:
+                    post.linkedin_urn = post_urn
+                    db.commit()
+
+                print(f"SUCCESS: Published Post ID {post.id} to LinkedIn API with URN {post.linkedin_urn}: {response.text}")
                 return True, response.text
             else:
                 error_detail = f"Status {response.status_code}: {response.text}"
@@ -201,6 +208,42 @@ def publish_to_linkedin(post, db):
         err_msg = f"Network or execution error publishing to LinkedIn: {exc}"
         print(f"ERROR: {err_msg}")
         return False, err_msg
+
+
+def delete_from_linkedin(post, db):
+    """
+    Deletes a published post from LinkedIn natively using the stored linkedin_urn.
+    """
+    if not getattr(post, "linkedin_urn", None):
+        return False, "No LinkedIn URN recorded for this post."
+
+    social_account = db.query(SocialAccount).filter(
+        SocialAccount.platform == "linkedin"
+    ).first()
+
+    if not social_account or not social_account.access_token:
+        return False, "No active LinkedIn OAuth token found in vault."
+
+    access_token = social_account.access_token
+    post_urn = post.linkedin_urn
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "X-Restli-Protocol-Version": "2.0.0"
+    }
+
+    try:
+        with httpx.Client(timeout=15.0) as client:
+            del_url = f"https://api.linkedin.com/v2/ugcPosts/{post_urn}"
+            response = client.delete(del_url, headers=headers)
+            print(f"LinkedIn native deletion for Post ID {post.id} (URN {post_urn}): {response.status_code} {response.text}")
+            if response.status_code in [200, 204, 404]:
+                return True, "Deleted from LinkedIn"
+            else:
+                return False, f"Status {response.status_code}: {response.text}"
+    except Exception as e:
+        print(f"Error deleting post from LinkedIn: {e}")
+        return False, str(e)
 
 
 def publish_to_instagram(post):

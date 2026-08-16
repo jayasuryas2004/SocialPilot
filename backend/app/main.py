@@ -13,7 +13,7 @@ import app.models.social_account
 from app.api.auth import router as auth_router
 from app.api.schedule import router as schedule_router
 from app.api.campaign import router as campaign_router
-from app.api.post import router as post_router
+from app.api.post import router as post_router, router_api as post_api_router
 from app.api.reports import router as reports_router
 from app.api.oauth import router as oauth_router
 from app.api.content import router as content_router, router_alt as content_alt_router
@@ -59,6 +59,8 @@ app.include_router(auth_router)
 app.include_router(schedule_router)
 app.include_router(campaign_router)
 app.include_router(post_router)
+app.include_router(post_api_router)
+
 app.include_router(reports_router)
 app.include_router(oauth_router)
 app.include_router(content_router)
