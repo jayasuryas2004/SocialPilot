@@ -1,16 +1,42 @@
 "use client";
-import { useState } from 'react';
-import { useRouter } from 'next/navigation'; // 1. Added router import
-import { Download } from 'lucide-react';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Download, CheckCircle2, Globe } from 'lucide-react';
 import AnalyticsWidgets from '@/components/analytics/AnalyticsWidgets';
 import EngagementChart from '@/components/analytics/EngagementChart';
 import PlatformDonut from '@/components/analytics/PlatformDonut';
 import TrendChart from '@/components/analytics/TrendChart';
 import AnalyticsTables from '@/components/analytics/AnalyticsTables';
+import { fetchFullAnalyticsReport } from '@/lib/api/analytics';
 
 export default function AnalyticsPage() {
-  const [dateRange, setDateRange] = useState('Last 30 Days');
-  const router = useRouter(); // 2. Initialized router
+  const router = useRouter();
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchFullAnalyticsReport()
+      .then((data) => {
+        if (isMounted && data) {
+          setReport(data);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load analytics data:", err);
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const isLinkedInActive = report?.linkedin?.connected;
+  const linkedInName = report?.linkedin?.account_name || "LinkedIn Profile";
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-6 text-slate-900 pb-20">
@@ -18,39 +44,50 @@ export default function AnalyticsPage() {
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">Analytics Dashboard</h1>
-          <p className="text-slate-500 font-medium mt-1">Monitor your social media performance and track your growth</p>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+              Analytics Dashboard
+            </h1>
+            {isLinkedInActive && (
+              <div className="flex items-center gap-1.5 bg-[#0A66C2]/10 text-[#0A66C2] border border-[#0A66C2]/20 px-3 py-1 rounded-full text-xs font-bold shadow-xs">
+                <CheckCircle2 size={13} className="text-[#0A66C2]" strokeWidth={2.5} />
+                <span>LinkedIn Live ({linkedInName})</span>
+              </div>
+            )}
+          </div>
+          <p className="text-slate-500 font-medium mt-1">
+            Monitor real-time social performance and multi-platform growth benchmarks
+          </p>
         </div>
         
-        {/* 3. Added onClick routing to the button */}
         <button 
           onClick={() => router.push('/dashboard/reports')}
-          className="bg-[#311b92] text-white font-bold text-sm px-6 py-3 rounded-xl hover:bg-[#28157a] transition-colors shadow-sm flex items-center gap-2 whitespace-nowrap"
+          className="bg-[#311b92] text-white font-bold text-sm px-6 py-3 rounded-xl hover:bg-[#28157a] transition-colors shadow-sm flex items-center gap-2 whitespace-nowrap cursor-pointer"
         >
           Export <Download size={16} />
         </button>
       </div>
 
-      {/* ROW 1 & 2: KPIs and Reach/Impressions (Imported from Widgets) */}
-      <AnalyticsWidgets />
+      {/* ROW 1 & 2: KPIs and Reach/Impressions */}
+      <AnalyticsWidgets kpis={report?.kpis} linkedin={report?.linkedin} />
 
       {/* ROW 3: Engagement Chart & Follower Donut */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
         <div className="xl:col-span-2">
-          <EngagementChart />
+          <EngagementChart trends={report?.engagementTrends} linkedin={report?.linkedin} />
         </div>
         <div className="xl:col-span-1">
-          <PlatformDonut />
+          <PlatformDonut distribution={report?.platformDistribution} />
         </div>
       </div>
 
       {/* ROW 4: Trend Line Chart */}
       <div className="mb-6">
-        <TrendChart />
+        <TrendChart trends={report?.engagementTrends} />
       </div>
 
-      {/* ROW 5 & 6: Data Tables & Queue */}
-      <AnalyticsTables />
+      {/* ROW 5 & 6: Data Tables */}
+      <AnalyticsTables topPosts={report?.topPosts} />
 
     </div>
   );

@@ -2,26 +2,50 @@
 import { BarChart, Bar, ResponsiveContainer } from 'recharts';
 import { TrendingUp, MousePointerClick, Users, Eye, HeartHandshake } from 'lucide-react';
 
-const TOP_KPIS = [
-  { label: 'Total Engagement', value: '24K', icon: HeartHandshake, color: 'text-rose-500', bg: 'bg-rose-50' },
-  { label: 'Total Reach', value: '84K', icon: Users, color: 'text-blue-500', bg: 'bg-blue-50' },
-  { label: 'Impressions', value: '54K', icon: Eye, color: 'text-amber-500', bg: 'bg-amber-50' },
-  { label: 'Engagement Rate', value: '5.6%', icon: MousePointerClick, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-];
-
 const MINI_CHART_DATA = [
   { value: 40 }, { value: 60 }, { value: 30 }, { value: 80 }, { value: 50 }
 ];
 
-export default function AnalyticsWidgets() {
+export default function AnalyticsWidgets({ kpis = {}, linkedin = {} }) {
+  const topKpis = [
+    {
+      label: 'Total Engagement',
+      value: kpis?.totalEngagement?.value || '164.8K',
+      icon: HeartHandshake,
+      color: 'text-rose-500',
+      bg: 'bg-rose-50'
+    },
+    {
+      label: 'Total Reach',
+      value: kpis?.totalReach?.value || '486.2K',
+      icon: Users,
+      color: 'text-blue-500',
+      bg: 'bg-blue-50'
+    },
+    {
+      label: 'Impressions',
+      value: kpis?.impressions?.value || '1.24M',
+      icon: Eye,
+      color: 'text-amber-500',
+      bg: 'bg-amber-50'
+    },
+    {
+      label: 'Engagement Rate',
+      value: kpis?.engagementRate?.value || '6.2%',
+      icon: MousePointerClick,
+      color: 'text-emerald-500',
+      bg: 'bg-emerald-50'
+    },
+  ];
+
   return (
     <>
       {/* TOP 4 CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
-        {TOP_KPIS.map((kpi, idx) => {
+        {topKpis.map((kpi, idx) => {
           const Icon = kpi.icon;
           return (
-            <div key={idx} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center justify-center text-center">
+            <div key={`kpi-card-${idx}`} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center justify-center text-center">
               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 ${kpi.bg} ${kpi.color}`}>
                 <Icon size={24} strokeWidth={2.5} />
               </div>
@@ -42,10 +66,10 @@ export default function AnalyticsWidgets() {
               <div className="bg-blue-50 p-1.5 rounded-lg text-blue-600"><Users size={16} /></div>
               <h3 className="font-black text-slate-900 text-lg">Reach</h3>
             </div>
-            <p className="text-2xl font-bold text-slate-900 flex items-center gap-2">1,245,870</p>
+            <p className="text-2xl font-bold text-slate-900 flex items-center gap-2">486,200</p>
             <div className="flex items-center gap-2 text-sm">
               <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md font-bold">
-                12.5% <TrendingUp size={14} />
+                22.1% <TrendingUp size={14} />
               </span>
               <span className="text-slate-400 font-medium">vs last month</span>
             </div>
@@ -66,10 +90,10 @@ export default function AnalyticsWidgets() {
               <div className="bg-amber-50 p-1.5 rounded-lg text-amber-600"><Eye size={16} /></div>
               <h3 className="font-black text-slate-900 text-lg">Impressions</h3>
             </div>
-            <p className="text-2xl font-bold text-slate-900 flex items-center gap-2">3,876,240</p>
+            <p className="text-2xl font-bold text-slate-900 flex items-center gap-2">1,240,000</p>
             <div className="flex items-center gap-2 text-sm">
               <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md font-bold">
-                8.2% <TrendingUp size={14} />
+                14.8% <TrendingUp size={14} />
               </span>
               <span className="text-slate-400 font-medium">vs last month</span>
             </div>
