@@ -1,16 +1,19 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
+import { Plus } from 'lucide-react';
 import ContentCalendarGrid from '@/components/calendar/ContentCalendarGrid';
 import DraftsAndIdeasWidget from '@/components/calendar/DraftsAndIdeasWidget';
 import PublishingCalendar from '@/components/dashboard/PublishingCalendar';
 import EventListWidget from '@/components/calendar/EventListWidget';
 import QuickActionsWidget from '@/components/calendar/QuickActionsWidget';
+import PostComposerModal from '@/components/posts/PostComposerModal';
 import { getAllContent } from '@/lib/api/content';
 
 export default function CalendarPage() {
   const [contentList, setContentList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isComposerOpen, setIsComposerOpen] = useState(false);
 
   const loadCalendarContent = useCallback(() => {
     getAllContent()
@@ -88,9 +91,18 @@ export default function CalendarPage() {
     <div className="min-h-screen bg-[#F8F9FA] p-6 text-slate-900 pb-20">
       
       {/* PAGE HEADER */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">Content Calendar</h1>
-        <p className="text-slate-500 font-medium mt-1">Plan, schedule and track all your multi-channel posts in one place</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">Content Calendar</h1>
+          <p className="text-slate-500 font-medium mt-1">Plan, schedule and track all your multi-channel posts in one place</p>
+        </div>
+        <button
+          onClick={() => setIsComposerOpen(true)}
+          className="flex items-center gap-2 bg-[#311b92] hover:bg-[#4527a0] text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm hover:shadow-md cursor-pointer self-start sm:self-auto"
+        >
+          <Plus size={18} strokeWidth={2.5} />
+          Add Post
+        </button>
       </div>
 
       {/* ROW 1: Big Calendar Grid + Drafts Sidebar */}
@@ -98,7 +110,11 @@ export default function CalendarPage() {
         
         {/* Left Side: Big Grid (2/3 width) */}
         <div className="lg:col-span-8 h-[850px]">
-          <ContentCalendarGrid events={calendarEvents} onRefresh={loadCalendarContent} />
+          <ContentCalendarGrid 
+            events={calendarEvents} 
+            onRefresh={loadCalendarContent} 
+            onOpenComposer={() => setIsComposerOpen(true)}
+          />
         </div>
 
         {/* Right Side: Drafts Widget (1/3 width) */}
@@ -120,8 +136,20 @@ export default function CalendarPage() {
 
       {/* ROW 4: Full Width Quick Actions Row */}
       <div className="w-full">
-        <QuickActionsWidget />
+        <QuickActionsWidget onRefresh={loadCalendarContent} />
       </div>
+
+      {/* UNIFIED POST COMPOSER MODAL */}
+      <PostComposerModal 
+        isOpen={isComposerOpen} 
+        onClose={() => setIsComposerOpen(false)} 
+        onSave={() => {
+          loadCalendarContent();
+        }}
+        onPostCreated={() => {
+          loadCalendarContent();
+        }}
+      />
 
     </div>
   );

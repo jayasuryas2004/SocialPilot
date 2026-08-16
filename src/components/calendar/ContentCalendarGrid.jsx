@@ -18,10 +18,18 @@ const PLATFORM_COLORS = {
   pinterest: "#E60023", default: "#94a3b8" 
 };
 
-export default function ContentCalendarGrid({ events = [], onRefresh }) {
+export default function ContentCalendarGrid({ events = [], onRefresh, onOpenComposer }) {
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date(2026, 7, 1)); // August 2026
   const router = useRouter(); 
+
+  const handleOpenComposer = () => {
+    if (onOpenComposer) {
+      onOpenComposer();
+    } else {
+      setIsComposerOpen(true);
+    }
+  };
 
   const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
   const getFirstDayOfMonth = (year, month) => {
@@ -91,8 +99,8 @@ export default function ContentCalendarGrid({ events = [], onRefresh }) {
           
           <div className="flex items-center gap-3">
             <button 
-              onClick={() => setIsComposerOpen(true)}
-              className="flex items-center gap-2 bg-[#4a00ff] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#3a00cc] transition-all"
+              onClick={handleOpenComposer}
+              className="flex items-center gap-2 bg-[#4a00ff] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#3a00cc] transition-all cursor-pointer shadow-sm"
             >
               <Plus size={16} />
               Add Post
@@ -137,12 +145,13 @@ export default function ContentCalendarGrid({ events = [], onRefresh }) {
                     {String(cell.date).padStart(2, '0')}
                   </span>
                   <button 
-                    onClick={() => setIsComposerOpen(true)}
-                    className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[#311b92] transition-opacity"
+                    onClick={handleOpenComposer}
+                    className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[#311b92] transition-opacity cursor-pointer"
                   >
                     <Plus size={16} strokeWidth={3} />
                   </button>
                 </div>
+
 
                 <div className="space-y-2 flex-1">
                   {dayEvents.map(event => {
