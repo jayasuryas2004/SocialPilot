@@ -36,11 +36,47 @@ def create_campaign(campaign: CampaignCreate, db: Session = Depends(get_db)):
 
 # READ
 @router.get("/campaign")
+@router.get("/campaigns")
+@router.get("/api/campaigns")
 def get_campaigns(db: Session = Depends(get_db)):
     campaigns = db.query(Campaign).all()
 
     return {
         "data": campaigns
+    }
+
+
+# STATS
+@router.get("/campaign/stats")
+@router.get("/campaigns/stats")
+@router.get("/api/campaigns/stats")
+def get_campaigns_stats(db: Session = Depends(get_db)):
+    campaigns = db.query(Campaign).all()
+    total = len(campaigns)
+    active = 0
+    completed = 0
+    draft = 0
+    paused = 0
+
+    for c in campaigns:
+        st = (c.status or "").strip().capitalize()
+        if st == "Active":
+            active += 1
+        elif st == "Completed":
+            completed += 1
+        elif st == "Draft":
+            draft += 1
+        elif st == "Paused":
+            paused += 1
+        else:
+            active += 1
+
+    return {
+        "total": total,
+        "active": active,
+        "completed": completed,
+        "draft": draft,
+        "paused": paused
     }
 
 

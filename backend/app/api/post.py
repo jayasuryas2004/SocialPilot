@@ -83,7 +83,45 @@ def get_posts(campaign_id: Optional[int] = None, db: Session = Depends(get_db)):
     }
 
 
+# GET POST STATS
+@router.get("/stats")
+@router_api.get("/stats")
+def get_posts_stats(db: Session = Depends(get_db)):
+    posts = db.query(Post).all()
+    total_posts = len(posts)
+    scheduled_count = 0
+    published_count = 0
+    draft_count = 0
+    failed_count = 0
+    deleted_count = 0
+
+    for p in posts:
+        s = (p.status or "").strip().capitalize()
+        if s == "Published":
+            published_count += 1
+        elif s == "Scheduled" or s == "Pending":
+            scheduled_count += 1
+        elif s == "Draft":
+            draft_count += 1
+        elif s == "Failed":
+            failed_count += 1
+        elif s == "Deleted":
+            deleted_count += 1
+        else:
+            scheduled_count += 1
+
+    return {
+        "total": total_posts,
+        "scheduled": scheduled_count,
+        "published": published_count,
+        "drafts": draft_count,
+        "failed": failed_count,
+        "deleted": deleted_count
+    }
+
+
 # UPDATE POST
+
 @router.put("/{post_id}")
 @router_api.put("/{post_id}")
 def update_post(post_id: int, post: PostCreate, db: Session = Depends(get_db)):

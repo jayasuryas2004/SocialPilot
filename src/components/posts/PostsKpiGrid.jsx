@@ -1,12 +1,43 @@
 "use client";
+import { useState, useEffect } from "react";
 import { Image as ImageIcon, Send, CalendarDays, Edit3 } from "lucide-react";
+import { getPostStats } from "@/lib/api/posts";
 
-export default function PostsKpiGrid() {
+export default function PostsKpiGrid({ initialStats }) {
+  const [stats, setStats] = useState(initialStats || {
+    total: 0,
+    scheduled: 0,
+    published: 0,
+    drafts: 0
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    getPostStats()
+      .then((data) => {
+        if (isMounted && data) {
+          setStats({
+            total: data.total ?? data.total_posts ?? 0,
+            scheduled: data.scheduled ?? data.scheduled_posts ?? 0,
+            published: data.published ?? data.published_posts ?? 0,
+            drafts: data.drafts ?? data.draft_posts ?? 0
+          });
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load post KPI stats:", err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const kpis = [
-    { id: 1, label: "Total Posts", value: "240", icon: ImageIcon, color: "text-blue-600", bg: "bg-blue-100" },
-    { id: 2, label: "Scheduled", value: "42", icon: Send, color: "text-orange-500", bg: "bg-orange-100" },
-    { id: 3, label: "Published", value: "170", icon: CalendarDays, color: "text-rose-500", bg: "bg-rose-100" },
-    { id: 4, label: "Drafts", value: "18", icon: Edit3, color: "text-amber-600", bg: "bg-amber-100" },
+    { id: 1, label: "Total Posts", value: String(stats.total), icon: ImageIcon, color: "text-blue-600", bg: "bg-blue-100" },
+    { id: 2, label: "Scheduled", value: String(stats.scheduled), icon: Send, color: "text-orange-500", bg: "bg-orange-100" },
+    { id: 3, label: "Published", value: String(stats.published), icon: CalendarDays, color: "text-rose-500", bg: "bg-rose-100" },
+    { id: 4, label: "Drafts", value: String(stats.drafts), icon: Edit3, color: "text-amber-600", bg: "bg-amber-100" },
   ];
 
   return (
@@ -25,7 +56,6 @@ export default function PostsKpiGrid() {
           </div>
         );
       })}
-
     </div>
   );
 }

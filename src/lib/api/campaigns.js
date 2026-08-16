@@ -148,3 +148,25 @@ export async function deleteCampaign(id) {
   const response = await client.delete(`/campaign/${id}`);
   return response.data;
 }
+
+/**
+ * GET /campaign/stats : Fetch live aggregated campaign counts from SQLite
+ */
+export async function getCampaignStats() {
+  try {
+    const response = await client.get("/campaign/stats");
+    return response.data;
+  } catch (e) {
+    console.error("Failed to fetch campaign stats:", e);
+    const reportsRes = await client.get("/reports/stats").catch(() => null);
+    if (reportsRes?.data) {
+      return {
+        total: reportsRes.data.total_campaigns || 0,
+        active: reportsRes.data.active_campaigns || 0,
+        completed: 0,
+        draft: 0
+      };
+    }
+    return { total: 0, active: 0, completed: 0, draft: 0 };
+  }
+}

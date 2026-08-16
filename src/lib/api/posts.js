@@ -188,3 +188,26 @@ export async function deletePost(id) {
 export async function retryPost(id) {
   return updatePost(id, { status: "Published" });
 }
+
+/**
+ * GET /posts/stats : Fetch live aggregated counts from SQLite database
+ */
+export async function getPostStats() {
+  try {
+    const response = await client.get("/posts/stats");
+    return response.data;
+  } catch (e) {
+    console.error("Failed to fetch post stats:", e);
+    const reportsRes = await client.get("/reports/stats").catch(() => null);
+    if (reportsRes?.data) {
+      return {
+        total: reportsRes.data.total_posts || 0,
+        scheduled: reportsRes.data.scheduled_posts || 0,
+        published: reportsRes.data.published_posts || 0,
+        drafts: reportsRes.data.draft_posts || 0,
+        failed: reportsRes.data.failed_posts || 0
+      };
+    }
+    return { total: 0, scheduled: 0, published: 0, drafts: 0, failed: 0 };
+  }
+}

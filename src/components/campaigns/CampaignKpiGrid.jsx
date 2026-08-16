@@ -1,12 +1,57 @@
 "use client";
+import { useState, useEffect } from "react";
 import { FolderKanban, Activity, CalendarClock, CheckCircle2 } from "lucide-react";
+import { getCampaignStats } from "@/lib/api/campaigns";
 
-export default function CampaignKpiGrid() {
+export default function CampaignKpiGrid({ campaigns = [] }) {
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    scheduled: 0,
+    completed: 0
+  });
+
+  useEffect(() => {
+    if (Array.isArray(campaigns) && campaigns.length > 0) {
+      let activeCount = 0;
+      let scheduledCount = 0;
+      let completedCount = 0;
+      for (let i = 0; i < campaigns.length; i++) {
+        const s = (campaigns[i].status || "").toLowerCase();
+        if (s === "active") activeCount++;
+        else if (s === "scheduled") scheduledCount++;
+        else if (s === "completed") completedCount++;
+        else activeCount++;
+      }
+      setStats({
+        total: campaigns.length,
+        active: activeCount,
+        scheduled: scheduledCount,
+        completed: completedCount
+      });
+    } else {
+      getCampaignStats()
+        .then((data) => {
+          if (data) {
+            setStats({
+              total: data.total ?? data.total_campaigns ?? 0,
+              active: data.active ?? data.active_campaigns ?? 0,
+              scheduled: data.scheduled ?? data.draft ?? 0,
+              completed: data.completed ?? 0
+            });
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to load campaign KPI stats:", err);
+        });
+    }
+  }, [campaigns]);
+
   const kpis = [
-    { id: 1, label: "Total Campaigns", value: "240", icon: FolderKanban, color: "text-indigo-600", bg: "bg-indigo-50" },
-    { id: 2, label: "Active Campaigns", value: "42", icon: Activity, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { id: 3, label: "Scheduled", value: "18", icon: CalendarClock, color: "text-amber-600", bg: "bg-amber-50" },
-    { id: 4, label: "Completed", value: "170", icon: CheckCircle2, color: "text-blue-600", bg: "bg-blue-50" },
+    { id: 1, label: "Total Campaigns", value: String(stats.total), icon: FolderKanban, color: "text-indigo-600", bg: "bg-indigo-50" },
+    { id: 2, label: "Active Campaigns", value: String(stats.active), icon: Activity, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { id: 3, label: "Scheduled", value: String(stats.scheduled), icon: CalendarClock, color: "text-amber-600", bg: "bg-amber-50" },
+    { id: 4, label: "Completed", value: String(stats.completed), icon: CheckCircle2, color: "text-blue-600", bg: "bg-blue-50" },
   ];
 
   return (
@@ -25,7 +70,6 @@ export default function CampaignKpiGrid() {
           </div>
         );
       })}
-
     </div>
   );
 }

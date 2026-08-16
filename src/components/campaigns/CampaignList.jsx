@@ -2,7 +2,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import {
   Search, Trash2, CheckCircle2, X, Eye, Edit, MoreVertical,
-  ChevronRight, ChevronLeft, AlertTriangle, Save,
+  ChevronRight, ChevronLeft, AlertTriangle, Save, FolderKanban,
 } from 'lucide-react';
 import { FaInstagram, FaFacebook, FaLinkedin, FaXTwitter, FaYoutube } from "react-icons/fa6";
 import { deleteCampaign, updateCampaign } from "@/lib/api/campaigns";
@@ -367,7 +367,13 @@ export default function CampaignList({ campaigns, setCampaigns, onEditExternal }
 
                 <td className="py-4 px-4">
                   <div className="flex items-center gap-4 cursor-pointer" onClick={() => openPreview(camp)}>
-                    <img src={camp.image} alt={camp.title} className="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-sm" />
+                    {camp.image && typeof camp.image === 'string' && (camp.image.startsWith('http') || camp.image.startsWith('data:image')) ? (
+                      <img src={camp.image} alt={camp.title} className="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-sm flex-shrink-0" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#311b92] to-[#5e35b1] text-white flex items-center justify-center shadow-sm flex-shrink-0">
+                        <FolderKanban size={22} strokeWidth={2} />
+                      </div>
+                    )}
                     <div>
                       <p className="font-bold text-slate-800 text-sm group-hover:text-[#311b92] transition-colors">{camp.title}</p>
                       <p className="text-[11px] font-medium text-slate-400 truncate max-w-[200px] mt-0.5">{camp.subtitle}</p>
@@ -483,9 +489,16 @@ export default function CampaignList({ campaigns, setCampaigns, onEditExternal }
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-8">
           <div className="bg-white rounded-3xl overflow-hidden max-w-[750px] w-full max-h-full shadow-2xl flex flex-col md:flex-row">
 
-            <div className="w-full md:w-5/12 bg-slate-900 flex-shrink-0 h-48 md:h-auto relative">
-              <img src={previewCampaign.image} alt={previewCampaign.title} className="w-full h-full object-cover opacity-90" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+            <div className="w-full md:w-5/12 bg-slate-900 flex-shrink-0 h-48 md:h-auto relative flex items-center justify-center">
+              {previewCampaign.image && typeof previewCampaign.image === 'string' && (previewCampaign.image.startsWith('http') || previewCampaign.image.startsWith('data:image')) ? (
+                <img src={previewCampaign.image} alt={previewCampaign.title} className="w-full h-full object-cover opacity-90" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-[#1e1b4b] via-[#311b92] to-[#4c1d95] flex flex-col items-center justify-center text-white p-6 min-h-[200px]">
+                  <FolderKanban size={48} strokeWidth={1.5} className="mb-2 text-purple-200" />
+                  <span className="text-xs font-bold tracking-wider uppercase text-purple-200">Campaign</span>
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
             </div>
 
             <div className="p-8 w-full md:w-7/12 flex flex-col relative overflow-y-auto custom-scrollbar">
