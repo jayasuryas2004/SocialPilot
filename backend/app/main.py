@@ -34,13 +34,17 @@ app = FastAPI(
 # Explicitly allowed frontend origins for Next.js app
 origins = [
     "http://localhost:3000",
-    "http://127.0.0.1:3000"
+    "http://127.0.0.1:3000",
+    "http://10.85.1.205:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001"
 ]
 
 # Add CORS middleware to allow frontend API requests with credentials
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -246,6 +246,9 @@ def get_workspace_data(db: Session):
             unread_count += 1
 
     return {
+        "status": "active",
+        "database": "connected",
+        "scheduler": "running",
         "notifications": formatted_notifications,
         "campaigns": formatted_campaigns,
         "unread_count": unread_count,

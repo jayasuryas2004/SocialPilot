@@ -70,6 +70,8 @@ function normalizeError(error) {
     message = data.message;
   } else if (error.response?.status === 401) {
     message = "Invalid credentials. Please check your email and password.";
+  } else if (error.code === "ERR_NETWORK" || !error.response) {
+    message = "Backend service connecting...";
   } else if (error.message) {
     message = error.message;
   }
@@ -77,7 +79,7 @@ function normalizeError(error) {
   return {
     ...error,
     message,
-    status: error.response?.status,
+    status: error.response?.status || 0,
   };
 }
 
