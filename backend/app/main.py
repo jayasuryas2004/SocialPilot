@@ -83,6 +83,18 @@ app.include_router(accounts_alt_router)
 
 
 
+from app.api.workspace import get_workspace_data
+from app.database import get_db
+from sqlalchemy.orm import Session
+from fastapi import Depends
+
+
+@app.get("/workspace/status")
+@app.get("/api/workspace/status")
+def root_workspace_status(db: Session = Depends(get_db)):
+    return get_workspace_data(db)
+
+
 @app.get("/")
 def home():
     return {
