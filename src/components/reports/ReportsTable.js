@@ -86,8 +86,13 @@ export default function ReportsTable({
               <TableCell className="text-right pr-4">
                 <div className="flex items-center justify-end gap-2">
                   {r.status === REPORT_STATUS.READY && (
-                    <a href={r.fileUrl} target="_blank" rel="noreferrer">
-                      <Button variant="ghost" size="sm" className="text-purple-700 hover:text-purple-900 hover:bg-purple-50 font-bold gap-2">
+                    <a 
+                      href={r.fileUrl || `http://localhost:8000/api/reports/${r.id}/download`} 
+                      target="_blank" 
+                      rel="noreferrer"
+                      download
+                    >
+                      <Button variant="ghost" size="sm" className="text-purple-700 hover:text-purple-900 hover:bg-purple-50 font-bold gap-2 cursor-pointer">
                         <Download className="w-4 h-4" /> Download
                       </Button>
                     </a>

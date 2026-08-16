@@ -139,8 +139,8 @@ export default function ReportsPage() {
       <ReportsSummaryCards
         totalReports={loading ? "—" : (reports?.length || 0)}
         scheduledCount={schedLoading ? "—" : (scheduled?.length || 0)}
-        formatCount={2}
-        storageUsed="1.2 GB"
+        formatCount={3}
+        storageUsed={loading ? "—" : `${((reports?.length || 0) * 1.8).toFixed(1)} MB`}
       />
 
       <Card className="mb-6 shadow-sm border-gray-200 bg-white">
