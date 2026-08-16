@@ -45,7 +45,7 @@ export function normalizeCampaign(item) {
     start_date: startDate,
     end_date: endDate,
     status: item.status || "Active",
-    budget: item.budget !== undefined && item.budget !== null ? Number(item.budget) : 0,
+    budget: item.budget !== undefined && item.budget !== null ? Number(item.budget) : 0.0,
     image: item.image || "https://images.unsplash.com/photo-1557683316-973673baf926?w=150&h=150&fit=crop",
   };
 }
@@ -99,8 +99,12 @@ export async function createCampaign(payload) {
   const backendPayload = {
     campaign_name: payload.campaign_name || payload.title || payload.name || "Untitled Campaign",
     platform: platformStr,
+    subtitle: payload.subtitle || "",
+    description: payload.description || "",
     start_date: payload.start_date || payload.startDate || new Date().toISOString().split("T")[0],
     end_date: payload.end_date || payload.endDate || new Date().toISOString().split("T")[0],
+    status: payload.status || "Active",
+    objective: payload.objective || "Awareness",
     budget: payload.budget !== undefined && payload.budget !== null && payload.budget !== "" ? Number(payload.budget) : 0.0,
   };
 
@@ -123,8 +127,12 @@ export async function updateCampaign(id, payload) {
   const backendPayload = {
     campaign_name: payload.campaign_name || payload.title || payload.name || "Untitled Campaign",
     platform: platformStr,
+    subtitle: payload.subtitle || "",
+    description: payload.description || "",
     start_date: payload.start_date || payload.startDate || new Date().toISOString().split("T")[0],
     end_date: payload.end_date || payload.endDate || new Date().toISOString().split("T")[0],
+    status: payload.status || "Active",
+    objective: payload.objective || "Awareness",
     budget: payload.budget !== undefined && payload.budget !== null && payload.budget !== "" ? Number(payload.budget) : 0.0,
   };
 

@@ -15,9 +15,13 @@ def create_campaign(campaign: CampaignCreate, db: Session = Depends(get_db)):
     new_campaign = Campaign(
         campaign_name=campaign.campaign_name,
         platform=campaign.platform,
+        subtitle=campaign.subtitle,
+        description=campaign.description,
         start_date=campaign.start_date,
         end_date=campaign.end_date,
-        budget=campaign.budget
+        status=campaign.status or "Active",
+        objective=campaign.objective or "Awareness",
+        budget=campaign.budget or 0.0
     )
 
     db.add(new_campaign)
@@ -50,9 +54,13 @@ def update_campaign(id: int, updated_campaign: CampaignCreate, db: Session = Dep
 
     campaign.campaign_name = updated_campaign.campaign_name
     campaign.platform = updated_campaign.platform
+    campaign.subtitle = updated_campaign.subtitle
+    campaign.description = updated_campaign.description
     campaign.start_date = updated_campaign.start_date
     campaign.end_date = updated_campaign.end_date
-    campaign.budget = updated_campaign.budget
+    campaign.status = updated_campaign.status or "Active"
+    campaign.objective = updated_campaign.objective or "Awareness"
+    campaign.budget = updated_campaign.budget or 0.0
 
     db.commit()
     db.refresh(campaign)
