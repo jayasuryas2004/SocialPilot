@@ -15,6 +15,97 @@ notif_router_alt = APIRouter(prefix="/notifications", tags=["Notifications"])
 
 READ_NOTIFICATION_IDS = set()
 
+# 12 Comprehensive Seed Notifications
+SEED_NOTIFICATIONS_LIST = [
+    # Category: Publishing (4)
+    {
+        "title": "Post Published to LinkedIn",
+        "message": "Your scheduled post with high-resolution image was published successfully to LinkedIn Live.",
+        "type": "publishing",
+        "category": "publishing",
+        "minutes_ago": 10
+    },
+    {
+        "title": "Post Scheduled for Instagram",
+        "message": "Summer Sale Campaign reel has been scheduled for tomorrow at 10:00 AM.",
+        "type": "publishing",
+        "category": "publishing",
+        "minutes_ago": 35
+    },
+    {
+        "title": "LinkedIn Ghost Sync Verified",
+        "message": "Bi-directional background worker verified 1 post deletion synced with LinkedIn API.",
+        "type": "publishing",
+        "category": "publishing",
+        "minutes_ago": 75
+    },
+    {
+        "title": "Publishing Queue Active",
+        "message": "Next scheduled post is queued for automatic dispatch via APScheduler.",
+        "type": "publishing",
+        "category": "publishing",
+        "minutes_ago": 120
+    },
+    # Category: System Alerts (4)
+    {
+        "title": "APScheduler Active",
+        "message": "Background social media publishing worker is running and monitoring scheduled queues.",
+        "type": "system",
+        "category": "system",
+        "minutes_ago": 15
+    },
+    {
+        "title": "OAuth Token Vault Synced",
+        "message": "LinkedIn OAuth account credentials and publishing permissions are securely verified.",
+        "type": "system",
+        "category": "system",
+        "minutes_ago": 45
+    },
+    {
+        "title": "Facebook Account Connected",
+        "message": "OAuth token for SocialPilot Official page is active and healthy.",
+        "type": "system",
+        "category": "system",
+        "minutes_ago": 180
+    },
+    {
+        "title": "Instagram Token Verified",
+        "message": "Permissions to publish reels and stories verified with Graph API.",
+        "type": "system",
+        "category": "system",
+        "minutes_ago": 240
+    },
+    # Category: Reports (4)
+    {
+        "title": "Weekly Engagement Report Ready",
+        "message": "Your automated multi-platform analytics PDF report has been compiled and is ready for download.",
+        "type": "report",
+        "category": "reports",
+        "minutes_ago": 50
+    },
+    {
+        "title": "Monthly Multi-Channel Benchmark",
+        "message": "Detailed cross-platform reach and growth benchmark report is now available.",
+        "type": "report",
+        "category": "reports",
+        "minutes_ago": 150
+    },
+    {
+        "title": "Campaign ROI Summary Compiled",
+        "message": "Winter Skincare Collection campaign performance report has finished processing.",
+        "type": "report",
+        "category": "reports",
+        "minutes_ago": 300
+    },
+    {
+        "title": "Audience Growth Digest",
+        "message": "Q2 follower acquisition summary across 7 connected channels is ready.",
+        "type": "report",
+        "category": "reports",
+        "minutes_ago": 420
+    }
+]
+
 # Static filler campaigns for enriched campaign views
 STATIC_FILLER_CAMPAIGNS = [
     {
@@ -92,41 +183,23 @@ def get_workspace_data(db: Session):
     Strictly NO list comprehensions or lambda expressions.
     """
     db_notifications = db.query(Notification).order_by(Notification.created_at.desc()).all()
-    if len(db_notifications) == 0:
-        seed_items = [
-            {
-                "title": "APScheduler Active",
-                "message": "Background social media publishing worker is running and monitoring scheduled queues.",
-                "type": "system",
-                "category": "system"
-            },
-            {
-                "title": "OAuth Token Vault Synced",
-                "message": "LinkedIn OAuth account credentials and publishing permissions are securely verified.",
-                "type": "system",
-                "category": "system"
-            },
-            {
-                "title": "Post Published to LinkedIn",
-                "message": "Your scheduled post with high-resolution image was published successfully to LinkedIn Live.",
-                "type": "publishing",
-                "category": "publishing"
-            },
-            {
-                "title": "Weekly Engagement Report Ready",
-                "message": "Your automated multi-platform analytics PDF report has been compiled and is ready for download.",
-                "type": "report",
-                "category": "reports"
-            }
-        ]
-        for item in seed_items:
+    
+    # Auto-seed full 12 notification items into SQLite if count is less than 12
+    if len(db_notifications) < 12:
+        for notif in db_notifications:
+            db.delete(notif)
+        db.commit()
+
+        for item in SEED_NOTIFICATIONS_LIST:
+            mins = item.get("minutes_ago", 10)
+            item_time = datetime.utcnow() - timedelta(minutes=mins)
             new_notif = Notification(
                 title=item.get("title"),
                 message=item.get("message"),
                 type=item.get("type"),
                 category=item.get("category"),
                 is_read=False,
-                created_at=datetime.utcnow()
+                created_at=item_time
             )
             db.add(new_notif)
         db.commit()
@@ -145,35 +218,21 @@ def get_workspace_data(db: Session):
         category = notif.category or "system"
         title = notif.title or "System Notification"
 
-        if "success" in msg_lower or "published" in msg_lower:
-            notif_type = "publishing"
-            category = "publishing"
-            title = "Post Published Successfully"
-        elif "failed" in msg_lower or "error" in msg_lower:
-            notif_type = "warning"
-            category = "publishing"
-            title = "Publication Issue"
-        elif "report" in msg_lower:
-            notif_type = "report"
-            category = "reports"
-            title = "Analytics Report Ready"
-        elif "sync" in msg_lower or "ghost" in msg_lower or "delete" in msg_lower:
-            notif_type = "system"
-            category = "system"
-            title = "LinkedIn Bi-Directional Ghost Sync"
-        elif "oauth" in msg_lower or "vault" in msg_lower or "token" in msg_lower:
-            notif_type = "system"
-            category = "system"
-            title = "OAuth Token Vault Synced"
-        elif "comment" in msg_lower or "like" in msg_lower:
-            notif_type = "engagement"
-            category = "engagement"
-            title = "New Social Engagement"
+        if not notif.category:
+            if "published" in msg_lower or "scheduled" in msg_lower or "queue" in msg_lower:
+                notif_type = "publishing"
+                category = "publishing"
+            elif "report" in msg_lower or "digest" in msg_lower or "roi" in msg_lower:
+                notif_type = "report"
+                category = "reports"
+            else:
+                notif_type = "system"
+                category = "system"
 
         time_str = format_time_ago(notif.created_at)
         
         is_read_flag = False
-        if str(notif.id) in READ_NOTIFICATION_IDS:
+        if str(notif.id) in READ_NOTIFICATION_IDS or f"notif_{notif.id}" in READ_NOTIFICATION_IDS:
             is_read_flag = True
         elif hasattr(notif, "is_read") and notif.is_read:
             is_read_flag = True
@@ -189,53 +248,6 @@ def get_workspace_data(db: Session):
             "isRead": is_read_flag,
             "created_at": notif.created_at.isoformat() if notif.created_at else None
         })
-
-    # Add default system events if fewer than 4 exist
-    if len(formatted_notifications) < 4:
-        default_alerts = [
-            {
-                "id": "def_1",
-                "raw_id": "def_1",
-                "title": "APScheduler Active",
-                "message": "Background social media publishing worker is running and monitoring scheduled queues.",
-                "type": "system",
-                "category": "system",
-                "time": "10 mins ago",
-                "isRead": "def_1" in READ_NOTIFICATION_IDS
-            },
-            {
-                "id": "def_2",
-                "raw_id": "def_2",
-                "title": "OAuth Token Vault Synced",
-                "message": "LinkedIn OAuth account credentials and publishing permissions are securely verified.",
-                "type": "system",
-                "category": "system",
-                "time": "45 mins ago",
-                "isRead": "def_2" in READ_NOTIFICATION_IDS
-            },
-            {
-                "id": "def_3",
-                "raw_id": "def_3",
-                "title": "Post Published to LinkedIn",
-                "message": "Your scheduled post with high-resolution image was published successfully to LinkedIn Live.",
-                "type": "publishing",
-                "category": "publishing",
-                "time": "2 hours ago",
-                "isRead": "def_3" in READ_NOTIFICATION_IDS
-            },
-            {
-                "id": "def_4",
-                "raw_id": "def_4",
-                "title": "Weekly Engagement Report Ready",
-                "message": "Your automated multi-platform analytics PDF report has been compiled and is ready for download.",
-                "type": "report",
-                "category": "reports",
-                "time": "5 hours ago",
-                "isRead": "def_4" in READ_NOTIFICATION_IDS
-            }
-        ]
-        for alert in default_alerts:
-            formatted_notifications.append(alert)
 
     # 2. Process campaigns and nested posts using standard iterative loops
     formatted_campaigns = []
