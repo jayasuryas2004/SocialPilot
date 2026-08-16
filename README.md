@@ -1,1 +1,0 @@
-# Team-2-Social-Media-Scheduler-Campaign-Management-Platform
