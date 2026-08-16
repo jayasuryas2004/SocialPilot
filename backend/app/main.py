@@ -6,8 +6,9 @@ from database import Base, engine
 import models.post
 import models.campaign
 import models.notification
+import models.user
 
-from api import schedule, campaign, post
+from api import schedule, campaign, post, auth
 
 app = FastAPI(
     title="SocialPilot Backend",
@@ -39,9 +40,11 @@ def startup_event():
 Base.metadata.create_all(bind=engine)
 
 # Register API Routers
+app.include_router(auth.router)
 app.include_router(schedule.router)
 app.include_router(campaign.router)
 app.include_router(post.router)
+
 
 
 @app.get("/")
