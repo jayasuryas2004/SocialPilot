@@ -5,6 +5,7 @@ from datetime import datetime, date
 from app.database import get_db
 from app.models.post import Post
 from app.models.campaign import Campaign
+from app.models.social_account import SocialAccount
 
 router = APIRouter(prefix="/api/content", tags=["Content & Calendar"])
 router_alt = APIRouter(prefix="/content", tags=["Content & Calendar"])
@@ -105,6 +106,14 @@ def format_combined_content(db: Session):
     """
     posts = db.query(Post).all()
     campaigns = db.query(Campaign).all()
+    social_accounts = db.query(SocialAccount).all()
+
+    # Find real connected LinkedIn user
+    linkedin_user_name = "Jayasurya Subramanian"
+    for acc in social_accounts:
+        if acc.platform == "linkedin" and acc.account_name:
+            linkedin_user_name = acc.account_name
+            break
 
     # Build campaign name lookup using standard loop
     campaign_map = {}
@@ -155,7 +164,7 @@ def format_combined_content(db: Session):
             "fullText": p.content or "",
             "description": p.content or "",
             "platform": "LinkedIn" if is_linkedin else target_platform,
-            "handle": "linkedin_profile" if is_linkedin else "socialpilot_hq",
+            "handle": linkedin_user_name if is_linkedin else "socialpilot_hq",
             "campaign": camp_name,
             "date": post_date,
             "time": post_time,

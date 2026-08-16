@@ -4,7 +4,7 @@ from app.models.social_account import SocialAccount
 
 def publish_to_linkedin(post, db):
     """
-    Publishes a scheduled post to LinkedIn using vaulted OAuth access tokens.
+    Publishes a scheduled post to LinkedIn using vaulted OAuth access tokens and real Author URN.
     Uses standard Python iterative logic.
     """
     # 1. Query vaulted SocialAccount for LinkedIn
@@ -17,8 +17,34 @@ def publish_to_linkedin(post, db):
         return False, "No active LinkedIn OAuth token found in vault."
 
     access_token = social_account.access_token
-    platform_user_id = social_account.platform_user_id or "unknown"
-    author_urn = f"urn:li:person:{platform_user_id}"
+    platform_user_id = social_account.platform_user_id
+
+    # If platform_user_id is missing or unknown, fetch live profile sub identifier
+    if not platform_user_id or platform_user_id == "unknown":
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                u_res = client.get(
+                    "https://api.linkedin.com/v2/userinfo",
+                    headers={"Authorization": f"Bearer {access_token}"}
+                )
+                if u_res.status_code == 200:
+                    u_data = u_res.json()
+                    sub_id = u_data.get("sub")
+                    if sub_id:
+                        social_account.platform_user_id = sub_id
+                        platform_user_id = sub_id
+                        db.commit()
+        except Exception as e:
+            print("Notice: Could not refresh LinkedIn sub ID:", e)
+
+    if not platform_user_id:
+        platform_user_id = "unknown"
+
+    # Form strictly valid LinkedIn Author URN
+    if platform_user_id.startswith("urn:li:"):
+        author_urn = platform_user_id
+    else:
+        author_urn = f"urn:li:person:{platform_user_id}"
 
     # 2. Construct LinkedIn UGC Post payload
     post_text = post.content or post.title or "New post from SocialPilot"
@@ -58,7 +84,7 @@ def publish_to_linkedin(post, db):
                 return True, response.text
             else:
                 error_detail = f"Status {response.status_code}: {response.text}"
-                print(f"ERROR: LinkedIn API publication failed for Post ID {post.id} - {error_detail}")
+                print(f"ERROR: LinkedIn API publication failed for Post ID {post.id} with URN {author_urn} - {error_detail}")
                 return False, error_detail
     except Exception as exc:
         err_msg = f"Network or execution error publishing to LinkedIn: {exc}"
