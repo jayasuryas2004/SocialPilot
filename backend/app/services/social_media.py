@@ -1,10 +1,12 @@
+import base64
 import httpx
 from app.models.social_account import SocialAccount
 
 
 def publish_to_linkedin(post, db):
     """
-    Publishes a scheduled post to LinkedIn using vaulted OAuth access tokens and real Author URN.
+    Publishes a scheduled post to LinkedIn using vaulted OAuth access tokens.
+    Supports both text posts and full 3-step LinkedIn media image uploads.
     Uses standard Python iterative logic.
     """
     # 1. Query vaulted SocialAccount for LinkedIn
@@ -46,23 +48,8 @@ def publish_to_linkedin(post, db):
     else:
         author_urn = f"urn:li:person:{platform_user_id}"
 
-    # 2. Construct LinkedIn UGC Post payload
     post_text = post.content or post.title or "New post from SocialPilot"
-    ugc_payload = {
-        "author": author_urn,
-        "lifecycleState": "PUBLISHED",
-        "specificContent": {
-            "com.linkedin.ugc.ShareContent": {
-                "shareCommentary": {
-                    "text": post_text
-                },
-                "shareMediaCategory": "NONE"
-            }
-        },
-        "visibility": {
-            "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
-        }
-    }
+    post_title = post.title or "SocialPilot Post"
 
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -70,9 +57,127 @@ def publish_to_linkedin(post, db):
         "Content-Type": "application/json"
     }
 
-    # 3. Execute live HTTP POST request to LinkedIn API
     try:
-        with httpx.Client(timeout=15.0) as client:
+        with httpx.Client(timeout=30.0) as client:
+            image_data_str = getattr(post, "image_url", None)
+            asset_urn = None
+
+            # --- 3-STEP LINKEDIN MEDIA IMAGE UPLOAD PROTOCOL ---
+            if image_data_str and len(image_data_str.strip()) > 0:
+                image_bytes = None
+                try:
+                    # Convert Base64 or URL to raw binary bytes
+                    if image_data_str.startswith("data:"):
+                        # Extract base64 payload after header
+                        parts = image_data_str.split(",")
+                        if len(parts) > 1:
+                            b64_str = parts[1]
+                        else:
+                            b64_str = parts[0]
+                        image_bytes = base64.b64decode(b64_str)
+                    elif image_data_str.startswith("http://") or image_data_str.startswith("https://"):
+                        img_res = client.get(image_data_str, timeout=15.0)
+                        if img_res.status_code == 200:
+                            image_bytes = img_res.content
+                    else:
+                        # Raw base64 string
+                        image_bytes = base64.b64decode(image_data_str)
+                except Exception as b64_err:
+                    print(f"Warning: Could not decode post image bytes for post {post.id}: {b64_err}")
+                    image_bytes = None
+
+                if image_bytes is not None and len(image_bytes) > 0:
+                    # Step A: Register upload with LinkedIn
+                    register_payload = {
+                        "registerUploadRequest": {
+                            "recipes": [
+                                "urn:li:digitalmediaRecipe:feedshare-image"
+                            ],
+                            "owner": author_urn,
+                            "supportedUploadMechanism": [
+                                "SYNCHRONOUS_UPLOAD"
+                            ]
+                        }
+                    }
+
+                    reg_res = client.post(
+                        "https://api.linkedin.com/v2/assets?action=registerUpload",
+                        json=register_payload,
+                        headers=headers
+                    )
+
+                    if reg_res.status_code in [200, 201]:
+                        reg_data = reg_res.json()
+                        val_obj = reg_data.get("value", {})
+                        asset_urn = val_obj.get("asset")
+                        upload_mechanism = val_obj.get("uploadMechanism", {})
+                        http_upload_req = upload_mechanism.get(
+                            "com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest", {}
+                        )
+                        upload_url = http_upload_req.get("uploadUrl")
+
+                        if asset_urn and upload_url:
+                            # Step B: Upload image binary bytes to LinkedIn uploadUrl
+                            upload_headers = {
+                                "Authorization": f"Bearer {access_token}",
+                                "Content-Type": "image/jpeg"
+                            }
+                            up_res = client.put(
+                                upload_url,
+                                content=image_bytes,
+                                headers=upload_headers
+                            )
+                            print(f"LinkedIn image binary upload status for Post ID {post.id}: {up_res.status_code}")
+                    else:
+                        print(f"Notice: LinkedIn registerUpload failed ({reg_res.status_code}): {reg_res.text}")
+
+            # --- STEP C: CONSTRUCT UGC POST PAYLOAD (IMAGE VS TEXT) ---
+            if asset_urn:
+                ugc_payload = {
+                    "author": author_urn,
+                    "lifecycleState": "PUBLISHED",
+                    "specificContent": {
+                        "com.linkedin.ugc.ShareContent": {
+                            "shareCommentary": {
+                                "text": post_text
+                            },
+                            "shareMediaCategory": "IMAGE",
+                            "media": [
+                                {
+                                    "status": "READY",
+                                    "description": {
+                                        "text": post_text[:100] if len(post_text) > 100 else post_text
+                                    },
+                                    "media": asset_urn,
+                                    "title": {
+                                        "text": post_title[:50] if len(post_title) > 50 else post_title
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "visibility": {
+                        "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
+                    }
+                }
+            else:
+                ugc_payload = {
+                    "author": author_urn,
+                    "lifecycleState": "PUBLISHED",
+                    "specificContent": {
+                        "com.linkedin.ugc.ShareContent": {
+                            "shareCommentary": {
+                                "text": post_text
+                            },
+                            "shareMediaCategory": "NONE"
+                        }
+                    },
+                    "visibility": {
+                        "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
+                    }
+                }
+
+            # --- EXECUTE FINAL POST PUBLICATION ---
             response = client.post(
                 "https://api.linkedin.com/v2/ugcPosts",
                 json=ugc_payload,
@@ -80,12 +185,13 @@ def publish_to_linkedin(post, db):
             )
 
             if response.status_code in [200, 201]:
-                print(f"SUCCESS: Published Post ID {post.id} to LinkedIn API: {response.text}")
+                print(f"SUCCESS: Published Post ID {post.id} ({'with image' if asset_urn else 'text-only'}) to LinkedIn API: {response.text}")
                 return True, response.text
             else:
                 error_detail = f"Status {response.status_code}: {response.text}"
                 print(f"ERROR: LinkedIn API publication failed for Post ID {post.id} with URN {author_urn} - {error_detail}")
                 return False, error_detail
+
     except Exception as exc:
         err_msg = f"Network or execution error publishing to LinkedIn: {exc}"
         print(f"ERROR: {err_msg}")
