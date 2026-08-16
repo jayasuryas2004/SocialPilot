@@ -10,13 +10,12 @@ import { REPORT_CATEGORIES } from "@/constants/reportStatus";
 export default function GenerateReportModal({ open, onOpenChange, onGenerate }) {
   const [category, setCategory] = useState("engagement");
   const [format, setFormat] = useState("pdf");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState("2026-08-01");
+  const [endDate, setEndDate] = useState("2026-08-31");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   async function handleSubmit() {
-    // Basic validation
     if (!startDate || !endDate) {
       setError("Please select both a start and end date.");
       return;
@@ -26,31 +25,17 @@ export default function GenerateReportModal({ open, onOpenChange, onGenerate }) 
     setError(null);
     
     try {
-      // 1. Call your parent function (e.g., to log the generation to the DB)
+      let createdReport = null;
       if (onGenerate) {
-        await onGenerate({ category, format, startDate, endDate });
+        createdReport = await onGenerate({ category, format, startDate, endDate });
       }
 
-      // 2. PHYSICAL DOWNLOAD MOCK
-      // When your backend is ready, replace 'fileContent' with the real file stream/blob from your API
-      const fileContent = `SocialPilot Analytics Report\n\nCategory: ${category}\nStart Date: ${startDate}\nEnd Date: ${endDate}\nFormat: ${format}\n\n[Report Data Payload...]`;
-      
-      const blob = new Blob([fileContent], { type: "text/plain" }); 
-      const downloadUrl = window.URL.createObjectURL(blob);
+      // Download compiled report
+      const downloadTarget = createdReport?.fileUrl || (createdReport?.id ? `http://localhost:8000/api/reports/${createdReport.id}/download` : null);
+      if (downloadTarget) {
+        window.open(downloadTarget, "_blank");
+      }
 
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-      // Set dynamic file name based on category and timestamp
-      link.download = `socialpilot_${category}_report_${new Date().getTime()}.${format}`;
-      
-      document.body.appendChild(link);
-      link.click();
-      
-      // Cleanup the DOM
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
-
-      // 3. Close modal on success
       onOpenChange(false);
     } catch (err) {
       setError(err.message || "Couldn't start report generation");
@@ -93,8 +78,9 @@ export default function GenerateReportModal({ open, onOpenChange, onGenerate }) 
             <Select value={format} onValueChange={setFormat}>
               <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="pdf">PDF</SelectItem>
-                <SelectItem value="excel">Excel</SelectItem>
+                <SelectItem value="pdf">PDF (.pdf)</SelectItem>
+                <SelectItem value="csv">CSV (.csv)</SelectItem>
+                <SelectItem value="excel">Excel (.xlsx)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -104,7 +90,7 @@ export default function GenerateReportModal({ open, onOpenChange, onGenerate }) 
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={loading || !startDate || !endDate}>
+          <Button onClick={handleSubmit} disabled={loading || !startDate || !endDate} className="bg-[#311b92] text-white hover:bg-[#28157a]">
             {loading ? "Generating..." : "Generate"}
           </Button>
         </DialogFooter>
