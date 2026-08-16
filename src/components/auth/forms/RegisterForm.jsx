@@ -62,6 +62,9 @@ export default function RegisterForm() {
   const router = useRouter();
   const { register } = useAuth();
 
+  // Explicit mount tracker to prevent SSR/client hydration disparities
+  const [isMounted, setIsMounted] = useState(false);
+
   // Multi-step state: 1 for Account Details, 2 for Role Selection
   const [step, setStep] = useState(1);
 
@@ -77,11 +80,10 @@ export default function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [mounted, setMounted] = useState(false);
 
-  // Prevent SSR hydration mismatches
+  // Guaranteed single mount trigger for safe hydration
   useEffect(() => {
-    setMounted(true);
+    setIsMounted(true);
   }, []);
 
   // Real-time password strength validation rules
@@ -264,6 +266,7 @@ export default function RegisterForm() {
                       type="text"
                       placeholder="Jayasurya S"
                       required
+                      suppressHydrationWarning
                       className="flex-1 bg-transparent px-3 text-[13px] text-gray-900 outline-none border-none focus:ring-0"
                       value={form.name}
                       onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -298,6 +301,7 @@ export default function RegisterForm() {
                     <input
                       type={showPassword ? "text" : "password"}
                       placeholder="At least 8 characters"
+                      suppressHydrationWarning
                       className="flex-1 bg-transparent px-3 text-[13px] text-gray-900 outline-none focus:ring-0 border-none"
                       value={form.password}
                       onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -359,6 +363,7 @@ export default function RegisterForm() {
                     <input
                       type={showPassword ? "text" : "password"}
                       placeholder="Re-enter password"
+                      suppressHydrationWarning
                       className="flex-1 bg-transparent px-3 text-[13px] text-gray-900 outline-none focus:ring-0 border-none"
                       value={form.confirmPassword}
                       onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
@@ -375,9 +380,9 @@ export default function RegisterForm() {
 
                 <button
                   type="submit"
-                  disabled={!mounted || !isStep1Valid}
+                  disabled={!isMounted || !isStep1Valid}
                   className={`w-full h-10 rounded-lg text-[13px] font-semibold shadow-md transition-all flex items-center justify-center gap-1.5 mt-1 ${
-                    mounted && isStep1Valid
+                    isMounted && isStep1Valid
                       ? "bg-[#260b79] hover:bg-[#1f0962] text-white cursor-pointer"
                       : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
                   }`}
