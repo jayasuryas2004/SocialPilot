@@ -18,6 +18,12 @@ from app.api.reports import router as reports_router
 from app.api.oauth import router as oauth_router
 from app.api.content import router as content_router, router_alt as content_alt_router
 from app.api.analytics import router as analytics_router, router_alt as analytics_alt_router
+from app.api.workspace import (
+    router as workspace_router,
+    router_alt as workspace_alt_router,
+    notif_router,
+    notif_router_alt
+)
 
 app = FastAPI(
     title="SocialPilot Backend",
@@ -59,6 +65,11 @@ app.include_router(content_router)
 app.include_router(content_alt_router)
 app.include_router(analytics_router)
 app.include_router(analytics_alt_router)
+app.include_router(workspace_router)
+app.include_router(workspace_alt_router)
+app.include_router(notif_router)
+app.include_router(notif_router_alt)
+
 
 
 

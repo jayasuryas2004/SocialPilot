@@ -6,8 +6,8 @@ import CampaignList from '@/components/campaigns/CampaignList';
 import CampaignForm from '@/components/campaigns/CampaignForm';
 import PostComposerModal from '@/components/posts/PostComposerModal';
 import { getCampaigns, createCampaign, updateCampaign } from '@/lib/api/campaigns';
+import { getWorkspaceStatus } from '@/lib/api/workspace';
 import { createPost } from '@/lib/api/posts';
-
 
 export default function CampaignsMainPage() {
   const [campaigns, setCampaigns] = useState([]);
@@ -15,26 +15,34 @@ export default function CampaignsMainPage() {
   const [error, setError] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState(null);
-
-  // NEW: Post composer state
   const [isPostOpen, setIsPostOpen] = useState(false);
 
-  // Fetch campaigns from the live FastAPI backend on mount
+  // Fetch hybrid campaigns from backend workspace status on mount
   useEffect(() => {
     let isMounted = true;
 
     async function loadCampaigns() {
       try {
         setLoading(true);
-        const data = await getCampaigns();
+        const workspace = await getWorkspaceStatus();
         if (isMounted) {
-          setCampaigns(Array.isArray(data) ? data : []);
+          if (workspace && Array.isArray(workspace.campaigns) && workspace.campaigns.length > 0) {
+            setCampaigns(workspace.campaigns);
+          } else {
+            const fallback = await getCampaigns();
+            setCampaigns(Array.isArray(fallback) ? fallback : []);
+          }
           setError(null);
         }
       } catch (err) {
         console.error("Failed to load campaigns from backend:", err);
         if (isMounted) {
-          setError(err?.message || "Failed to load campaigns.");
+          try {
+            const fallback = await getCampaigns();
+            setCampaigns(Array.isArray(fallback) ? fallback : []);
+          } catch (e) {
+            setError(err?.message || "Failed to load campaigns.");
+          }
         }
       } finally {
         if (isMounted) {
@@ -50,14 +58,12 @@ export default function CampaignsMainPage() {
     };
   }, []);
 
-
   /**
    * Handle creating a new campaign or updating an existing campaign
    */
   const handleSaveCampaign = async (campaignData) => {
     try {
       if (editingCampaign) {
-        // Update existing campaign via PUT /campaign/{id}
         const updated = await updateCampaign(editingCampaign.id, campaignData);
         setCampaigns((prev) => {
           const updatedList = [];
@@ -72,7 +78,6 @@ export default function CampaignsMainPage() {
           return updatedList;
         });
       } else {
-        // Create new campaign via POST /campaign
         const created = await createCampaign(campaignData);
         setCampaigns((prev) => [created, ...prev]);
       }
@@ -96,7 +101,6 @@ export default function CampaignsMainPage() {
     }
   };
 
-
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-6 text-slate-900 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
@@ -108,13 +112,13 @@ export default function CampaignsMainPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsPostOpen(true)}
-            className="bg-white text-[#311b92] border-2 border-[#311b92] font-bold text-sm px-6 py-3 rounded-xl hover:bg-[#f8f5ff] transition-colors whitespace-nowrap"
+            className="bg-white text-[#311b92] border-2 border-[#311b92] font-bold text-sm px-6 py-3 rounded-xl hover:bg-[#f8f5ff] transition-colors whitespace-nowrap cursor-pointer"
           >
             Add Post
           </button>
           <button
             onClick={() => { setEditingCampaign(null); setIsFormOpen(true); }}
-            className="bg-[#311b92] text-white font-bold text-sm px-6 py-3 rounded-xl hover:bg-[#28157a] transition-colors shadow-sm whitespace-nowrap"
+            className="bg-[#311b92] text-white font-bold text-sm px-6 py-3 rounded-xl hover:bg-[#28157a] transition-colors shadow-sm whitespace-nowrap cursor-pointer"
           >
             New Campaign
           </button>
@@ -139,7 +143,6 @@ export default function CampaignsMainPage() {
         onSave={handleSaveCampaign}
       />
 
-      {/* campaigns is passed live from state, so PostComposerModal always sees current campaigns */}
       <PostComposerModal
         isOpen={isPostOpen}
         onClose={() => setIsPostOpen(false)}
@@ -149,4 +152,3 @@ export default function CampaignsMainPage() {
     </div>
   );
 }
-
