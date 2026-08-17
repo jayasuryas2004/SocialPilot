@@ -19,15 +19,23 @@ load_dotenv()
 
 router = APIRouter(prefix="/oauth", tags=["OAuth Integrations"])
 
-# Configuration constants - strictly loaded from environment variables
-LINKEDIN_CLIENT_ID = os.getenv("LINKEDIN_CLIENT_ID", "")
-LINKEDIN_CLIENT_SECRET = os.getenv("LINKEDIN_CLIENT_SECRET", "")
-LINKEDIN_REDIRECT_URI = os.getenv("LINKEDIN_REDIRECT_URI", "http://localhost:8000/oauth/linkedin/callback")
-FRONTEND_REDIRECT_BASE = os.getenv("FRONTEND_URL", "http://localhost:3000")
-
+# Configuration constants
 LINKEDIN_AUTH_BASE_URL = "https://www.linkedin.com/oauth/v2/authorization"
 LINKEDIN_TOKEN_URL = "https://www.linkedin.com/oauth/v2/accessToken"
 LINKEDIN_USERINFO_URL = "https://api.linkedin.com/v2/userinfo"
+
+
+def get_oauth_config():
+    """
+    Dynamically loads OAuth environment configuration to ensure runtime freshness.
+    """
+    load_dotenv()
+    return {
+        "client_id": os.getenv("LINKEDIN_CLIENT_ID", ""),
+        "client_secret": os.getenv("LINKEDIN_CLIENT_SECRET", ""),
+        "redirect_uri": os.getenv("LINKEDIN_REDIRECT_URI", "http://localhost:8000/oauth/linkedin/callback"),
+        "frontend_url": os.getenv("FRONTEND_URL", "http://localhost:3000")
+    }
 
 
 @router.get("/linkedin/login")
@@ -41,6 +49,20 @@ def linkedin_login(
     Encodes tenant user state to link OAuth credentials on callback.
     Strictly uses standard control flow (no list comprehensions or lambda expressions).
     """
+    config = get_oauth_config()
+    client_id = config["client_id"]
+    redirect_uri = config["redirect_uri"]
+
+    print(f"[OAUTH] Initiating LinkedIn OAuth login redirect.")
+    print(f"[OAUTH] Client ID present: {bool(client_id)}, Redirect URI: {redirect_uri}")
+
+    if not client_id:
+        print("[OAUTH ERROR] LINKEDIN_CLIENT_ID is not configured in environment variables.")
+        raise HTTPException(
+            status_code=500,
+            detail="LinkedIn OAuth is not configured on the server. Please set LINKEDIN_CLIENT_ID."
+        )
+
     state = "socialpilot_linkedin_auth_state_2026"
     if token:
         try:
@@ -52,8 +74,8 @@ def linkedin_login(
 
     params = {
         "response_type": "code",
-        "client_id": LINKEDIN_CLIENT_ID,
-        "redirect_uri": LINKEDIN_REDIRECT_URI,
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
         "scope": "openid profile email w_member_social",
         "state": state
     }
@@ -76,24 +98,46 @@ async def linkedin_callback(
     Handles LinkedIn OAuth callback:
     1. Validates presence of authorization code.
     2. Exchanges authorization code for an OAuth access token via HTTP POST.
-    3. Fetches user profile data from LinkedIn userinfo endpoint.
-    4. Encrypts access_token and refresh_token at rest via Fernet vault.
-    5. Persists the encrypted OAuth credentials in the SocialAccount database table with correct user_id.
-    6. Redirects the user back to the frontend /dashboard/accounts page.
+    3. Logs detailed request/response diagnostics to terminal.
+    4. Fetches user profile data from LinkedIn userinfo endpoint.
+    5. Encrypts access_token and refresh_token at rest via Fernet vault.
+    6. Persists credentials in the SocialAccount database table within a safe try-except block.
+    7. Redirects user back to the frontend /dashboard/accounts page.
     Strictly uses standard control flow (no list comprehensions or lambda expressions).
     """
+    config = get_oauth_config()
+    client_id = config["client_id"]
+    client_secret = config["client_secret"]
+    redirect_uri = config["redirect_uri"]
+    frontend_url = config["frontend_url"]
+
+    print("\n--- [OAUTH CALLBACK INITIATED] ---")
+    print(f"[OAUTH] Incoming code present: {bool(code)}, state: {state}")
+    print(f"[OAUTH] Configuration - Redirect URI: {redirect_uri}")
+    print(f"[OAUTH] Configuration - Client ID present: {bool(client_id)}, Client Secret present: {bool(client_secret)}")
+
     # 1. Handle user cancellation or provider error
     if error:
+        print(f"[OAUTH ERROR] LinkedIn returned error: {error} - {error_description}")
         err_msg = urllib.parse.quote(error_description or error or "LinkedIn authorization cancelled.")
         return RedirectResponse(
-            url=f"{FRONTEND_REDIRECT_BASE}/dashboard/accounts?status=error&platform=linkedin&message={err_msg}",
+            url=f"{frontend_url}/dashboard/accounts?status=error&platform=linkedin&message={err_msg}",
             status_code=307
         )
 
     if not code:
+        print("[OAUTH ERROR] Missing authorization code from callback parameters.")
         err_msg = urllib.parse.quote("Missing authorization code from LinkedIn.")
         return RedirectResponse(
-            url=f"{FRONTEND_REDIRECT_BASE}/dashboard/accounts?status=error&platform=linkedin&message={err_msg}",
+            url=f"{frontend_url}/dashboard/accounts?status=error&platform=linkedin&message={err_msg}",
+            status_code=307
+        )
+
+    if not client_id or not client_secret:
+        print("[OAUTH ERROR] Server missing LINKEDIN_CLIENT_ID or LINKEDIN_CLIENT_SECRET environment variables.")
+        err_msg = urllib.parse.quote("Server OAuth configuration is incomplete (missing client credentials).")
+        return RedirectResponse(
+            url=f"{frontend_url}/dashboard/accounts?status=error&platform=linkedin&message={err_msg}",
             status_code=307
         )
 
@@ -102,11 +146,12 @@ async def linkedin_callback(
         token_payload = {
             "grant_type": "authorization_code",
             "code": code,
-            "redirect_uri": LINKEDIN_REDIRECT_URI,
-            "client_id": LINKEDIN_CLIENT_ID,
-            "client_secret": LINKEDIN_CLIENT_SECRET
+            "redirect_uri": redirect_uri,
+            "client_id": client_id,
+            "client_secret": client_secret
         }
 
+        print(f"[OAUTH] Executing POST request to {LINKEDIN_TOKEN_URL} ...")
         async with httpx.AsyncClient(timeout=15.0) as http_client:
             token_response = await http_client.post(
                 LINKEDIN_TOKEN_URL,
@@ -114,11 +159,15 @@ async def linkedin_callback(
                 headers={"Content-Type": "application/x-www-form-urlencoded"}
             )
 
+            # Explicit diagnostic logging of token exchange status and response
+            print(f"[OAUTH] Token Exchange Response Status: {token_response.status_code}")
+            print(f"[OAUTH] Token Exchange Response Body: {token_response.text}")
+
             if token_response.status_code != 200:
-                print("LinkedIn Token Exchange Error:", token_response.text)
-                err_msg = urllib.parse.quote("Failed to exchange authorization code for access token.")
+                print(f"[OAUTH ERROR] Failed token exchange with status {token_response.status_code}: {token_response.text}")
+                err_msg = urllib.parse.quote(f"LinkedIn Token Exchange Failed ({token_response.status_code}): {token_response.text}")
                 return RedirectResponse(
-                    url=f"{FRONTEND_REDIRECT_BASE}/dashboard/accounts?status=error&platform=linkedin&message={err_msg}",
+                    url=f"{frontend_url}/dashboard/accounts?status=error&platform=linkedin&message={err_msg}",
                     status_code=307
                 )
 
@@ -128,24 +177,30 @@ async def linkedin_callback(
             refresh_token = token_data.get("refresh_token")
 
             if not access_token:
+                print("[OAUTH ERROR] No access_token key present in JSON response from LinkedIn.")
                 err_msg = urllib.parse.quote("No access token returned by LinkedIn.")
                 return RedirectResponse(
-                    url=f"{FRONTEND_REDIRECT_BASE}/dashboard/accounts?status=error&platform=linkedin&message={err_msg}",
+                    url=f"{frontend_url}/dashboard/accounts?status=error&platform=linkedin&message={err_msg}",
                     status_code=307
                 )
+
+            print("[OAUTH SUCCESS] Successfully received OAuth access token from LinkedIn.")
 
             # 3. Retrieve LinkedIn user profile name
             account_name = "LinkedIn Account"
             platform_user_id = ""
 
             try:
+                print(f"[OAUTH] Fetching user profile from {LINKEDIN_USERINFO_URL} ...")
                 userinfo_response = await http_client.get(
                     LINKEDIN_USERINFO_URL,
                     headers={"Authorization": f"Bearer {access_token}"}
                 )
+                print(f"[OAUTH] Userinfo Response Status: {userinfo_response.status_code}")
 
                 if userinfo_response.status_code == 200:
                     userinfo_data = userinfo_response.json()
+                    print(f"[OAUTH] Userinfo Data: {userinfo_data}")
                     given_name = userinfo_data.get("given_name", "")
                     family_name = userinfo_data.get("family_name", "")
                     full_name = f"{given_name} {family_name}".strip()
@@ -154,8 +209,10 @@ async def linkedin_callback(
                     elif userinfo_data.get("name"):
                         account_name = userinfo_data.get("name")
                     platform_user_id = userinfo_data.get("sub", "")
+                else:
+                    print(f"[OAUTH WARNING] Userinfo request returned status {userinfo_response.status_code}: {userinfo_response.text}")
             except Exception as userinfo_err:
-                print("Could not fetch user profile details:", userinfo_err)
+                print(f"[OAUTH WARNING] Could not fetch user profile details: {userinfo_err}")
 
             # 4. Calculate expiration timestamp
             expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
@@ -176,48 +233,61 @@ async def linkedin_callback(
                 first_user = db.query(User).first()
                 user_tenant_id = first_user.id if first_user else None
 
-            # 6. Store / Update credentials in database linked to tenant user_id
-            existing_account = db.query(SocialAccount).filter(
-                SocialAccount.platform == "linkedin",
-                (SocialAccount.user_id == user_tenant_id) | (SocialAccount.user_id.is_(None))
-            ).first()
+            # 6. Database Persistence with safe try-except block & rollback
+            try:
+                print(f"[OAUTH DB] Persisting LinkedIn credentials for user_id={user_tenant_id} ...")
+                existing_account = db.query(SocialAccount).filter(
+                    SocialAccount.platform == "linkedin",
+                    (SocialAccount.user_id == user_tenant_id) | (SocialAccount.user_id.is_(None))
+                ).first()
 
-            if existing_account:
-                existing_account.user_id = user_tenant_id
-                existing_account.account_name = account_name
-                existing_account.platform_user_id = platform_user_id
-                existing_account.access_token = encrypted_access_token
-                existing_account.refresh_token = encrypted_refresh_token
-                existing_account.expires_at = expires_at
-                existing_account.updated_at = datetime.utcnow()
-            else:
-                new_account = SocialAccount(
-                    user_id=user_tenant_id,
-                    platform="linkedin",
-                    account_name=account_name,
-                    platform_user_id=platform_user_id,
-                    access_token=encrypted_access_token,
-                    refresh_token=encrypted_refresh_token,
-                    expires_at=expires_at,
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow()
+                if existing_account:
+                    existing_account.user_id = user_tenant_id
+                    existing_account.account_name = account_name
+                    existing_account.platform_user_id = platform_user_id
+                    existing_account.access_token = encrypted_access_token
+                    existing_account.refresh_token = encrypted_refresh_token
+                    existing_account.expires_at = expires_at
+                    existing_account.updated_at = datetime.utcnow()
+                    print(f"[OAUTH DB] Updated existing SocialAccount record ID {existing_account.id}.")
+                else:
+                    new_account = SocialAccount(
+                        user_id=user_tenant_id,
+                        platform="linkedin",
+                        account_name=account_name,
+                        platform_user_id=platform_user_id,
+                        access_token=encrypted_access_token,
+                        refresh_token=encrypted_refresh_token,
+                        expires_at=expires_at,
+                        created_at=datetime.utcnow(),
+                        updated_at=datetime.utcnow()
+                    )
+                    db.add(new_account)
+                    print(f"[OAUTH DB] Created new SocialAccount record for user_id={user_tenant_id}.")
+
+                db.commit()
+                print(f"[OAUTH DB SUCCESS] Successfully committed LinkedIn OAuth credentials for user_id={user_tenant_id}")
+            except Exception as db_err:
+                db.rollback()
+                print(f"[OAUTH DB ERROR] Database transaction failed while saving LinkedIn credentials: {db_err}")
+                err_msg = urllib.parse.quote(f"Database save failed: {str(db_err)}")
+                return RedirectResponse(
+                    url=f"{frontend_url}/dashboard/accounts?status=error&platform=linkedin&message={err_msg}",
+                    status_code=307
                 )
-                db.add(new_account)
-
-            db.commit()
-            print(f"Successfully vaulted encrypted LinkedIn OAuth credentials for user_id={user_tenant_id}")
 
             # 7. Hand off back to frontend with success parameters
+            print(f"[OAUTH COMPLETE] Redirecting to frontend /dashboard/accounts with status=success")
             return RedirectResponse(
-                url=f"{FRONTEND_REDIRECT_BASE}/dashboard/accounts?status=success&platform=linkedin",
+                url=f"{frontend_url}/dashboard/accounts?status=success&platform=linkedin",
                 status_code=307
             )
 
     except Exception as exc:
-        print("LinkedIn OAuth Exception:", exc)
+        print(f"[OAUTH UNHANDLED EXCEPTION] {exc}")
         err_msg = urllib.parse.quote(str(exc))
         return RedirectResponse(
-            url=f"{FRONTEND_REDIRECT_BASE}/dashboard/accounts?status=error&platform=linkedin&message={err_msg}",
+            url=f"{frontend_url}/dashboard/accounts?status=error&platform=linkedin&message={err_msg}",
             status_code=307
         )
 
