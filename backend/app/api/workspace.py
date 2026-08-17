@@ -1,12 +1,19 @@
+import asyncio
+import json
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from typing import Optional, List
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
+from fastapi.security import HTTPAuthorizationCredentials
+from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.database import get_db, SessionLocal
 from app.models.notification import Notification
 from app.models.campaign import Campaign
 from app.models.post import Post
+from app.models.user import User
+from app.models.social_account import SocialAccount
+from app.core.security import get_current_user, decode_access_token, bearer_scheme
 
 router = APIRouter(prefix="/api/workspace", tags=["Workspace & Notifications"])
 router_alt = APIRouter(prefix="/workspace", tags=["Workspace & Notifications"])
@@ -177,36 +184,86 @@ def format_time_ago(created_at: datetime) -> str:
         return f"{days} day{'s' if days > 1 else ''} ago"
 
 
-def get_workspace_data(db: Session):
+def seed_notifications_database(db: Optional[Session] = None, user_id: Optional[int] = None):
+    """
+    Seeds the 12 dynamic notification items into SQLite/PostgreSQL if count is less than 12
+    or if any legacy notification is missing its title attribute.
+    Strictly uses standard Python iterative loops (no list comprehensions or lambda expressions).
+    """
+    should_close = False
+    if db is None:
+        db = SessionLocal()
+        should_close = True
+
+    try:
+        db_notifications = db.query(Notification).order_by(Notification.created_at.desc()).all()
+        
+        needs_seeding = False
+        if len(db_notifications) < 12:
+            needs_seeding = True
+        else:
+            for notif in db_notifications:
+                if not notif.title:
+                    needs_seeding = True
+                    break
+
+        if needs_seeding:
+            for notif in db_notifications:
+                db.delete(notif)
+            db.commit()
+
+            for item in SEED_NOTIFICATIONS_LIST:
+                mins = item.get("minutes_ago", 10)
+                item_time = datetime.utcnow() - timedelta(minutes=mins)
+                new_notif = Notification(
+                    user_id=user_id,
+                    title=item.get("title"),
+                    message=item.get("message"),
+                    type=item.get("type"),
+                    category=item.get("category"),
+                    is_read=False,
+                    created_at=item_time
+                )
+                db.add(new_notif)
+            db.commit()
+    except Exception as e:
+        print(f"Notice during notification seeding: {e}")
+        db.rollback()
+    finally:
+        if should_close:
+            db.close()
+
+
+def get_workspace_data(db: Session, current_user: Optional[User] = None):
     """
     Constructs unified workspace data array using standard iterative loops only.
     Strictly NO list comprehensions or lambda expressions.
     """
-    db_notifications = db.query(Notification).order_by(Notification.created_at.desc()).all()
-    
-    # Auto-seed full 12 notification items into SQLite if count is less than 12
-    if len(db_notifications) < 12:
-        for notif in db_notifications:
-            db.delete(notif)
-        db.commit()
+    tenant_id = current_user.id if current_user else None
 
-        for item in SEED_NOTIFICATIONS_LIST:
-            mins = item.get("minutes_ago", 10)
-            item_time = datetime.utcnow() - timedelta(minutes=mins)
-            new_notif = Notification(
-                title=item.get("title"),
-                message=item.get("message"),
-                type=item.get("type"),
-                category=item.get("category"),
-                is_read=False,
-                created_at=item_time
-            )
-            db.add(new_notif)
-        db.commit()
-        db_notifications = db.query(Notification).order_by(Notification.created_at.desc()).all()
+    # Ensure dynamic notifications are seeded in database
+    seed_notifications_database(db, tenant_id)
 
-    db_campaigns = db.query(Campaign).all()
-    db_posts = db.query(Post).all()
+    query_notif = db.query(Notification).order_by(Notification.created_at.desc())
+    if tenant_id:
+        query_notif = query_notif.filter(
+            (Notification.user_id == tenant_id) | (Notification.user_id.is_(None))
+        )
+    db_notifications = query_notif.all()
+
+    query_camp = db.query(Campaign)
+    if tenant_id:
+        query_camp = query_camp.filter(
+            (Campaign.user_id == tenant_id) | (Campaign.user_id.is_(None))
+        )
+    db_campaigns = query_camp.all()
+
+    query_post = db.query(Post)
+    if tenant_id:
+        query_post = query_post.filter(
+            (Post.user_id == tenant_id) | (Post.user_id.is_(None))
+        )
+    db_posts = query_post.all()
 
     # 1. Process notifications using standard iterative loop
     formatted_notifications = []
@@ -310,16 +367,96 @@ def get_workspace_data(db: Session):
 
 @router.get("/status")
 @router_alt.get("/status")
-def get_status(db: Session = Depends(get_db)):
-    return get_workspace_data(db)
+def get_status(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return get_workspace_data(db, current_user)
+
+
+@router.get("/stream")
+@router_alt.get("/stream")
+async def stream_workspace_events(
+    request: Request,
+    token: Optional[str] = Query(None),
+    max_events: Optional[int] = Query(None),
+    auth_creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme)
+):
+    """
+    Server-Sent Events (SSE) streaming endpoint for live workspace status and notifications.
+    Yields JSON event frames and keep-alive heartbeats.
+    Strictly uses standard while/for loops without comprehensions or lambdas.
+    """
+    jwt_token = token
+    if not jwt_token and auth_creds and auth_creds.credentials:
+        jwt_token = auth_creds.credentials.strip()
+
+    tenant_user_id = None
+    if jwt_token:
+        try:
+            payload = decode_access_token(jwt_token)
+            if payload and payload.get("sub"):
+                tenant_user_id = int(payload.get("sub"))
+        except Exception:
+            tenant_user_id = None
+
+    async def event_generator():
+        iteration = 0
+        try:
+            while True:
+                session = SessionLocal()
+                try:
+                    current_user = None
+                    if tenant_user_id:
+                        current_user = session.query(User).filter(User.id == tenant_user_id).first()
+
+                    data = get_workspace_data(session, current_user)
+                    event_payload = {
+                        "type": "workspace_update",
+                        "status": data.get("status", "active"),
+                        "unread_count": data.get("unread_count", 0),
+                        "total_campaigns": data.get("total_campaigns", 0),
+                        "notifications": data.get("notifications", []),
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "iteration": iteration
+                    }
+                    event_json = json.dumps(event_payload)
+                    yield f"data: {event_json}\n\n"
+                except Exception as e:
+                    error_payload = json.dumps({"type": "error", "message": str(e)})
+                    yield f"data: {error_payload}\n\n"
+                finally:
+                    session.close()
+
+                iteration += 1
+                if max_events is not None and iteration >= max_events:
+                    break
+
+                await asyncio.sleep(4)
+                yield ": keep-alive\n\n"
+        except (asyncio.CancelledError, GeneratorExit):
+            pass
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
 
 
 @notif_router.get("")
 @notif_router.get("/")
 @notif_router_alt.get("")
 @notif_router_alt.get("/")
-def get_notifications_list(db: Session = Depends(get_db)):
-    data = get_workspace_data(db)
+def get_notifications_list(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    data = get_workspace_data(db, current_user)
     return {
         "items": data.get("notifications", []),
         "unread_count": data.get("unread_count", 0),
@@ -329,8 +466,11 @@ def get_notifications_list(db: Session = Depends(get_db)):
 
 @notif_router.get("/unread-count")
 @notif_router_alt.get("/unread-count")
-def get_unread_count(db: Session = Depends(get_db)):
-    data = get_workspace_data(db)
+def get_unread_count(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    data = get_workspace_data(db, current_user)
     return {
         "unread_count": data.get("unread_count", 0)
     }
@@ -340,14 +480,25 @@ def get_unread_count(db: Session = Depends(get_db)):
 @notif_router_alt.patch("/{notif_id}/read")
 @notif_router.post("/{notif_id}/read")
 @notif_router_alt.post("/{notif_id}/read")
-def mark_notification_read(notif_id: str, db: Session = Depends(get_db)):
+def mark_notification_read(
+    notif_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     global READ_NOTIFICATION_IDS
     READ_NOTIFICATION_IDS.add(str(notif_id))
     clean_id = notif_id.replace("notif_", "")
     if clean_id.isdigit():
         db_id = int(clean_id)
-        notif = db.query(Notification).filter(Notification.id == db_id).first()
-        if notif:
+        notif = db.query(Notification).filter(
+            Notification.id == db_id,
+            (Notification.user_id == current_user.id) | (Notification.user_id.is_(None))
+        ).first()
+        if not notif:
+            notif = db.query(Notification).filter(Notification.id == db_id).first()
+        if not notif:
+            pass
+        else:
             notif.is_read = True
             db.commit()
     return {"success": True, "id": notif_id, "isRead": True}
@@ -357,14 +508,19 @@ def mark_notification_read(notif_id: str, db: Session = Depends(get_db)):
 @notif_router_alt.patch("/read-all")
 @notif_router.post("/read-all")
 @notif_router_alt.post("/read-all")
-def mark_all_notifications_read(db: Session = Depends(get_db)):
+def mark_all_notifications_read(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     global READ_NOTIFICATION_IDS
-    data = get_workspace_data(db)
+    data = get_workspace_data(db, current_user)
     for item in data.get("notifications", []):
         READ_NOTIFICATION_IDS.add(str(item.get("id")))
         READ_NOTIFICATION_IDS.add(str(item.get("raw_id")))
 
-    db_notifications = db.query(Notification).all()
+    db_notifications = db.query(Notification).filter(
+        (Notification.user_id == current_user.id) | (Notification.user_id.is_(None))
+    ).all()
     for notif in db_notifications:
         notif.is_read = True
     db.commit()

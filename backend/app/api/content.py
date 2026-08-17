@@ -6,6 +6,8 @@ from app.database import get_db
 from app.models.post import Post
 from app.models.campaign import Campaign
 from app.models.social_account import SocialAccount
+from app.models.user import User
+from app.core.security import get_current_user
 
 router = APIRouter(prefix="/api/content", tags=["Content & Calendar"])
 router_alt = APIRouter(prefix="/content", tags=["Content & Calendar"])
@@ -99,14 +101,51 @@ STATIC_FILLER_TEMPLATES = [
 ]
 
 
-def format_combined_content(db: Session):
+def format_time_ampm(time_val):
     """
-    Helper function using standard iterative loops to query real SQLite records,
-    preserve LinkedIn live status & badges, and merge static filler posts.
+    Formats any 24h or raw time representation to 12-hour AM/PM format (e.g., '10:06 AM').
+    Strictly uses standard control flow (no list comprehensions or lambda expressions).
     """
-    posts = db.query(Post).all()
-    campaigns = db.query(Campaign).all()
-    social_accounts = db.query(SocialAccount).all()
+    if not time_val:
+        return "10:00 AM"
+
+    t_str = str(time_val).strip()
+    if "AM" in t_str.upper() or "PM" in t_str.upper():
+        return t_str
+
+    try:
+        parts = t_str.split(":")
+        if len(parts) >= 2:
+            h = int(parts[0])
+            m = parts[1].strip()[:2].zfill(2)
+            ampm = "PM" if h >= 12 else "AM"
+            h12 = h % 12
+            if h12 == 0:
+                h12 = 12
+            return f"{h12:02d}:{m} {ampm}"
+    except Exception:
+        pass
+
+    return t_str
+
+
+def format_combined_content(db: Session, current_user: User):
+    """
+    Helper function using standard iterative loops to query tenant-isolated SQLite records,
+    preserve LinkedIn live status & badges, format times to AM/PM, and merge static filler posts.
+    Strictly uses standard control flow (zero comprehensions or lambda expressions).
+    """
+    posts = db.query(Post).filter(
+        (Post.user_id == current_user.id) | (Post.user_id.is_(None))
+    ).all()
+
+    campaigns = db.query(Campaign).filter(
+        (Campaign.user_id == current_user.id) | (Campaign.user_id.is_(None))
+    ).all()
+
+    social_accounts = db.query(SocialAccount).filter(
+        (SocialAccount.user_id == current_user.id) | (SocialAccount.user_id.is_(None))
+    ).all()
 
     # Find real connected LinkedIn user from vault
     linkedin_user_name = "LinkedIn Member"
@@ -134,11 +173,10 @@ def format_combined_content(db: Session):
         elif p.scheduled_at:
             post_date = p.scheduled_at.strftime("%Y-%m-%d")
 
-        post_time = "10:00 AM"
-        if p.scheduled_time:
-            post_time = str(p.scheduled_time)
-        elif p.scheduled_at:
-            post_time = p.scheduled_at.strftime("%I:%M %p")
+        raw_time = p.scheduled_time
+        if not raw_time and p.scheduled_at:
+            raw_time = p.scheduled_at.strftime("%I:%M %p")
+        post_time = format_time_ampm(raw_time)
 
         camp_name = campaign_map.get(p.campaign_id, "General")
 
@@ -182,8 +220,6 @@ def format_combined_content(db: Session):
         }
         combined_items.append(item)
 
-
-
     # 2. Append static filler posts using standard loop
     for filler in STATIC_FILLER_TEMPLATES:
         combined_items.append(filler)
@@ -192,11 +228,14 @@ def format_combined_content(db: Session):
 
 
 @router.get("/all")
-def get_all_content(db: Session = Depends(get_db)):
+def get_all_content(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
-    Returns hybrid data array of live SQLite records merged with static filler posts.
+    Returns hybrid data array of live database records merged with static filler posts for current user.
     """
-    items = format_combined_content(db)
+    items = format_combined_content(db, current_user)
     return {
         "items": items,
         "total": len(items)
@@ -204,11 +243,14 @@ def get_all_content(db: Session = Depends(get_db)):
 
 
 @router_alt.get("/all")
-def get_all_content_alt(db: Session = Depends(get_db)):
+def get_all_content_alt(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
     Alternative route mapping for /content/all.
     """
-    items = format_combined_content(db)
+    items = format_combined_content(db, current_user)
     return {
         "items": items,
         "total": len(items)

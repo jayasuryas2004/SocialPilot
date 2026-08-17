@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
@@ -8,6 +8,9 @@ from app.database import get_db
 from app.models.post import Post
 from app.models.campaign import Campaign
 from app.models.social_account import SocialAccount
+from app.models.user import User
+from app.core.security import get_current_user
+from app.core.redis import get_cached, set_cached, invalidate_cache_prefix
 
 router = APIRouter(prefix="/reports", tags=["Reports & Analytics"])
 router_api = APIRouter(prefix="/api/reports", tags=["Reports & Analytics"])
@@ -142,20 +145,33 @@ SCHEDULED_REPORTS_DB = [
 @router.get("/")
 @router_api.get("")
 @router_api.get("/")
-def get_reports(
+async def get_reports(
     category: Optional[str] = None,
     status: Optional[str] = None,
     platform: Optional[str] = None,
     campaignId: Optional[str] = None,
     search: Optional[str] = None,
     timeframe: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Returns dynamically filtered report records and KPI metrics using standard iterative loops.
+    Caches the results in Redis with a 60-second TTL.
+    Strictly uses standard control flow (zero comprehensions or lambda expressions).
     """
-    posts = db.query(Post).all()
-    campaigns = db.query(Campaign).all()
+    cache_key = f"user_{current_user.id}_reports_{category}_{status}_{platform}_{campaignId}_{search}_{timeframe}"
+    cached = await get_cached(cache_key)
+    if cached is not None:
+        return cached
+
+    posts = db.query(Post).filter(
+        (Post.user_id == current_user.id) | (Post.user_id.is_(None))
+    ).all()
+
+    campaigns = db.query(Campaign).filter(
+        (Campaign.user_id == current_user.id) | (Campaign.user_id.is_(None))
+    ).all()
 
     total_posts = len(posts)
     published_posts = 0
@@ -195,7 +211,7 @@ def get_reports(
         if status and status != "all" and r.get("status") != status:
             match = False
             
-        # Platform Filter (handles "linkedin", "instagram", "facebook", "x", "all")
+        # Platform Filter
         if platform and platform != "all":
             rep_plat = (r.get("platform") or "").lower()
             target_plat = platform.lower()
@@ -228,7 +244,7 @@ def get_reports(
         if s.get("enabled"):
             active_sched_count += 1
 
-    return {
+    result = {
         "kpis": {
             "total_posts": total_posts,
             "published_posts": published_posts,
@@ -246,6 +262,10 @@ def get_reports(
         "total": len(filtered_items)
     }
 
+    # Store in Redis cache for 60s
+    await set_cached(cache_key, result, ttl_seconds=60)
+    return result
+
 
 @router.post("")
 @router.post("/")
@@ -253,13 +273,20 @@ def get_reports(
 @router_api.post("")
 @router_api.post("/")
 @router_api.post("/generate")
-def generate_report(payload: ReportCreate, db: Session = Depends(get_db)):
+async def generate_report(
+    payload: ReportCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
-    Compiles a real report on the fly from SQLite posts, campaigns, and account data.
-    Uses standard iterative loops only.
+    Compiles a real report on the fly from SQLite posts, campaigns, and account data for this tenant.
     """
-    posts = db.query(Post).all()
-    campaigns = db.query(Campaign).all()
+    # Invalidate reports cache
+    await invalidate_cache_prefix(f"user_{current_user.id}_reports")
+
+    campaigns = db.query(Campaign).filter(
+        (Campaign.user_id == current_user.id) | (Campaign.user_id.is_(None))
+    ).all()
 
     new_id = str(len(REPORTS_DB) + 1)
     cat = payload.category or "engagement"
@@ -296,13 +323,21 @@ def generate_report(payload: ReportCreate, db: Session = Depends(get_db)):
 
 @router.get("/{report_id}/download")
 @router_api.get("/{report_id}/download")
-def download_report(report_id: str, db: Session = Depends(get_db)):
+def download_report(
+    report_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
     Serves dynamic CSV/PDF report content compiled from live SQLite database records.
     """
-    posts = db.query(Post).all()
-    campaigns = db.query(Campaign).all()
-    social_accounts = db.query(SocialAccount).all()
+    posts = db.query(Post).filter(
+        (Post.user_id == current_user.id) | (Post.user_id.is_(None))
+    ).all()
+
+    campaigns = db.query(Campaign).filter(
+        (Campaign.user_id == current_user.id) | (Campaign.user_id.is_(None))
+    ).all()
 
     target_report = None
     for r in REPORTS_DB:
@@ -317,7 +352,7 @@ def download_report(report_id: str, db: Session = Depends(get_db)):
     csv_lines = []
     csv_lines.append(f"# SocialPilot Analytics & Performance Report: {rep_name}")
     csv_lines.append(f"# Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}")
-    csv_lines.append(f"# Total Database Posts: {len(posts)}, Total Campaigns: {len(campaigns)}")
+    csv_lines.append(f"# Total Tenant Posts: {len(posts)}, Total Campaigns: {len(campaigns)}")
     csv_lines.append("")
     csv_lines.append("Post ID,Title,Platform,Status,Scheduled Date,Scheduled Time,Likes,Shares,Comments")
 
@@ -355,8 +390,12 @@ def download_report(report_id: str, db: Session = Depends(get_db)):
 
 @router.delete("/{report_id}")
 @router_api.delete("/{report_id}")
-def delete_report(report_id: str):
+async def delete_report(
+    report_id: str,
+    current_user: User = Depends(get_current_user)
+):
     global REPORTS_DB
+    await invalidate_cache_prefix(f"user_{current_user.id}_reports")
     found = False
     new_list = []
     for r in REPORTS_DB:
@@ -370,8 +409,12 @@ def delete_report(report_id: str):
 
 @router.post("/bulk-delete")
 @router_api.post("/bulk-delete")
-def bulk_delete_reports(payload: BulkDeleteRequest):
+async def bulk_delete_reports(
+    payload: BulkDeleteRequest,
+    current_user: User = Depends(get_current_user)
+):
     global REPORTS_DB
+    await invalidate_cache_prefix(f"user_{current_user.id}_reports")
     new_list = []
     for r in REPORTS_DB:
         if r.get("id") not in payload.ids:
@@ -382,13 +425,17 @@ def bulk_delete_reports(payload: BulkDeleteRequest):
 
 @router.get("/scheduled")
 @router_api.get("/scheduled")
-def get_scheduled_reports():
+def get_scheduled_reports(current_user: User = Depends(get_current_user)):
     return SCHEDULED_REPORTS_DB
 
 
 @router.patch("/scheduled/{report_id}")
 @router_api.patch("/scheduled/{report_id}")
-def toggle_scheduled_report(report_id: str, payload: dict):
+def toggle_scheduled_report(
+    report_id: str,
+    payload: dict,
+    current_user: User = Depends(get_current_user)
+):
     enabled = payload.get("enabled", True)
     for s in SCHEDULED_REPORTS_DB:
         if s.get("id") == report_id:

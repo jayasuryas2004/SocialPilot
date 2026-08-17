@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.database import get_db
 from app.models.post import Post
+from app.models.user import User
 from app.schemas.post import PostCreate
+from app.core.security import get_current_user
 
 
 router = APIRouter()
@@ -12,7 +14,11 @@ router = APIRouter()
 
 # CREATE
 @router.post("/schedule")
-def create_schedule(post: PostCreate, db: Session = Depends(get_db)):
+def create_schedule(
+    post: PostCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     platforms_str = "Instagram"
     if isinstance(post.platforms, list):
         platform_items = []
@@ -38,6 +44,7 @@ def create_schedule(post: PostCreate, db: Session = Depends(get_db)):
     print(f"Received image_url length in /schedule: {len(img_data) if img_data else 0}")
 
     new_post = Post(
+        user_id=current_user.id,
         title=title,
         content=post.content,
         platforms=platforms_str,
@@ -52,8 +59,7 @@ def create_schedule(post: PostCreate, db: Session = Depends(get_db)):
     db.add(new_post)
     db.commit()
     db.refresh(new_post)
-    print(f"Persisted Scheduled Post ID {new_post.id} with image_url length: {len(new_post.image_url) if new_post.image_url else 0}")
-
+    print(f"Persisted Scheduled Post ID {new_post.id} for user {current_user.id}")
 
     return {
         "message": "Post scheduled successfully",
@@ -63,8 +69,14 @@ def create_schedule(post: PostCreate, db: Session = Depends(get_db)):
 
 # READ
 @router.get("/schedule")
-def get_schedules(campaign_id: Optional[int] = None, db: Session = Depends(get_db)):
-    query = db.query(Post)
+def get_schedules(
+    campaign_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    query = db.query(Post).filter(
+        (Post.user_id == current_user.id) | (Post.user_id.is_(None))
+    )
     if campaign_id is not None:
         query = query.filter(Post.campaign_id == campaign_id)
 
@@ -77,11 +89,22 @@ def get_schedules(campaign_id: Optional[int] = None, db: Session = Depends(get_d
 
 # UPDATE
 @router.put("/schedule/{id}")
-def update_schedule(id: int, updated_post: PostCreate, db: Session = Depends(get_db)):
-    post = db.query(Post).filter(Post.id == id).first()
+def update_schedule(
+    id: int,
+    updated_post: PostCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    post = db.query(Post).filter(
+        Post.id == id,
+        (Post.user_id == current_user.id) | (Post.user_id.is_(None))
+    ).first()
 
     if not post:
-        return {"error": "Post not found"}
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Post not found or unauthorized"
+        )
 
     if updated_post.title:
         post.title = updated_post.title
@@ -104,7 +127,6 @@ def update_schedule(id: int, updated_post: PostCreate, db: Session = Depends(get
     if img_data:
         post.image_url = img_data
 
-
     db.commit()
     db.refresh(post)
 
@@ -116,11 +138,21 @@ def update_schedule(id: int, updated_post: PostCreate, db: Session = Depends(get
 
 # DELETE
 @router.delete("/schedule/{id}")
-def delete_schedule(id: int, db: Session = Depends(get_db)):
-    post = db.query(Post).filter(Post.id == id).first()
+def delete_schedule(
+    id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    post = db.query(Post).filter(
+        Post.id == id,
+        (Post.user_id == current_user.id) | (Post.user_id.is_(None))
+    ).first()
 
     if not post:
-        return {"error": "Post not found"}
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Post not found or unauthorized"
+        )
 
     db.delete(post)
     db.commit()

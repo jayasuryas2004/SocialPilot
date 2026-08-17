@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.campaign import Campaign
+from app.models.user import User
 from app.schemas.campaign import CampaignCreate
+from app.core.security import get_current_user
 
 
 router = APIRouter()
@@ -11,8 +13,15 @@ router = APIRouter()
 
 # CREATE
 @router.post("/campaign")
-def create_campaign(campaign: CampaignCreate, db: Session = Depends(get_db)):
+@router.post("/campaigns")
+@router.post("/api/campaigns")
+def create_campaign(
+    campaign: CampaignCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     new_campaign = Campaign(
+        user_id=current_user.id,
         campaign_name=campaign.campaign_name,
         platform=campaign.platform,
         subtitle=campaign.subtitle,
@@ -38,8 +47,13 @@ def create_campaign(campaign: CampaignCreate, db: Session = Depends(get_db)):
 @router.get("/campaign")
 @router.get("/campaigns")
 @router.get("/api/campaigns")
-def get_campaigns(db: Session = Depends(get_db)):
-    campaigns = db.query(Campaign).all()
+def get_campaigns(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    campaigns = db.query(Campaign).filter(
+        (Campaign.user_id == current_user.id) | (Campaign.user_id.is_(None))
+    ).all()
 
     return {
         "data": campaigns
@@ -50,8 +64,14 @@ def get_campaigns(db: Session = Depends(get_db)):
 @router.get("/campaign/stats")
 @router.get("/campaigns/stats")
 @router.get("/api/campaigns/stats")
-def get_campaigns_stats(db: Session = Depends(get_db)):
-    campaigns = db.query(Campaign).all()
+def get_campaigns_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    campaigns = db.query(Campaign).filter(
+        (Campaign.user_id == current_user.id) | (Campaign.user_id.is_(None))
+    ).all()
+
     total = len(campaigns)
     active = 0
     completed = 0
@@ -82,11 +102,23 @@ def get_campaigns_stats(db: Session = Depends(get_db)):
 
 # UPDATE
 @router.put("/campaign/{id}")
-def update_campaign(id: int, updated_campaign: CampaignCreate, db: Session = Depends(get_db)):
-    campaign = db.query(Campaign).filter(Campaign.id == id).first()
+@router.put("/api/campaigns/{id}")
+def update_campaign(
+    id: int,
+    updated_campaign: CampaignCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    campaign = db.query(Campaign).filter(
+        Campaign.id == id,
+        (Campaign.user_id == current_user.id) | (Campaign.user_id.is_(None))
+    ).first()
 
     if not campaign:
-        return {"error": "Campaign not found"}
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found or unauthorized"
+        )
 
     campaign.campaign_name = updated_campaign.campaign_name
     campaign.platform = updated_campaign.platform
@@ -109,11 +141,22 @@ def update_campaign(id: int, updated_campaign: CampaignCreate, db: Session = Dep
 
 # DELETE
 @router.delete("/campaign/{id}")
-def delete_campaign(id: int, db: Session = Depends(get_db)):
-    campaign = db.query(Campaign).filter(Campaign.id == id).first()
+@router.delete("/api/campaigns/{id}")
+def delete_campaign(
+    id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    campaign = db.query(Campaign).filter(
+        Campaign.id == id,
+        (Campaign.user_id == current_user.id) | (Campaign.user_id.is_(None))
+    ).first()
 
     if not campaign:
-        return {"error": "Campaign not found"}
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found or unauthorized"
+        )
 
     db.delete(campaign)
     db.commit()
