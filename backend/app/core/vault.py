@@ -8,7 +8,7 @@ load_dotenv()
 # Retrieve or initialize Fernet encryption cipher using VAULT_ENCRYPTION_KEY
 _VAULT_KEY_ENV = os.getenv("VAULT_ENCRYPTION_KEY")
 if not _VAULT_KEY_ENV:
-    _VAULT_KEY_ENV = "Bfx5n56e2C3jaWxtroiqApTi_MlgUOyp8gAMQxHtHzI="
+    _VAULT_KEY_ENV = Fernet.generate_key().decode("utf-8")
 
 try:
     _FERNET_CIPHER = Fernet(_VAULT_KEY_ENV.encode("utf-8"))

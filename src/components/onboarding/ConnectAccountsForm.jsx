@@ -133,14 +133,11 @@ export default function ConnectAccounts() {
     if (selectedPlatform?.id === "linkedin") {
       setIsConnecting(true);
       try {
-        const { getLinkedInAuthUrl } = await import("@/lib/api/oauth");
-        const authUrl = await getLinkedInAuthUrl();
-        if (authUrl) {
-          window.location.href = authUrl;
-          return;
-        }
+        const { initiateLinkedInLogin } = await import("@/lib/api/oauth");
+        initiateLinkedInLogin();
+        return;
       } catch (err) {
-        console.warn("Could not load OAuth authUrl, proceeding with instant connect:", err);
+        console.warn("Notice during OAuth redirect:", err);
       }
     }
 

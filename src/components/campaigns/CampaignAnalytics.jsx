@@ -6,7 +6,6 @@ import {
 } from 'recharts';
 import { ChevronDown } from 'lucide-react';
 
-// --- DYNAMIC MOCK DATABASE ---
 const MOCK_API_DATA = {
   'Last 7 days': {
     engagement: [
@@ -77,16 +76,16 @@ export default function CampaignAnalytics() {
   const currentData = useMemo(() => MOCK_API_DATA[timeframe], [timeframe]);
 
   return (
-    <div className="bg-white rounded-3xl shadow-sm border border-slate-200 mb-8 overflow-hidden">
+    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 mb-8 overflow-hidden transition-colors duration-200">
       
       {/* HEADER */}
-      <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white">
-        <h2 className="text-xl font-black text-slate-900">Campaign Analytics</h2>
+      <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900">
+        <h2 className="text-xl font-black text-slate-900 dark:text-white">Campaign Analytics</h2>
         <div className="relative">
           <select 
             value={timeframe} 
             onChange={(e) => setTimeframe(e.target.value)}
-            className="appearance-none bg-white border border-slate-200 pl-4 pr-10 py-2 rounded-xl text-sm font-bold text-slate-700 outline-none cursor-pointer hover:bg-slate-50 transition-colors shadow-sm"
+            className="appearance-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 pl-4 pr-10 py-2 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors shadow-sm"
           >
             <option value="Last 7 days">Last 7 days</option>
             <option value="Last month">Last month</option>
@@ -100,8 +99,8 @@ export default function CampaignAnalytics() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
         
         {/* 1. ENGAGEMENT & REACH */}
-        <div className="lg:col-span-1 border border-slate-100 rounded-2xl p-5 bg-white shadow-sm flex flex-col h-[320px]">
-          <h3 className="text-sm font-bold text-slate-800 mb-2">Engagement & Reach</h3>
+        <div className="lg:col-span-1 border border-slate-100 dark:border-slate-800 rounded-2xl p-5 bg-white dark:bg-slate-900 shadow-sm flex flex-col h-[320px]">
+          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-2">Engagement & Reach</h3>
           <div className="flex-1 w-full -ml-4">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={currentData.engagement} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
@@ -115,9 +114,9 @@ export default function CampaignAnalytics() {
                     <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.3} />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 600}} dy={10} />
-                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} itemStyle={{ fontWeight: 'bold' }} />
+                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#1e293b', color: '#fff', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} itemStyle={{ fontWeight: 'bold' }} />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 700, paddingBottom: '10px' }} />
                 <Area type="monotone" dataKey="reach" name="Reach" stroke="#f97316" strokeWidth={3} fillOpacity={1} fill="url(#colorReach)" />
                 <Area type="monotone" dataKey="engagement" name="Engagement" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorEngagement)" />
@@ -126,32 +125,28 @@ export default function CampaignAnalytics() {
           </div>
         </div>
 
-        {/* ----------------------------------------------------------------- */}
-        {/* 2. CONVERSION FUNNEL (Fixed Bug)                                  */}
-        {/* ----------------------------------------------------------------- */}
-        <div className="lg:col-span-1 border border-slate-100 rounded-2xl p-5 bg-white shadow-sm flex flex-col h-[320px]">
-          <h3 className="text-sm font-bold text-slate-800 mb-2">Conversion Funnel</h3>
+        {/* 2. CONVERSION FUNNEL */}
+        <div className="lg:col-span-1 border border-slate-100 dark:border-slate-800 rounded-2xl p-5 bg-white dark:bg-slate-900 shadow-sm flex flex-col h-[320px]">
+          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-2">Conversion Funnel</h3>
           
           <div className="flex-1 flex flex-col justify-center gap-3">
             {currentData.funnel.map((step, index) => (
-              <div key={index} className="relative w-full h-11 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between px-4 overflow-hidden group hover:border-[#a78bfa] transition-colors cursor-default">
+              <div key={index} className="relative w-full h-11 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-between px-4 overflow-hidden group hover:border-[#a78bfa] transition-colors cursor-default">
                 
-                {/* Background Progress Bar - Adjusted to a soft opacity so dark text works perfectly everywhere */}
                 <div 
                   className="absolute left-0 top-0 bottom-0 bg-[#8b5cf6] transition-all duration-1000 ease-out"
-                  style={{ width: step.percent, opacity: 0.15 + (index * 0.05) }}
+                  style={{ width: step.percent, opacity: 0.25 + (index * 0.05) }}
                 ></div>
                 
-                {/* Content - Universally dark text for unbreaking contrast */}
-                <span className="relative z-10 text-[12px] font-bold text-slate-800">
+                <span className="relative z-10 text-[12px] font-bold text-slate-800 dark:text-slate-200">
                   {step.stage}
                 </span>
                 
                 <div className="relative z-10 flex items-center gap-3">
-                  <span className="text-[10px] font-bold text-slate-500">
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
                     {step.percent}
                   </span>
-                  <span className="text-[13px] font-black text-slate-900">
+                  <span className="text-[13px] font-black text-slate-900 dark:text-white">
                     {step.count}
                   </span>
                 </div>
@@ -162,15 +157,15 @@ export default function CampaignAnalytics() {
         </div>
 
         {/* 3. AUDIENCE GROWTH */}
-        <div className="lg:col-span-1 border border-slate-100 rounded-2xl p-5 bg-white shadow-sm flex flex-col h-[320px]">
-          <h3 className="text-sm font-bold text-slate-800 mb-2">Audience Growth · Followers Gained (K)</h3>
+        <div className="lg:col-span-1 border border-slate-100 dark:border-slate-800 rounded-2xl p-5 bg-white dark:bg-slate-900 shadow-sm flex flex-col h-[320px]">
+          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-2">Audience Growth · Followers Gained (K)</h3>
           <div className="flex-1 w-full -ml-4 mt-4">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={currentData.growth} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.3} />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 600}} dy={10} />
                 <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 600}} dx={-10} />
-                <Tooltip cursor={{stroke: '#e2e8f0', strokeWidth: 2}} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} itemStyle={{ color: '#f97316', fontWeight: 'bold' }} />
+                <Tooltip cursor={{stroke: '#475569', strokeWidth: 2}} contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#1e293b', color: '#fff', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} itemStyle={{ color: '#f97316', fontWeight: 'bold' }} />
                 <Line type="monotone" dataKey="followers" name="Followers" stroke="#f97316" strokeWidth={3} dot={{ r: 4, fill: '#fff', stroke: '#f97316', strokeWidth: 2 }} activeDot={{ r: 6, fill: '#f97316', stroke: '#fff', strokeWidth: 2 }} />
               </LineChart>
             </ResponsiveContainer>

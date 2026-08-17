@@ -4,7 +4,6 @@ import {
   CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
 
-// The Production-level dictionary mapping backend names to brand colors
 const PLATFORM_COLORS = {
   instagram: "#E1306C",
   linkedin: "#0A66C2",
@@ -16,17 +15,18 @@ const PLATFORM_COLORS = {
   default: "#94a3b8" 
 };
 
-export default function BottomChartsGrid({ distribution, trends }) {
-  const totalPosts = distribution.reduce((sum, item) => sum + item.value, 0);
+export default function BottomChartsGrid({ distribution = [], trends = [] }) {
+  let totalPosts = 0;
+  for (let i = 0; i < distribution.length; i++) {
+    totalPosts += (distribution[i].value || 0);
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
       
-      {/* ----------------------------------------------------------------- */}
-      {/* PLATFORM DISTRIBUTION (7 Platforms)                               */}
-      {/* ----------------------------------------------------------------- */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1 flex flex-col h-[450px]">
-        <h2 className="font-bold text-slate-900 mb-4 text-lg shrink-0">Platform Distribution</h2>
+      {/* 1. PLATFORM DISTRIBUTION (7 Platforms) */}
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 lg:col-span-1 flex flex-col h-[450px] transition-colors duration-200">
+        <h2 className="font-bold text-slate-900 dark:text-white mb-4 text-lg shrink-0">Platform Distribution</h2>
         
         {/* The Donut Chart */}
         <div className="h-44 relative w-full flex justify-center shrink-0 mb-4">
@@ -42,42 +42,41 @@ export default function BottomChartsGrid({ distribution, trends }) {
                 cornerRadius={4} 
               >
                 {distribution.map((entry, index) => {
-                  const platformKey = entry.name.toLowerCase();
+                  const platformKey = (entry.name || "").toLowerCase();
                   const sliceColor = PLATFORM_COLORS[platformKey] || PLATFORM_COLORS.default;
                   return <Cell key={`cell-${index}`} fill={sliceColor} />;
                 })}
               </Pie>
               <Tooltip 
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                itemStyle={{ color: '#1e293b', fontWeight: 600, textTransform: 'capitalize' }}
+                contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#1e293b', color: '#fff', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                itemStyle={{ color: '#fff', fontWeight: 600, textTransform: 'capitalize' }}
               />
             </PieChart>
           </ResponsiveContainer>
           
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <span className="text-xs font-semibold text-slate-500">Total Posts</span>
-            <span className="text-xl font-black text-slate-900">{totalPosts}</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Posts</span>
+            <span className="text-xl font-black text-slate-900 dark:text-white">{totalPosts}</span>
           </div>
         </div>
 
-        {/* Dynamic 7-Box Legend with Scroll */}
-        {/* Using a custom scrollbar to keep the UI looking clean while holding all 7 items */}
+        {/* Dynamic 7-Box Legend */}
         <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
           <div className="grid grid-cols-2 gap-3">
             {distribution.map((item, index) => {
-              const platformKey = item.name.toLowerCase();
+              const platformKey = (item.name || "").toLowerCase();
               const dotColor = PLATFORM_COLORS[platformKey] || PLATFORM_COLORS.default;
               
               return (
                 <div 
                   key={index} 
-                  className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex flex-col items-center justify-center hover:bg-slate-100 transition-colors"
+                  className="bg-slate-50 dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700/60 flex flex-col items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-750 transition-colors"
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: dotColor }}></div>
-                    <span className="text-sm font-bold text-slate-800 capitalize truncate max-w-[80px]">{item.name}</span>
+                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200 capitalize truncate max-w-[80px]">{item.name}</span>
                   </div>
-                  <span className="text-xs font-medium text-slate-500">{item.value} Posts</span>
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{item.value} Posts</span>
                 </div>
               );
             })}
@@ -85,16 +84,14 @@ export default function BottomChartsGrid({ distribution, trends }) {
         </div>
       </div>
 
-      {/* ----------------------------------------------------------------- */}
-      {/* ENGAGEMENT VS REACH (Smooth Area Chart with Gradients)            */}
-      {/* ----------------------------------------------------------------- */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2 flex flex-col h-[450px]">
-        <h2 className="font-bold text-slate-900 mb-6 flex justify-center gap-8 text-lg shrink-0">
+      {/* 2. ENGAGEMENT VS REACH */}
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 lg:col-span-2 flex flex-col h-[450px] transition-colors duration-200">
+        <h2 className="font-bold text-slate-900 dark:text-white mb-6 flex justify-center gap-8 text-lg shrink-0">
           <span className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-[#8b5cf6]"></div> Engagement
+            <div className="w-3.5 h-3.5 rounded-full bg-[#8b5cf6]"></div> Engagement
           </span>
           <span className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-[#f97316]"></div> Reach
+            <div className="w-3.5 h-3.5 rounded-full bg-[#f97316]"></div> Reach
           </span>
         </h2>
         <div className="flex-1 w-full min-h-0">
@@ -112,12 +109,12 @@ export default function BottomChartsGrid({ distribution, trends }) {
                 </linearGradient>
               </defs>
 
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.3} />
               <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 13}} dy={10} />
               <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 13}} />
               
               <Tooltip 
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#1e293b', color: '#fff', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
               />
               
               <Area 

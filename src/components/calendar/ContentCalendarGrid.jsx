@@ -2,9 +2,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import PostComposerModal from "@/components/posts/PostComposerModal";
-import { ChevronLeft, ChevronRight, Plus, Image as ImageIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Image as ImageIcon, Globe } from 'lucide-react';
 import { FaInstagram, FaFacebook, FaLinkedin, FaYoutube, FaXTwitter, FaReddit, FaPinterest } from "react-icons/fa6";
-import { Globe } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 const PLATFORM_ICONS = {
   instagram: FaInstagram, facebook: FaFacebook, linkedin: FaLinkedin, 
@@ -41,6 +41,7 @@ const normalizeEventDate = (event) => {
 };
 
 export default function ContentCalendarGrid({ events = [], onRefresh, onOpenComposer }) {
+  const { t } = useLanguage();
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date(2026, 7, 1)); // August 2026
   const router = useRouter(); 
@@ -89,11 +90,11 @@ export default function ContentCalendarGrid({ events = [], onRefresh, onOpenComp
 
   const getStatusColor = (status) => {
     switch((status || '').toLowerCase()) {
-      case 'published': return 'bg-[#86efac] text-slate-900 border-[#4ade80]'; 
-      case 'scheduled': return 'bg-[#e9d5ff] text-slate-900 border-[#d8b4fe]'; 
-      case 'draft': return 'bg-[#fde047] text-slate-900 border-[#facc15]';     
-      case 'failed': return 'bg-[#fda4af] text-slate-900 border-[#fb7185]';    
-      default: return 'bg-slate-100 text-slate-900 border-slate-200';
+      case 'published': return 'bg-[#86efac] dark:bg-emerald-950/80 text-slate-900 dark:text-emerald-200 border-[#4ade80] dark:border-emerald-700'; 
+      case 'scheduled': return 'bg-[#e9d5ff] dark:bg-purple-950/80 text-slate-900 dark:text-purple-200 border-[#d8b4fe] dark:border-purple-700'; 
+      case 'draft': return 'bg-[#fde047] dark:bg-amber-950/80 text-slate-900 dark:text-amber-200 border-[#facc15] dark:border-amber-700';     
+      case 'failed': return 'bg-[#fda4af] dark:bg-rose-950/80 text-slate-900 dark:text-rose-200 border-[#fb7185] dark:border-rose-700';    
+      default: return 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-200 border-slate-200 dark:border-slate-700';
     }
   };
 
@@ -101,20 +102,20 @@ export default function ContentCalendarGrid({ events = [], onRefresh, onOpenComp
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
   return (
-    <div className="bg-white rounded-3xl shadow-sm border border-slate-200 flex flex-col h-full overflow-hidden">
+    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col h-full overflow-hidden transition-colors duration-200">
       
       {/* HEADER SECTION */}
       <div className="p-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-wrap justify-between items-center gap-4">
           
-          <div className="flex items-center gap-4 bg-white border border-slate-200 shadow-sm rounded-xl px-4 py-2">
-            <button onClick={handlePrevMonth} className="text-purple-700 bg-purple-50 hover:bg-purple-100 p-1.5 rounded-full transition-colors">
+          <div className="flex items-center gap-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm rounded-2xl px-4 py-2 transition-colors">
+            <button onClick={handlePrevMonth} className="text-[#311b92] dark:text-purple-300 bg-purple-50 dark:bg-purple-950 hover:bg-purple-100 dark:hover:bg-purple-900 p-1.5 rounded-full transition-colors cursor-pointer">
               <ChevronLeft size={18} strokeWidth={3} />
             </button>
-            <span className="font-bold text-slate-900 text-lg min-w-[140px] text-center">
+            <span className="font-bold text-slate-900 dark:text-white text-lg min-w-[140px] text-center">
               {formatMonthYear(currentDate)}
             </span>
-            <button onClick={handleNextMonth} className="text-purple-700 bg-purple-50 hover:bg-purple-100 p-1.5 rounded-full transition-colors">
+            <button onClick={handleNextMonth} className="text-[#311b92] dark:text-purple-300 bg-purple-50 dark:bg-purple-950 hover:bg-purple-100 dark:hover:bg-purple-900 p-1.5 rounded-full transition-colors cursor-pointer">
               <ChevronRight size={18} strokeWidth={3} />
             </button>
           </div>
@@ -122,10 +123,10 @@ export default function ContentCalendarGrid({ events = [], onRefresh, onOpenComp
           <div className="flex items-center gap-3">
             <button 
               onClick={handleOpenComposer}
-              className="flex items-center gap-2 bg-[#4a00ff] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#3a00cc] transition-all cursor-pointer shadow-sm"
+              className="flex items-center gap-2 bg-[#311b92] dark:bg-[#5b21b6] text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-[#28157a] dark:hover:bg-[#4c1d95] transition-all cursor-pointer shadow-sm"
             >
-              <Plus size={16} />
-              Add Post
+              <Plus size={16} strokeWidth={2.5} />
+              <span>{t("add_post", "Add Post")}</span>
             </button>
           </div>
         </div>
@@ -133,24 +134,24 @@ export default function ContentCalendarGrid({ events = [], onRefresh, onOpenComp
 
       {/* CALENDAR GRID */}
       <div className="flex-1 flex flex-col px-6 pb-6">
-        <div className="grid grid-cols-7 border border-slate-200 rounded-t-xl bg-white shrink-0">
+        <div className="grid grid-cols-7 border border-slate-200 dark:border-slate-700 rounded-t-xl bg-white dark:bg-slate-800 shrink-0 transition-colors">
           {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => (
-            <div key={day} className={`py-3 text-center text-sm font-bold text-slate-500 ${i !== 6 ? 'border-r border-slate-200' : ''}`}>
+            <div key={day} className={`py-3 text-center text-sm font-bold text-slate-500 dark:text-slate-400 ${i !== 6 ? 'border-r border-slate-200 dark:border-slate-700' : ''}`}>
               {day}
             </div>
           ))}
         </div>
 
-        <div className="flex-1 grid grid-cols-7 border-l border-slate-200">
+        <div className="flex-1 grid grid-cols-7 border-l border-slate-200 dark:border-slate-700">
           {calendarCells.map((cell, index) => {
             const isLastRow = index >= calendarCells.length - 7;
-            const borderClasses = `border-b border-r border-slate-200 ${isLastRow ? 'rounded-b-none' : ''}`;
+            const borderClasses = `border-b border-r border-slate-200 dark:border-slate-700 ${isLastRow ? 'rounded-b-none' : ''}`;
 
             if (cell.type === 'empty' || cell.type === 'empty-end') {
               return (
-                <div key={cell.id} className={`bg-slate-50/30 p-3 min-h-[120px] ${borderClasses}`}>
+                <div key={cell.id} className={`bg-slate-50/30 dark:bg-slate-900/40 p-3 min-h-[120px] ${borderClasses}`}>
                    {cell.type === 'empty-end' && (
-                     <span className="text-sm font-bold text-slate-300">{cell.date}</span>
+                     <span className="text-sm font-bold text-slate-300 dark:text-slate-600">{cell.date}</span>
                    )}
                 </div>
               );
@@ -164,15 +165,15 @@ export default function ContentCalendarGrid({ events = [], onRefresh, onOpenComp
             const isCurrentToday = cell.dateString === todayStr || (cell.date === 16 && month === 7 && year === 2026); 
 
             return (
-              <div key={cell.dateString} className={`bg-white p-2 flex flex-col group hover:bg-slate-50/50 transition-colors relative min-h-[120px] ${borderClasses}`}>
+              <div key={cell.dateString} className={`bg-white dark:bg-slate-800/90 p-2 flex flex-col group hover:bg-slate-50/50 dark:hover:bg-slate-750 transition-colors relative min-h-[120px] ${borderClasses}`}>
                 
                 <div className="flex justify-between items-start mb-2 px-1 pt-1">
-                  <span className={`text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full ${isCurrentToday ? 'bg-[#311b92] text-white shadow-sm' : 'text-slate-800'}`}>
+                  <span className={`text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full ${isCurrentToday ? 'bg-[#311b92] dark:bg-purple-600 text-white shadow-sm font-black' : 'text-slate-800 dark:text-slate-200'}`}>
                     {String(cell.date).padStart(2, '0')}
                   </span>
                   <button 
                     onClick={handleOpenComposer}
-                    className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[#311b92] transition-opacity cursor-pointer"
+                    className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[#311b92] dark:hover:text-purple-400 transition-opacity cursor-pointer"
                   >
                     <Plus size={16} strokeWidth={3} />
                   </button>
@@ -195,29 +196,29 @@ export default function ContentCalendarGrid({ events = [], onRefresh, onOpenComp
                           )}
                         </div>
                         <div className="flex items-center gap-1">
-                          <div className="bg-white/80 p-0.5 rounded shadow-sm flex items-center justify-center">
+                          <div className="bg-white/80 dark:bg-slate-800 p-0.5 rounded shadow-sm flex items-center justify-center">
                             <IconComponent size={10} color={brandColor} />
                           </div>
-                          <div className="w-4 h-4 rounded overflow-hidden bg-transparent border border-black/10 flex items-center justify-center flex-shrink-0">
-                            {event.image ? <img src={event.image} alt="post" className="w-full h-full object-cover" /> : <ImageIcon size={8} className="text-slate-800" strokeWidth={2.5} />}
+                          <div className="w-4 h-4 rounded overflow-hidden bg-transparent border border-black/10 dark:border-white/10 flex items-center justify-center flex-shrink-0">
+                            {event.image ? <img src={event.image} alt="post" className="w-full h-full object-cover" /> : <ImageIcon size={8} className="text-slate-800 dark:text-slate-200" strokeWidth={2.5} />}
                           </div>
                         </div>
 
                         {/* TOOLTIP */}
-                        <div className="absolute z-[999] invisible opacity-0 group-hover/pill:visible group-hover/pill:opacity-100 bottom-full mb-2 left-1/2 -translate-x-1/2 w-56 bg-white border border-slate-200 shadow-2xl rounded-xl p-3 pointer-events-none transition-all duration-200 ease-out">
+                        <div className="absolute z-[999] invisible opacity-0 group-hover/pill:visible group-hover/pill:opacity-100 bottom-full mb-2 left-1/2 -translate-x-1/2 w-56 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl p-3 pointer-events-none transition-all duration-200 ease-out">
                           {event.image && (
-                            <div className="w-full h-32 rounded-lg overflow-hidden mb-3 bg-slate-100 border border-slate-100 shadow-inner">
+                            <div className="w-full h-32 rounded-lg overflow-hidden mb-3 bg-slate-100 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-inner">
                               <img src={event.image} alt="Full post preview" className="w-full h-full object-cover" />
                             </div>
                           )}
                           <div className="flex items-center gap-2 mb-2">
-                            <div className="p-1 rounded bg-slate-50 border border-slate-100">
+                            <div className="p-1 rounded bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700">
                               <IconComponent size={14} color={brandColor} />
                             </div>
-                            <span className="text-[10px] font-bold tracking-wider uppercase text-slate-500">{event.platform}</span>
+                            <span className="text-[10px] font-bold tracking-wider uppercase text-slate-500 dark:text-slate-400">{event.platform}</span>
                           </div>
-                          <p className="text-xs text-slate-700 font-medium leading-relaxed line-clamp-3">{event.description || "No description provided."}</p>
-                          <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-b border-r border-slate-200 rotate-45 shadow-sm"></div>
+                          <p className="text-xs text-slate-700 dark:text-slate-200 font-medium leading-relaxed line-clamp-3">{event.description || "No description provided."}</p>
+                          <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white dark:bg-slate-800 border-b border-r border-slate-200 dark:border-slate-700 rotate-45 shadow-sm"></div>
                         </div>
                       </div>
                     );
@@ -227,7 +228,7 @@ export default function ContentCalendarGrid({ events = [], onRefresh, onOpenComp
             );
           })}
         </div>
-        <div className="w-full border-t border-slate-200"></div>
+        <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
       </div>
 
       {/* Post Composer Modal */}

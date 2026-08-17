@@ -11,8 +11,13 @@ export default function KpiSection({ data = {} }) {
   const campaignsVal = data?.campaigns?.value ?? 0;
   const campaignsTrend = data?.campaigns?.trend ?? "Active campaigns";
 
-  const accountsVal = data?.accounts?.value ?? 7;
-  const accountsTrend = data?.accounts?.trend ?? "Instagram, Facebook, LinkedIn, X";
+  const accountsVal = typeof data?.accounts?.value === "number" ? data.accounts.value : 0;
+  const platformsList = data?.accounts?.platforms || [];
+  const accountsTrend = data?.accounts?.trend || (
+    platformsList.length > 0 
+      ? platformsList.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(", ")
+      : "No accounts connected"
+  );
 
   const cards = [
     { title: "Total Posts", value: totalPostsVal, sub: totalPostsTrend, icon: ArrowUpRight },
@@ -23,7 +28,7 @@ export default function KpiSection({ data = {} }) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-      {cards.map((card, i) => (
+      {cards.map((card) => (
         <div key={`dashboard-kpi-${card.title}`} className="bg-[#5000e6] text-white p-5 rounded-2xl shadow-md relative overflow-hidden">
           <div className="flex justify-between items-start mb-2">
             <h3 className="text-sm text-white/80 font-medium">{card.title}</h3>

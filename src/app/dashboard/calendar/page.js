@@ -44,82 +44,92 @@ export default function CalendarPage() {
     }
   };
 
-  // Format calendar events from hybrid content array
-  const calendarEvents = contentList.map((item, index) => ({
-    id: item.id || `cal-${index}`,
-    date: item.date || item.scheduled_date || '2026-08-16',
-    time: item.time || item.scheduled_time || '10:00 AM',
-    status: (item.status || 'scheduled').toLowerCase(),
-    platform: (item.platform || 'instagram').toLowerCase(),
-    image: item.image_url || item.image || item.media || 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=150&h=150&fit=crop',
-    description: item.description || item.content || item.title || 'Scheduled Social Media Post',
-    is_live: item.is_live || item.platform?.toLowerCase() === 'linkedin'
-  }));
+  // Format calendar events from hybrid content array using standard for loop
+  const calendarEvents = [];
+  for (let index = 0; index < contentList.length; index++) {
+    const item = contentList[index];
+    calendarEvents.push({
+      id: item.id || `cal-${index}`,
+      date: item.date || item.scheduled_date || '2026-08-16',
+      time: item.time || item.scheduled_time || '10:00 AM',
+      status: (item.status || 'scheduled').toLowerCase(),
+      platform: (item.platform || 'instagram').toLowerCase(),
+      image: item.image_url || item.image || item.media || 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=150&h=150&fit=crop',
+      description: item.description || item.content || item.title || 'Scheduled Social Media Post',
+      is_live: item.is_live || (item.platform && item.platform.toLowerCase() === 'linkedin')
+    });
+  }
 
   // Format weekly events
   const weeklyEvents = calendarEvents.slice(0, 5);
 
-  // Format drafts data
-  const draftsData = contentList
-    .filter((item) => (item.status || '').toLowerCase() === 'draft')
-    .concat(contentList.slice(0, 3))
-    .slice(0, 4)
-    .map((item, idx) => ({
+  // Format drafts data using standard loop
+  const draftsData = [];
+  for (let idx = 0; idx < contentList.length; idx++) {
+    if (draftsData.length >= 4) break;
+    const item = contentList[idx];
+    const isDraft = (item.status || '').toLowerCase() === 'draft';
+    draftsData.push({
       id: item.id || `draft-${idx}`,
-      type: (item.status || '').toLowerCase() === 'draft' ? 'draft' : 'post',
-      title: item.title || item.content?.slice(0, 40) || 'Untitled Post',
+      type: isDraft ? 'draft' : 'post',
+      title: item.title || (item.content ? item.content.slice(0, 40) : 'Untitled Post'),
       image: item.image_url || item.image || item.media || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=150&h=150&fit=crop'
-    }));
-
-  // 1. Upcoming events: Recent or upcoming posts from real content
-  const upcomingEvents = contentList
-    .slice(0, 5)
-    .map((item, idx) => {
-      const titleStr = item.title || item.content || 'Untitled Post';
-      return {
-        id: item.id || `up-${idx}`,
-        title: titleStr.length > 35 ? titleStr.slice(0, 35) + '...' : titleStr,
-        platform: item.platform || 'Instagram',
-        date: item.date || item.scheduled_date || 'Aug 16, 2026',
-        time: item.time || item.scheduled_time || '10:00 AM',
-        status: (item.status || 'Scheduled').toLowerCase(),
-        is_live: item.is_live || item.platform?.toLowerCase() === 'linkedin'
-      };
     });
+  }
 
-  // 2. Publishing Queue: Filter strictly for scheduled / queued posts
-  const scheduledItems = contentList.filter((item) => {
-    const s = (item.status || '').toLowerCase();
-    return s === 'scheduled' || s === 'pending' || s === 'draft';
-  });
-
-  const publishingQueue = (scheduledItems.length > 0 ? scheduledItems : contentList)
-    .slice(0, 5)
-    .map((item, idx) => {
-      const titleStr = item.title || item.content || 'Queued Content';
-      return {
-        id: `queue-${item.id || idx}`,
-        title: titleStr.length > 35 ? titleStr.slice(0, 35) + '...' : titleStr,
-        platform: item.platform || 'Instagram',
-        date: item.date || item.scheduled_date || 'Aug 16, 2026',
-        time: item.time || item.scheduled_time || '10:00 AM',
-        status: (item.status || 'Scheduled').toLowerCase(),
-        is_live: item.is_live || item.platform?.toLowerCase() === 'linkedin'
-      };
+  // 1. Upcoming events
+  const upcomingEvents = [];
+  for (let idx = 0; idx < Math.min(contentList.length, 5); idx++) {
+    const item = contentList[idx];
+    const titleStr = item.title || item.content || 'Untitled Post';
+    upcomingEvents.push({
+      id: item.id || `up-${idx}`,
+      title: titleStr.length > 35 ? titleStr.slice(0, 35) + '...' : titleStr,
+      platform: item.platform || 'Instagram',
+      date: item.date || item.scheduled_date || 'Aug 16, 2026',
+      time: item.time || item.scheduled_time || '10:00 AM',
+      status: (item.status || 'Scheduled').toLowerCase(),
+      is_live: item.is_live || (item.platform && item.platform.toLowerCase() === 'linkedin')
     });
+  }
+
+  // 2. Publishing Queue
+  const scheduledItems = [];
+  for (let i = 0; i < contentList.length; i++) {
+    const s = (contentList[i].status || '').toLowerCase();
+    if (s === 'scheduled' || s === 'pending' || s === 'draft') {
+      scheduledItems.push(contentList[i]);
+    }
+  }
+
+  const queueSource = scheduledItems.length > 0 ? scheduledItems : contentList;
+  const publishingQueue = [];
+  for (let idx = 0; idx < Math.min(queueSource.length, 5); idx++) {
+    const item = queueSource[idx];
+    const titleStr = item.title || item.content || 'Queued Content';
+    publishingQueue.push({
+      id: `queue-${item.id || idx}`,
+      title: titleStr.length > 35 ? titleStr.slice(0, 35) + '...' : titleStr,
+      platform: item.platform || 'Instagram',
+      date: item.date || item.scheduled_date || 'Aug 16, 2026',
+      time: item.time || item.scheduled_time || '10:00 AM',
+      status: (item.status || 'Scheduled').toLowerCase(),
+      is_live: item.is_live || (item.platform && item.platform.toLowerCase() === 'linkedin')
+    });
+  }
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] p-6 text-slate-900 pb-20">
+    <div className="min-h-screen bg-[#F8F9FA] dark:bg-slate-950 p-6 text-slate-900 dark:text-slate-100 pb-20 transition-colors duration-200">
       
       {/* PAGE HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">Content Calendar</h1>
-          <p className="text-slate-500 font-medium mt-1">Plan, schedule and track all your multi-channel posts in one place</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">Content Calendar</h1>
+          <p className="text-slate-500 dark:text-slate-400 font-medium mt-1">Plan, schedule and track all your multi-channel posts in one place</p>
         </div>
         <button
           onClick={() => setIsComposerOpen(true)}
-          className="flex items-center gap-2 bg-[#311b92] hover:bg-[#4527a0] text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm hover:shadow-md cursor-pointer self-start sm:self-auto"
+          className="flex items-center gap-2 bg-[#311b92] hover:bg-[#4527a0] dark:bg-[#5b21b6] dark:hover:bg-[#4c1d95] text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm hover:shadow-md cursor-pointer self-start sm:self-auto"
         >
           <Plus size={18} strokeWidth={2.5} />
           Add Post

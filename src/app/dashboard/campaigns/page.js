@@ -17,7 +17,6 @@ export default function CampaignsMainPage() {
   const [editingCampaign, setEditingCampaign] = useState(null);
   const [isPostOpen, setIsPostOpen] = useState(false);
 
-  // Fetch hybrid campaigns from backend workspace status on mount
   useEffect(() => {
     let isMounted = true;
 
@@ -58,9 +57,6 @@ export default function CampaignsMainPage() {
     };
   }, []);
 
-  /**
-   * Handle creating a new campaign or updating an existing campaign
-   */
   const handleSaveCampaign = async (campaignData) => {
     try {
       if (editingCampaign) {
@@ -90,7 +86,6 @@ export default function CampaignsMainPage() {
     }
   };
 
-  // Handle scheduled post
   const handleSavePost = async (postPayload) => {
     try {
       const created = await createPost(postPayload);
@@ -102,23 +97,23 @@ export default function CampaignsMainPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] p-6 text-slate-900 pb-20">
+    <div className="min-h-screen bg-[#F8F9FA] dark:bg-slate-950 p-6 text-slate-900 dark:text-slate-100 pb-20 transition-colors duration-200">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">Campaign Management</h1>
-          <p className="text-slate-500 font-medium mt-1">Manage, organize and schedule all your social media content</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">Campaign Management</h1>
+          <p className="text-slate-500 dark:text-slate-400 font-medium mt-1">Manage, organize and schedule all your social media content</p>
         </div>
 
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsPostOpen(true)}
-            className="bg-white text-[#311b92] border-2 border-[#311b92] font-bold text-sm px-6 py-3 rounded-xl hover:bg-[#f8f5ff] transition-colors whitespace-nowrap cursor-pointer"
+            className="bg-white dark:bg-slate-800 text-[#311b92] dark:text-purple-300 border-2 border-[#311b92] dark:border-purple-500 font-bold text-sm px-6 py-3 rounded-xl hover:bg-[#f8f5ff] dark:hover:bg-slate-700 transition-colors whitespace-nowrap cursor-pointer"
           >
             Add Post
           </button>
           <button
             onClick={() => { setEditingCampaign(null); setIsFormOpen(true); }}
-            className="bg-[#311b92] text-white font-bold text-sm px-6 py-3 rounded-xl hover:bg-[#28157a] transition-colors shadow-sm whitespace-nowrap cursor-pointer"
+            className="bg-[#311b92] dark:bg-[#5b21b6] text-white font-bold text-sm px-6 py-3 rounded-xl hover:bg-[#28157a] dark:hover:bg-[#4c1d95] transition-colors shadow-sm whitespace-nowrap cursor-pointer"
           >
             New Campaign
           </button>

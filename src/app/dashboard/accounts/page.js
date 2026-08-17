@@ -1,13 +1,14 @@
 "use client";
 import { useState, useEffect, useMemo } from 'react';
-import { RefreshCw } from 'lucide-react';
-import PlatformCard from '@/components/accounts/PlatformCard';
-import OAuthConnectModal from '@/components/accounts/OAuthConnectModal';
-import ManageAccountModal from '@/components/accounts/ManageAccountModal';
+import { Plus } from 'lucide-react';
+import AccountsOverview from '@/components/accounts/AccountsOverview';
+import ConnectAccountsGrid from '@/components/accounts/ConnectAccountsGrid';
 import AccountsKpiGrid from '@/components/accounts/AccountsKpiGrid';
 import PlatformDistribution from '@/components/accounts/PlatformDistribution';
-import TotalFollowers from '@/components/accounts/TotalFollowers'; // IMPORT UPDATED
-import { fetchAccounts, reconnectAccount } from '@/lib/api/accounts';
+import TotalFollowers from '@/components/accounts/TotalFollowers';
+import OAuthConnectModal from '@/components/accounts/OAuthConnectModal';
+import ManageAccountModal from '@/components/accounts/ManageAccountModal';
+import { fetchAccounts, reconnectAccount, connectPlatform } from '@/lib/api/accounts';
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState([]);
@@ -16,15 +17,18 @@ export default function AccountsPage() {
   const [managingAccount, setManagingAccount] = useState(null);
   const [reconnectingId, setReconnectingId] = useState(null);
 
-  useEffect(() => { loadAccounts(); }, []);
+  useEffect(() => {
+    loadAccounts();
+  }, []);
 
   const loadAccounts = async () => {
     setIsLoading(true);
     try {
       const data = await fetchAccounts();
-      setAccounts(data);
+      setAccounts(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to load accounts:', err);
+      setAccounts([]);
     } finally {
       setIsLoading(false);
     }
@@ -57,72 +61,81 @@ export default function AccountsPage() {
     }
   };
 
-  const connectedPlatformIds = useMemo(
-    () => accounts.filter(a => a.status === 'connected').map(a => a.platform),
-    [accounts]
-  );
+  const handleConnectSinglePlatform = (platformId) => {
+    connectPlatform(platformId);
+  };
+
+  const connectedPlatformIds = useMemo(() => {
+    const ids = [];
+    for (let i = 0; i < accounts.length; i++) {
+      const a = accounts[i];
+      if (a && a.platform && (a.status || 'connected') === 'connected') {
+        ids.push(a.platform.toLowerCase());
+      }
+    }
+    return ids;
+  }, [accounts]);
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] p-6 text-slate-900 pb-20">
-
+    <div className="min-h-screen bg-[#F8F9FA] dark:bg-slate-950 p-6 text-slate-900 dark:text-slate-100 pb-20 transition-colors duration-200">
+      {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">Social Accounts</h1>
-          <p className="text-slate-500 font-medium mt-1">Connect and manage all your social media accounts from one place</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">Social Accounts</h1>
+          <p className="text-slate-500 dark:text-slate-400 font-medium mt-1">Connect and manage all your social media accounts from one place</p>
         </div>
         <button
           onClick={() => setIsConnectOpen(true)}
-          className="bg-[#311b92] text-white font-bold text-sm px-6 py-3 rounded-xl hover:bg-[#28157a] transition-colors shadow-sm whitespace-nowrap"
+          className="bg-[#311b92] dark:bg-[#5b21b6] text-white font-bold text-sm px-6 py-3 rounded-xl hover:bg-[#28157a] dark:hover:bg-[#4c1d95] transition-colors shadow-sm whitespace-nowrap inline-flex items-center gap-1.5 cursor-pointer"
         >
-          Connect Account +
+          <Plus size={16} /> Connect Account
         </button>
       </div>
 
+      {/* KPI Cards */}
       <AccountsKpiGrid accounts={accounts} />
 
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 mb-8">
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h2 className="text-lg font-black text-slate-900">Social Accounts Overview</h2>
-            <p className="text-sm text-slate-500 font-medium">Manage connected social media accounts</p>
-          </div>
-          <button onClick={loadAccounts} className="p-2 text-slate-400 hover:text-[#311b92] hover:bg-purple-50 rounded-lg transition-colors">
-            <RefreshCw size={18} strokeWidth={2.5} className={isLoading ? 'animate-spin' : ''} />
-          </button>
-        </div>
+      {/* Live Accounts Overview */}
+      <AccountsOverview
+        accounts={accounts}
+        isLoading={isLoading}
+        onManage={setManagingAccount}
+        onReconnect={handleReconnect}
+        onOpenConnect={() => setIsConnectOpen(true)}
+        onRefresh={loadAccounts}
+      />
 
-        {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-52 rounded-2xl bg-slate-100 animate-pulse" />)}
-          </div>
-        ) : accounts.length === 0 ? (
-          <div className="text-center py-16 bg-slate-50 rounded-2xl border border-slate-100">
-            <p className="text-slate-500 font-medium mb-4">No accounts connected yet.</p>
-            <button onClick={() => setIsConnectOpen(true)} className="bg-[#311b92] text-white font-bold text-sm px-6 py-3 rounded-xl hover:bg-[#28157a] transition-colors">Connect your first account</button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {accounts.map((account) => (
-              <PlatformCard key={account.id} account={account} onManage={setManagingAccount} onReconnect={handleReconnect} />
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Dynamic Platform Connection Status Grid */}
+      <ConnectAccountsGrid
+        accounts={accounts}
+        onConnectPlatform={handleConnectSinglePlatform}
+      />
 
-      {/* NEW ANALYTICS GRID */}
+      {/* Analytics Breakdown */}
       {accounts.length > 0 && (
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
           <div className="xl:col-span-1">
             <PlatformDistribution accounts={accounts} />
           </div>
           <div className="xl:col-span-2">
-            <TotalFollowers /> {/* REPLACED HERE */}
+            <TotalFollowers />
           </div>
         </div>
       )}
 
-      <OAuthConnectModal isOpen={isConnectOpen} onClose={() => setIsConnectOpen(false)} onConnected={handleConnected} connectedPlatformIds={connectedPlatformIds} />
-      <ManageAccountModal account={managingAccount} onClose={() => setManagingAccount(null)} onDisconnected={handleDisconnected} onUpdated={handleUpdated} />
+      {/* Modals */}
+      <OAuthConnectModal
+        isOpen={isConnectOpen}
+        onClose={() => setIsConnectOpen(false)}
+        onConnected={handleConnected}
+        connectedPlatformIds={connectedPlatformIds}
+      />
+      <ManageAccountModal
+        account={managingAccount}
+        onClose={() => setManagingAccount(null)}
+        onDisconnected={handleDisconnected}
+        onUpdated={handleUpdated}
+      />
     </div>
   );
 }

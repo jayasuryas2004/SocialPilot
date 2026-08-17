@@ -3,18 +3,17 @@ import { useMemo } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 
 const PLATFORM_COLORS = {
-  instagram: '#E1306C', // Pink
-  facebook: '#1877F2',  // Blue
-  linkedin: '#0A66C2',  // Dark Blue
-  'x-twitter': '#0f1419', // Black
-  youtube: '#FF0000',   // Red
-  reddit: '#FF4500',    // Orange
-  pinterest: '#E60023', // Darker Red
+  instagram: '#E1306C',
+  facebook: '#1877F2',
+  linkedin: '#0A66C2',
+  'x-twitter': '#0f1419',
+  youtube: '#FF0000',
+  reddit: '#FF4500',
+  pinterest: '#E60023',
   default: '#94a3b8'
 };
 
-// Mock data matches the 1470 total from your image perfectly
-const MOCK_DISTRIBUTION = [
+const BASELINE_DISTRIBUTION = [
   { platform: 'Instagram', posts: 450 },
   { platform: 'Facebook', posts: 320 },
   { platform: 'LinkedIn', posts: 250 },
@@ -24,26 +23,51 @@ const MOCK_DISTRIBUTION = [
   { platform: 'Pinterest', posts: 65 },
 ];
 
-export default function PlatformDistribution({ accounts }) {
+export default function PlatformDistribution({ accounts = [] }) {
+  const safeAccounts = Array.isArray(accounts) ? accounts : [];
+
   const { distribution, totalPosts } = useMemo(() => {
-    // Uses mock data for UI showcase. Swap 'MOCK_DISTRIBUTION' with 'accounts' when API is ready.
-    const sourceData = MOCK_DISTRIBUTION;
-
+    const countsByPlatform = {};
     let total = 0;
-    const distData = sourceData.map((item) => {
-      total += item.posts;
-      return { name: item.platform, value: item.posts };
-    });
 
+    // 1. Populate from baseline
+    for (let i = 0; i < BASELINE_DISTRIBUTION.length; i++) {
+      const base = BASELINE_DISTRIBUTION[i];
+      const key = base.platform.toLowerCase();
+      countsByPlatform[key] = {
+        name: base.platform,
+        value: base.posts
+      };
+      total += base.posts;
+    }
+
+    // 2. Add dynamic live accounts
+    for (let j = 0; j < safeAccounts.length; j++) {
+      const acc = safeAccounts[j];
+      if (acc && acc.platform) {
+        const key = acc.platform.toLowerCase();
+        const pCount = typeof acc.posts === 'number' && acc.posts > 0 ? acc.posts : 1;
+        if (countsByPlatform[key]) {
+          countsByPlatform[key].value += pCount;
+        } else {
+          countsByPlatform[key] = {
+            name: acc.platform.charAt(0).toUpperCase() + acc.platform.slice(1),
+            value: pCount
+          };
+        }
+        total += pCount;
+      }
+    }
+
+    const distData = Object.values(countsByPlatform);
     distData.sort((a, b) => b.value - a.value);
-    return { distribution: distData, totalPosts: total };
-  }, [accounts]);
 
-  if (distribution.length === 0) return null;
+    return { distribution: distData, totalPosts: total };
+  }, [safeAccounts]);
 
   return (
-    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 flex flex-col h-[520px]">
-      <h2 className="font-black text-slate-900 mb-6 text-lg shrink-0">Platform Distribution</h2>
+    <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col h-[520px] transition-colors">
+      <h2 className="font-black text-slate-900 dark:text-white mb-6 text-lg shrink-0">Platform Distribution</h2>
       
       {/* PERFECTED DONUT CHART */}
       <div className="h-48 relative w-full flex justify-center shrink-0 mb-8">
@@ -53,10 +77,10 @@ export default function PlatformDistribution({ accounts }) {
               data={distribution} 
               innerRadius={70} 
               outerRadius={90} 
-              paddingAngle={4}   // Creates the clean gaps between slices
+              paddingAngle={4}
               dataKey="value"
-              stroke="none"      // Removes the thick white borders
-              cornerRadius={4}   // Subtle rounding, exactly like image_73e384.png
+              stroke="none"
+              cornerRadius={4}
             >
               {distribution.map((entry, index) => {
                 const platformKey = entry.name.toLowerCase();
@@ -65,16 +89,16 @@ export default function PlatformDistribution({ accounts }) {
               })}
             </Pie>
             <Tooltip 
-              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-              itemStyle={{ color: '#1e293b', fontWeight: 800, textTransform: 'capitalize' }}
+              contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#1e293b', color: '#fff', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+              itemStyle={{ color: '#fff', fontWeight: 800, textTransform: 'capitalize' }}
             />
           </PieChart>
         </ResponsiveContainer>
         
         {/* Center Text */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <span className="text-sm font-bold text-slate-500">Total Posts</span>
-          <span className="text-[28px] font-black text-slate-900 leading-none mt-1">
+          <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Total Posts</span>
+          <span className="text-[28px] font-black text-slate-900 dark:text-white leading-none mt-1">
             {totalPosts.toLocaleString()}
           </span>
         </div>
@@ -90,15 +114,15 @@ export default function PlatformDistribution({ accounts }) {
             return (
               <div 
                 key={index} 
-                className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center justify-center hover:border-slate-200 hover:shadow-md transition-all cursor-default"
+                className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/60 shadow-sm flex flex-col items-center justify-center hover:border-slate-200 dark:hover:border-slate-600 hover:shadow-md transition-all cursor-default"
               >
                 <div className="flex items-center gap-2 mb-1.5">
                   <div className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: dotColor }}></div>
-                  <span className="text-[15px] font-black text-slate-900 capitalize truncate">
+                  <span className="text-[15px] font-black text-slate-900 dark:text-white capitalize truncate">
                     {item.name}
                   </span>
                 </div>
-                <span className="text-[13px] font-bold text-slate-500">
+                <span className="text-[13px] font-bold text-slate-500 dark:text-slate-400">
                   {item.value.toLocaleString()} Posts
                 </span>
               </div>

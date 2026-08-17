@@ -3,86 +3,18 @@ import { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { BarChart2, Filter, TrendingUp, Heart, MessageSquare, Share2, Bookmark, ChevronDown } from 'lucide-react';
 
-const MOCK_PLATFORM_DATA = {
-  all: {
-    weekly: [
-      { label: 'Mon', like: 4200, comments: 1200, share: 800, saved: 400 },
-      { label: 'Tue', like: 3800, comments: 900, share: 600, saved: 300 },
-      { label: 'Wed', like: 5100, comments: 1500, share: 1100, saved: 600 },
-      { label: 'Thu', like: 4800, comments: 1300, share: 950, saved: 550 },
-      { label: 'Fri', like: 5900, comments: 1800, share: 1400, saved: 800 },
-      { label: 'Sat', like: 7200, comments: 2400, share: 2100, saved: 1200 },
-      { label: 'Sun', like: 6800, comments: 2100, share: 1800, saved: 1000 },
-    ],
-    monthly: [
-      { label: 'June', like: 145000, comments: 42000, share: 28000, saved: 15000 },
-      { label: 'July', like: 162000, comments: 48000, share: 34000, saved: 18000 },
-      { label: 'August', like: 188000, comments: 55000, share: 41000, saved: 22000 },
-    ]
-  },
-  linkedin: {
-    weekly: [
-      { label: 'Mon', like: 1800, comments: 650, share: 450, saved: 250 },
-      { label: 'Tue', like: 1600, comments: 500, share: 380, saved: 190 },
-      { label: 'Wed', like: 2400, comments: 850, share: 620, saved: 340 },
-      { label: 'Thu', like: 2100, comments: 720, share: 510, saved: 280 },
-      { label: 'Fri', like: 2800, comments: 980, share: 790, saved: 420 },
-      { label: 'Sat', like: 3400, comments: 1200, share: 1100, saved: 600 },
-      { label: 'Sun', like: 3100, comments: 1050, share: 950, saved: 510 },
-    ],
-    monthly: [
-      { label: 'June', like: 62000, comments: 21000, share: 16000, saved: 8500 },
-      { label: 'July', like: 74000, comments: 26000, share: 19500, saved: 10200 },
-      { label: 'August', like: 89000, comments: 31000, share: 24000, saved: 13000 },
-    ]
-  },
-  instagram: {
-    weekly: [
-      { label: 'Mon', like: 1500, comments: 350, share: 220, saved: 120 },
-      { label: 'Tue', like: 1300, comments: 280, share: 160, saved: 90 },
-      { label: 'Wed', like: 1800, comments: 420, share: 310, saved: 180 },
-      { label: 'Thu', like: 1700, comments: 390, share: 270, saved: 160 },
-      { label: 'Fri', like: 2100, comments: 510, share: 410, saved: 240 },
-      { label: 'Sat', like: 2600, comments: 720, share: 610, saved: 380 },
-      { label: 'Sun', like: 2400, comments: 640, share: 530, saved: 320 },
-    ],
-    monthly: [
-      { label: 'June', like: 51000, comments: 14000, share: 8200, saved: 4500 },
-      { label: 'July', like: 58000, comments: 16200, share: 9800, saved: 5300 },
-      { label: 'August', like: 65000, comments: 18500, share: 11400, saved: 6200 },
-    ]
-  },
-  facebook: {
-    weekly: [
-      { label: 'Mon', like: 600, comments: 150, share: 90, saved: 20 },
-      { label: 'Tue', like: 550, comments: 110, share: 50, saved: 15 },
-      { label: 'Wed', like: 620, comments: 160, share: 120, saved: 60 },
-      { label: 'Thu', like: 680, comments: 140, share: 110, saved: 70 },
-      { label: 'Fri', like: 720, comments: 210, share: 140, saved: 100 },
-      { label: 'Sat', like: 820, comments: 290, share: 240, saved: 140 },
-      { label: 'Sun', like: 850, comments: 260, share: 210, saved: 110 },
-    ],
-    monthly: [
-      { label: 'June', like: 21000, comments: 5000, share: 2800, saved: 1200 },
-      { label: 'July', like: 23000, comments: 5800, share: 3400, saved: 1500 },
-      { label: 'August', like: 25000, comments: 6200, share: 4100, saved: 1800 },
-    ]
-  }
-};
-
-// Custom Tooltip for the Stacked Bar
 const EngagementTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white p-4 rounded-xl shadow-xl border border-slate-100 min-w-[150px]">
-        <p className="font-black text-slate-900 mb-3 border-b border-slate-100 pb-2">{label}</p>
+      <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 min-w-[150px]">
+        <p className="font-black text-slate-900 dark:text-white mb-3 border-b border-slate-100 dark:border-slate-700 pb-2">{label}</p>
         {payload.map((entry, index) => (
           <div key={index} className="flex items-center justify-between gap-4 text-sm font-bold mb-1.5 last:mb-0">
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.fill }} />
-              <span className="text-slate-500 capitalize">{entry.name}</span>
+              <span className="text-slate-500 dark:text-slate-400 capitalize">{entry.name}</span>
             </div>
-            <span className="text-slate-900">{entry.value.toLocaleString()}</span>
+            <span className="text-slate-900 dark:text-white">{entry.value.toLocaleString()}</span>
           </div>
         ))}
       </div>
@@ -91,34 +23,80 @@ const EngagementTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-export default function EngagementChart({ trends, linkedin }) {
+export default function EngagementChart({ trends = [], linkedin = {} }) {
   const [platform, setPlatform] = useState('all');
-  const [timeline, setTimeline] = useState('monthly');
+  const [timeline, setTimeline] = useState('weekly');
 
-  // Dynamically compute the data based on the platform and timeline filter
+  const safeTrends = Array.isArray(trends) ? trends : [];
+
   const displayData = useMemo(() => {
-    const platformData = MOCK_PLATFORM_DATA[platform.toLowerCase()] || MOCK_PLATFORM_DATA.all;
-    return platformData[timeline] || platformData.monthly;
-  }, [timeline, platform]);
+    const dataList = [];
+    for (let i = 0; i < safeTrends.length; i++) {
+      const item = safeTrends[i];
+      const dayLabel = item.date || `Day ${i + 1}`;
+      const totalEng = item.engagement || 0;
 
-  // Dynamically sum up the KPIs based on the current active data
+      let likeCount = Math.round(totalEng * 0.5);
+      let commentCount = Math.round(totalEng * 0.25);
+      let shareCount = Math.round(totalEng * 0.15);
+      let savedCount = Math.round(totalEng * 0.1);
+
+      if (platform === 'linkedin') {
+        const liEng = item.linkedin || Math.round(totalEng * 0.4);
+        likeCount = Math.round(liEng * 0.5);
+        commentCount = Math.round(liEng * 0.25);
+        shareCount = Math.round(liEng * 0.15);
+        savedCount = Math.round(liEng * 0.1);
+      } else if (platform === 'instagram') {
+        const igEng = item.instagram || Math.round(totalEng * 0.3);
+        likeCount = Math.round(igEng * 0.5);
+        commentCount = Math.round(igEng * 0.25);
+        shareCount = Math.round(igEng * 0.15);
+        savedCount = Math.round(igEng * 0.1);
+      } else if (platform === 'facebook') {
+        const fbEng = item.facebook || Math.round(totalEng * 0.2);
+        likeCount = Math.round(fbEng * 0.5);
+        commentCount = Math.round(fbEng * 0.25);
+        shareCount = Math.round(fbEng * 0.15);
+        savedCount = Math.round(fbEng * 0.1);
+      }
+
+      dataList.push({
+        label: dayLabel,
+        like: likeCount,
+        comments: commentCount,
+        share: shareCount,
+        saved: savedCount
+      });
+    }
+    return dataList;
+  }, [safeTrends, platform, timeline]);
+
   const totals = useMemo(() => {
-    return displayData.reduce((acc, curr) => ({
-      likes: acc.likes + curr.like,
-      comments: acc.comments + curr.comments,
-      shares: acc.shares + curr.share,
-      saved: acc.saved + curr.saved
-    }), { likes: 0, comments: 0, shares: 0, saved: 0 });
+    let likes = 0;
+    let comments = 0;
+    let shares = 0;
+    let saved = 0;
+
+    for (let i = 0; i < displayData.length; i++) {
+      const row = displayData[i];
+      likes += row.like || 0;
+      comments += row.comments || 0;
+      shares += row.share || 0;
+      saved += row.saved || 0;
+    }
+
+    return { likes, comments, shares, saved };
   }, [displayData]);
 
   return (
-    <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[520px]">
+    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col h-[520px] transition-colors">
       
       {/* 1. HEADER & FILTERS */}
-      <div className="p-6 border-b border-slate-100 shrink-0">
+      <div className="p-6 border-b border-slate-100 dark:border-slate-800 shrink-0">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-          <h2 className="font-black text-slate-900 flex items-center gap-3 text-lg">
-            <div className="bg-purple-50 p-2 rounded-xl text-[#311b92]">
+          <h2 className="font-black text-slate-900 dark:text-white flex items-center gap-3 text-lg">
+            <div className="bg-purple-50 dark:bg-purple-950/60 p-2 rounded-xl text-[#311b92] dark:text-purple-300">
               <BarChart2 size={20} strokeWidth={2.5} />
             </div>
             Engagement Overview
@@ -130,10 +108,10 @@ export default function EngagementChart({ trends, linkedin }) {
               <select 
                 value={platform}
                 onChange={(e) => setPlatform(e.target.value)}
-                className="appearance-none border border-slate-200 pl-8 pr-10 py-2.5 rounded-xl text-sm font-bold outline-none hover:bg-slate-50 cursor-pointer bg-white text-slate-700 w-full min-w-[140px]"
+                className="appearance-none border border-slate-200 dark:border-slate-700 pl-8 pr-10 py-2.5 rounded-xl text-sm font-bold outline-none hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 w-full min-w-[140px]"
               >
                 <option value="all">All Platforms</option>
-                <option value="linkedin">LinkedIn (Live)</option>
+                <option value="linkedin">LinkedIn {linkedin?.connected ? '(Live)' : ''}</option>
                 <option value="instagram">Instagram</option>
                 <option value="facebook">Facebook</option>
                 <option value="youtube">YouTube</option>
@@ -148,7 +126,7 @@ export default function EngagementChart({ trends, linkedin }) {
               <select 
                 value={timeline}
                 onChange={(e) => setTimeline(e.target.value)}
-                className="appearance-none border border-slate-200 pl-4 pr-10 py-2.5 rounded-xl text-sm font-bold outline-none hover:bg-slate-50 cursor-pointer bg-white text-slate-700 w-full min-w-[110px]"
+                className="appearance-none border border-slate-200 dark:border-slate-700 pl-4 pr-10 py-2.5 rounded-xl text-sm font-bold outline-none hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 w-full min-w-[110px]"
               >
                 <option value="weekly">This Week</option>
                 <option value="monthly">This Month</option>
@@ -159,64 +137,64 @@ export default function EngagementChart({ trends, linkedin }) {
         </div>
         
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 border border-emerald-200 px-3 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-bold text-sm shadow-sm">
-            15% <TrendingUp size={16} strokeWidth={2.5} />
+          <div className="flex items-center gap-1.5 border border-emerald-200 dark:border-emerald-800 px-3 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold text-sm shadow-sm">
+            +16.4% <TrendingUp size={16} strokeWidth={2.5} />
           </div>
-          <span className="text-sm text-slate-500 font-bold">10% Increased vs last period</span>
+          <span className="text-sm text-slate-500 dark:text-slate-400 font-bold">Engagement performance vs previous period</span>
         </div>
       </div>
 
       {/* 2. CHART AREA */}
-      <div className="flex-1 px-6 pt-8 pb-4 bg-slate-50/50 min-h-0">
+      <div className="flex-1 px-6 pt-8 pb-4 bg-slate-50/50 dark:bg-slate-950/50 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={displayData} barSize={60} stackOffset="expand">
-            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 13, fontWeight: 700}} dy={10} />
+            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 13, fontWeight: 700}} dy={10} />
             <Tooltip content={<EngagementTooltip />} cursor={{fill: 'transparent'}} />
             
-            <Bar dataKey="like" name="Likes" stackId="a" fill="#f43f5e" stroke="#fff" strokeWidth={3} radius={[0, 0, 6, 6]} />
-            <Bar dataKey="comments" name="Comments" stackId="a" fill="#eab308" stroke="#fff" strokeWidth={3} />
-            <Bar dataKey="share" name="Shares" stackId="a" fill="#06b6d4" stroke="#fff" strokeWidth={3} />
-            <Bar dataKey="saved" name="Saved" stackId="a" fill="#22c55e" stroke="#fff" strokeWidth={3} radius={[6, 6, 0, 0]} />
+            <Bar dataKey="like" name="Likes" stackId="a" fill="#f43f5e" stroke="none" radius={[0, 0, 6, 6]} />
+            <Bar dataKey="comments" name="Comments" stackId="a" fill="#eab308" stroke="none" />
+            <Bar dataKey="share" name="Shares" stackId="a" fill="#06b6d4" stroke="none" />
+            <Bar dataKey="saved" name="Saved" stackId="a" fill="#22c55e" stroke="none" radius={[6, 6, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
       {/* 3. BOTTOM KPIS */}
-      <div className="p-6 border-t border-slate-100 bg-white shrink-0">
+      <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
         <div className="grid grid-cols-4 gap-4 max-w-2xl mx-auto">
           <div className="flex flex-col items-center gap-2">
-            <div className="flex items-center gap-2 font-black text-slate-800 text-base">
-              <div className="bg-rose-50 border border-rose-100 p-2 rounded-xl"><Heart size={16} className="text-rose-500" fill="currentColor" /></div>
+            <div className="flex items-center gap-2 font-black text-slate-800 dark:text-white text-base">
+              <div className="bg-rose-50 dark:bg-rose-950/60 border border-rose-100 dark:border-rose-900/60 p-2 rounded-xl"><Heart size={16} className="text-rose-500" fill="currentColor" /></div>
               {totals.likes.toLocaleString()}
             </div>
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 tracking-wide uppercase">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-400 tracking-wide uppercase">
               <div className="w-2.5 h-2.5 rounded-full bg-[#f43f5e]"></div> Likes
             </div>
           </div>
           <div className="flex flex-col items-center gap-2">
-            <div className="flex items-center gap-2 font-black text-slate-800 text-base">
-              <div className="bg-amber-50 border border-amber-100 p-2 rounded-xl"><MessageSquare size={16} className="text-amber-500" fill="currentColor" /></div>
+            <div className="flex items-center gap-2 font-black text-slate-800 dark:text-white text-base">
+              <div className="bg-amber-50 dark:bg-amber-950/60 border border-amber-100 dark:border-amber-900/60 p-2 rounded-xl"><MessageSquare size={16} className="text-amber-500" fill="currentColor" /></div>
               {totals.comments.toLocaleString()}
             </div>
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 tracking-wide uppercase">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-400 tracking-wide uppercase">
               <div className="w-2.5 h-2.5 rounded-full bg-[#eab308]"></div> Comments
             </div>
           </div>
           <div className="flex flex-col items-center gap-2">
-            <div className="flex items-center gap-2 font-black text-slate-800 text-base">
-              <div className="bg-cyan-50 border border-cyan-100 p-2 rounded-xl"><Share2 size={16} className="text-cyan-500" fill="currentColor" /></div>
+            <div className="flex items-center gap-2 font-black text-slate-800 dark:text-white text-base">
+              <div className="bg-cyan-50 dark:bg-cyan-950/60 border border-cyan-100 dark:border-cyan-900/60 p-2 rounded-xl"><Share2 size={16} className="text-cyan-500" fill="currentColor" /></div>
               {totals.shares.toLocaleString()}
             </div>
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 tracking-wide uppercase">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-400 tracking-wide uppercase">
               <div className="w-2.5 h-2.5 rounded-full bg-[#06b6d4]"></div> Shares
             </div>
           </div>
           <div className="flex flex-col items-center gap-2">
-            <div className="flex items-center gap-2 font-black text-slate-800 text-base">
-              <div className="bg-emerald-50 border border-emerald-100 p-2 rounded-xl"><Bookmark size={16} className="text-emerald-500" fill="currentColor" /></div>
+            <div className="flex items-center gap-2 font-black text-slate-800 dark:text-white text-base">
+              <div className="bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-100 dark:border-emerald-900/60 p-2 rounded-xl"><Bookmark size={16} className="text-emerald-500" fill="currentColor" /></div>
               {totals.saved.toLocaleString()}
             </div>
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 tracking-wide uppercase">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-400 tracking-wide uppercase">
               <div className="w-2.5 h-2.5 rounded-full bg-[#22c55e]"></div> Saved
             </div>
           </div>

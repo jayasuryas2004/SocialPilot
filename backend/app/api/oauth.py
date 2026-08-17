@@ -19,9 +19,9 @@ load_dotenv()
 
 router = APIRouter(prefix="/oauth", tags=["OAuth Integrations"])
 
-# Configuration constants
-LINKEDIN_CLIENT_ID = os.getenv("LINKEDIN_CLIENT_ID", "SECURE_LINKEDIN_ID")
-LINKEDIN_CLIENT_SECRET = os.getenv("LINKEDIN_CLIENT_SECRET", "SECURE_LINKEDIN_SECRET")
+# Configuration constants - strictly loaded from environment variables
+LINKEDIN_CLIENT_ID = os.getenv("LINKEDIN_CLIENT_ID", "")
+LINKEDIN_CLIENT_SECRET = os.getenv("LINKEDIN_CLIENT_SECRET", "")
 LINKEDIN_REDIRECT_URI = os.getenv("LINKEDIN_REDIRECT_URI", "http://localhost:8000/oauth/linkedin/callback")
 FRONTEND_REDIRECT_BASE = os.getenv("FRONTEND_URL", "http://localhost:3000")
 

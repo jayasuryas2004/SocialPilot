@@ -27,11 +27,10 @@ export default function CampaignCard({ campaign, onEdit, onDelete, onView }) {
       completed: "bg-blue-500 text-white shadow-blue-200"
     };
     
-    // Safely handle missing status
     const safeStatus = status ? status.toLowerCase() : 'draft';
 
     return (
-      <span className={`${styles[safeStatus]} px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1.5 backdrop-blur-md`}>
+      <span className={`${styles[safeStatus] || "bg-slate-500 text-white"} px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1.5 backdrop-blur-md`}>
         <div className="w-1.5 h-1.5 rounded-full bg-white/80 animate-pulse"></div>
         {status || 'Draft'}
       </span>
@@ -60,28 +59,27 @@ export default function CampaignCard({ campaign, onEdit, onDelete, onView }) {
           <div 
             key={i} 
             title={p}
-            className={`w-6 h-6 rounded-full flex items-center justify-center border-2 border-white -ml-2 first:ml-0 shadow-sm transition-transform hover:scale-110 z-${10 - i} ${colors[p.toLowerCase()]}`}
+            className={`w-6 h-6 rounded-full flex items-center justify-center border-2 border-white dark:border-slate-800 -ml-2 first:ml-0 shadow-sm transition-transform hover:scale-110 z-${10 - i} ${colors[p.toLowerCase()] || 'bg-slate-500'}`}
           >
-            {map[p.toLowerCase()]}
+            {map[p.toLowerCase()] || null}
           </div>
         ))}
       </div>
     );
   };
 
-  // Fallback image if none is provided
   const bgImage = campaign?.image || "https://images.unsplash.com/photo-1557683316-973673baf926?w=400&h=200&fit=crop";
 
   return (
-    <div className="group bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-[#c4b5fd] transition-all duration-300 flex flex-col overflow-hidden relative">
+    <div className="group bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl hover:border-[#c4b5fd] dark:hover:border-purple-500/60 transition-all duration-300 flex flex-col overflow-visible relative">
       
       {/* 1. IMAGE BANNER & STATUS */}
-      <div className="relative h-32 w-full overflow-hidden bg-slate-100">
+      <div className="relative h-32 w-full overflow-hidden bg-slate-100 dark:bg-slate-800 rounded-t-3xl">
         <div 
           className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
           style={{ backgroundImage: `url(${bgImage})` }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 to-transparent" />
         
         {/* Floating Status Badge */}
         <div className="absolute top-4 left-4 z-10">
@@ -89,32 +87,32 @@ export default function CampaignCard({ campaign, onEdit, onDelete, onView }) {
         </div>
 
         {/* 3-Dot Menu */}
-        <div className="absolute top-4 right-4 z-20" ref={dropdownRef}>
+        <div className="absolute top-4 right-4 z-30" ref={dropdownRef}>
           <button 
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white flex items-center justify-center hover:bg-white hover:text-[#311b92] transition-colors shadow-sm"
+            className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white flex items-center justify-center hover:bg-white hover:text-[#311b92] transition-colors shadow-sm cursor-pointer"
           >
             <MoreVertical size={16} strokeWidth={2.5} />
           </button>
 
           {isDropdownOpen && (
-            <div className="absolute right-0 top-full mt-2 w-40 bg-white border border-slate-100 shadow-xl rounded-2xl flex flex-col py-2 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right">
+            <div className="absolute right-0 top-full mt-2 w-44 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-2xl rounded-2xl z-50 flex flex-col py-2 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right">
               <button 
-                onClick={() => { setIsDropdownOpen(false); onView && onView(campaign); }}
-                className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-[#311b92] text-left transition-colors"
+                onClick={() => { setIsDropdownOpen(false); if (onView) onView(campaign); }}
+                className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-[#311b92] dark:hover:text-purple-300 text-left transition-colors cursor-pointer"
               >
                 <Eye size={16} /> View Details
               </button>
               <button 
-                onClick={() => { setIsDropdownOpen(false); onEdit && onEdit(campaign); }}
-                className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-[#311b92] text-left transition-colors"
+                onClick={() => { setIsDropdownOpen(false); if (onEdit) onEdit(campaign); }}
+                className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-[#311b92] dark:hover:text-purple-300 text-left transition-colors cursor-pointer"
               >
                 <Edit size={16} /> Edit Campaign
               </button>
-              <div className="h-px bg-slate-100 my-1 mx-2"></div>
+              <div className="h-px bg-slate-100 dark:bg-slate-700 my-1 mx-2"></div>
               <button 
-                onClick={() => { setIsDropdownOpen(false); onDelete && onDelete(campaign.id); }}
-                className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-bold text-[#e11d48] hover:bg-rose-50 text-left transition-colors"
+                onClick={() => { setIsDropdownOpen(false); if (onDelete) onDelete(campaign.id); }}
+                className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-bold text-[#e11d48] dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-left transition-colors cursor-pointer"
               >
                 <Trash2 size={16} /> Delete
               </button>
@@ -129,10 +127,10 @@ export default function CampaignCard({ campaign, onEdit, onDelete, onView }) {
         {/* Title & Platforms */}
         <div className="flex justify-between items-start gap-3 mb-2">
           <div className="flex-1">
-            <h3 className="font-black text-slate-900 text-base leading-tight group-hover:text-[#311b92] transition-colors line-clamp-1">
+            <h3 className="font-black text-slate-900 dark:text-white text-base leading-tight group-hover:text-[#311b92] dark:group-hover:text-purple-400 transition-colors line-clamp-1">
               {campaign?.title || "Untitled Campaign"}
             </h3>
-            <p className="text-xs font-medium text-slate-500 mt-1 line-clamp-2 min-h-[32px]">
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 min-h-[32px]">
               {campaign?.description || campaign?.subtitle || "No description provided for this campaign."}
             </p>
           </div>
@@ -144,12 +142,12 @@ export default function CampaignCard({ campaign, onEdit, onDelete, onView }) {
         </div>
 
         {/* Divider */}
-        <div className="w-full h-px bg-slate-100 mb-4 mt-auto"></div>
+        <div className="w-full h-px bg-slate-100 dark:bg-slate-800 mb-4 mt-auto"></div>
 
         {/* 3. FOOTER (Dates & Analytics Link) */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
-            <Calendar size={14} className="text-[#311b92]" />
+          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700">
+            <Calendar size={14} className="text-[#311b92] dark:text-purple-400" />
             <span className="text-[11px] font-bold">
               {campaign?.startDate ? new Date(campaign.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'} 
               {' - '} 
@@ -158,8 +156,8 @@ export default function CampaignCard({ campaign, onEdit, onDelete, onView }) {
           </div>
 
           <button 
-            onClick={() => onView && onView(campaign)}
-            className="w-8 h-8 rounded-full bg-[#f8f5ff] text-[#311b92] flex items-center justify-center hover:bg-[#311b92] hover:text-white transition-colors"
+            onClick={() => { if (onView) onView(campaign); }}
+            className="w-8 h-8 rounded-full bg-[#f8f5ff] dark:bg-purple-950/60 text-[#311b92] dark:text-purple-300 flex items-center justify-center hover:bg-[#311b92] hover:text-white dark:hover:bg-purple-600 transition-colors cursor-pointer"
             title="View Analytics"
           >
             <BarChart2 size={14} strokeWidth={2.5} />

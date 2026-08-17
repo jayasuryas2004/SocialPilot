@@ -32,6 +32,12 @@ export default function OAuthConnectModal({ isOpen, onClose, onConnected, connec
   const selectedPlatforms = PLATFORM_LIST.filter((p) => selectedIds.includes(p.id));
 
   const startConnecting = async () => {
+    if (selectedIds.includes('linkedin')) {
+      const { initiateLinkedInLogin } = await import("@/lib/api/oauth");
+      initiateLinkedInLogin();
+      return;
+    }
+
     setStep('connecting');
     const initialStatus = {};
     selectedIds.forEach((id) => { initialStatus[id] = { status: 'pending' }; });

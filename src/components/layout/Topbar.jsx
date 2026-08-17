@@ -2,67 +2,22 @@
 import { useState } from "react";
 import { Search, Plus } from "lucide-react";
 import PostComposerModal from "@/components/posts/PostComposerModal";
+import ProfileDropdown from "@/components/layout/ProfileDropdown";
 import { createPost } from "@/lib/api/posts";
-import { useAuth } from "@/hooks/useAuth";
-
-/**
- * Computes uppercase initials from a user's full name.
- * e.g. "Jayasurya S" -> "JS", "Alex" -> "AL", null -> "SP"
- */
-function getInitials(name) {
-  if (!name || typeof name !== "string" || name.trim().length === 0) {
-    return "SP";
-  }
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) {
-    return parts[0].slice(0, 2).toUpperCase();
-  }
-  const firstChar = parts[0].charAt(0);
-  const lastChar = parts[parts.length - 1].charAt(0);
-  return (firstChar + lastChar).toUpperCase();
-}
-
-/**
- * Returns a consistent dynamic avatar background color based on name string
- */
-function getAvatarColor(name) {
-  const colors = [
-    "bg-[#f97316]",
-    "bg-[#7c3aed]",
-    "bg-[#0284c7]",
-    "bg-[#059669]",
-    "bg-[#db2777]",
-    "bg-[#d97706]",
-    "bg-[#4f46e5]",
-  ];
-  if (!name) return colors[0];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const index = Math.abs(hash) % colors.length;
-  return colors[index];
-}
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function Topbar() {
-  const { user } = useAuth();
   const [isComposerOpen, setIsComposerOpen] = useState(false);
-
-  const displayName = user?.name || "Creator";
-  const displayRole = user?.role
-    ? (user.role.charAt(0).toUpperCase() + user.role.slice(1))
-    : "Content Creator";
-  const initials = getInitials(displayName);
-  const avatarColor = getAvatarColor(displayName);
+  const { t } = useLanguage();
 
   return (
-    <div className="flex items-center justify-between bg-white border-b border-slate-200 px-8 py-4">
+    <div className="flex items-center justify-between bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-8 py-4 transition-colors duration-200">
       {/* Search Bar */}
       <div className="relative w-96">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={16} />
         <input 
-          placeholder="Search..." 
-          className="w-full border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#f97316]/20" 
+          placeholder={t("search_placeholder", "Search...")} 
+          className="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#311b92]/20 dark:focus:ring-purple-500/20 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500" 
         />
       </div>
 
@@ -72,22 +27,14 @@ export default function Topbar() {
         {/* Add Post Button */}
         <button 
           onClick={() => setIsComposerOpen(true)}
-          className="flex items-center gap-2 bg-[#4a00ff] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#3a00cc] transition-all"
+          className="flex items-center gap-2 bg-[#311b92] dark:bg-[#5b21b6] text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-[#28157a] dark:hover:bg-[#4c1d95] transition-all cursor-pointer shadow-sm shadow-purple-900/10"
         >
-          <Plus size={16} />
-          Add Post
+          <Plus size={16} strokeWidth={2.5} />
+          <span>{t("add_post", "Add Post")}</span>
         </button>
 
-        {/* Dynamic User Profile */}
-        <div className="flex items-center gap-3">
-          <div className="text-right hidden sm:block">
-            <p className="font-semibold text-sm text-slate-900">{displayName}</p>
-            <p className="text-xs text-slate-400">{displayRole}</p>
-          </div>
-          <div className={`w-10 h-10 rounded-full ${avatarColor} text-white flex items-center justify-center font-bold text-sm shadow-md`}>
-            {initials}
-          </div>
-        </div>
+        {/* Interactive Profile Dropdown */}
+        <ProfileDropdown />
       </div>
 
       {/* Global Post Composer Modal */}

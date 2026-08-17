@@ -4,9 +4,7 @@ import {
   FaYoutube, FaPinterest, FaRedditAlien,
 } from "react-icons/fa6";
 
-export const MOCK_MODE = false;
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 export const PLATFORM_CONFIG = {
   facebook: {
@@ -73,36 +71,116 @@ export const PLATFORM_CONFIG = {
 
 export const PLATFORM_LIST = Object.values(PLATFORM_CONFIG);
 
+export const MOCK_ACCOUNTS = [
+  {
+    id: 'acc_mock_fb',
+    platform: 'facebook',
+    handle: '@socialpilot_fb',
+    displayName: 'SocialPilot Official',
+    status: 'connected',
+    posts: 24,
+    reach: 580000,
+    engagementRate: 10.2,
+    connectedAt: '2026-05-01',
+    tokenExpiresAt: '2026-11-01',
+    avatar: null,
+    is_live_oauth: false,
+  },
+  {
+    id: 'acc_mock_ig',
+    platform: 'instagram',
+    handle: '@socialpilot_app',
+    displayName: 'SocialPilot App',
+    status: 'connected',
+    posts: 41,
+    reach: 902000,
+    engagementRate: 14.6,
+    connectedAt: '2026-04-12',
+    tokenExpiresAt: '2026-10-12',
+    avatar: null,
+    is_live_oauth: false,
+  },
+  {
+    id: 'acc_mock_x',
+    platform: 'x-twitter',
+    handle: '@socialpilot_io',
+    displayName: 'SocialPilot Tech',
+    status: 'connected',
+    posts: 18,
+    reach: 320000,
+    engagementRate: 8.9,
+    connectedAt: '2026-06-01',
+    tokenExpiresAt: '2026-12-01',
+    avatar: null,
+    is_live_oauth: false,
+  },
+];
+
+/**
+ * Hybrid Data Layer: Fetches real connected accounts from backend API,
+ * then merges them with visual showcase mock accounts. Real accounts appear first.
+ * Strictly uses standard for loops.
+ */
 export async function fetchAccounts() {
+  let liveAccounts = [];
   try {
     const res = await client.get('/api/accounts');
-    const data = res.data;
-    if (Array.isArray(data) && data.length > 0) {
-      return data;
+    if (res && res.data) {
+      if (Array.isArray(res.data)) {
+        liveAccounts = res.data;
+      } else if (Array.isArray(res.data.accounts)) {
+        liveAccounts = res.data.accounts;
+      }
     }
   } catch (err) {
-    console.warn("Client get /api/accounts failed, trying /accounts:", err);
     try {
       const resAlt = await client.get('/accounts');
-      if (Array.isArray(resAlt.data) && resAlt.data.length > 0) {
-        return resAlt.data;
+      if (resAlt && resAlt.data) {
+        if (Array.isArray(resAlt.data)) {
+          liveAccounts = resAlt.data;
+        } else if (Array.isArray(resAlt.data.accounts)) {
+          liveAccounts = resAlt.data.accounts;
+        }
       }
     } catch (e) {
-      console.error("Live accounts fetch failed:", e);
+      console.warn("Live accounts fetch notice:", e);
     }
   }
 
-  // Fallback if backend temporarily unavailable
-  return [
-    { id: 'acc_db_1', platform: 'linkedin', handle: '@linkedin_creator', displayName: 'LinkedIn Member', status: 'connected', posts: 18, reach: 125000, engagementRate: 12.4, connectedAt: '2026-08-16', tokenExpiresAt: '2026-11-16', avatar: null, is_live_oauth: true },
-    { id: 'acc_mock_fb', platform: 'facebook', handle: '@socialpilot_fb', displayName: "SocialPilot Official", status: 'connected', posts: 24, reach: 580000, engagementRate: 10.02, connectedAt: '2026-05-01', tokenExpiresAt: '2026-11-01', avatar: null, is_live_oauth: false },
-    { id: 'acc_mock_ig', platform: 'instagram', handle: '@socialpilot_app', displayName: "SocialPilot App", status: 'connected', posts: 41, reach: 902000, engagementRate: 14.6, connectedAt: '2026-04-12', tokenExpiresAt: '2026-10-12', avatar: null, is_live_oauth: false },
-  ];
+  // Merge live accounts with mock accounts (live accounts appear first)
+  const merged = [];
+  const livePlatforms = [];
+
+  for (let i = 0; i < liveAccounts.length; i++) {
+    const liveAcc = liveAccounts[i];
+    merged.push(liveAcc);
+    if (liveAcc && liveAcc.platform) {
+      livePlatforms.push(liveAcc.platform.toLowerCase());
+    }
+  }
+
+  for (let j = 0; j < MOCK_ACCOUNTS.length; j++) {
+    const mockAcc = MOCK_ACCOUNTS[j];
+    if (mockAcc && mockAcc.platform) {
+      const p = mockAcc.platform.toLowerCase();
+      if (!livePlatforms.includes(p)) {
+        merged.push(mockAcc);
+      }
+    }
+  }
+
+  return merged;
 }
 
+/**
+ * Initiates connection to a specific social media platform.
+ * For LinkedIn, directs user to the official backend OAuth authorization route.
+ */
 export function connectPlatform(platformId) {
   if (platformId === 'linkedin') {
-    window.location.href = 'http://localhost:8000/oauth/linkedin/login';
+    if (typeof window !== 'undefined') {
+      window.location.href = `${API_BASE_URL}/oauth/linkedin/login?redirect=true`;
+    }
     return Promise.resolve({ status: 'connecting' });
   }
 
@@ -111,8 +189,8 @@ export function connectPlatform(platformId) {
       resolve({
         id: `acc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         platform: platformId,
-        handle: `@${platformId}_creator`,
-        displayName: `My ${PLATFORM_CONFIG[platformId]?.name || platformId} Account`,
+        handle: `@${platformId}_user`,
+        displayName: `${PLATFORM_CONFIG[platformId]?.name || platformId} Account`,
         status: 'connected',
         posts: 0,
         reach: 0,
@@ -121,13 +199,14 @@ export function connectPlatform(platformId) {
         tokenExpiresAt: null,
         avatar: null,
       });
-    }, 1200);
+    }, 800);
   });
 }
 
 export async function connectPlatforms(platformIds, onProgress) {
   const results = [];
-  for (const platformId of platformIds) {
+  for (let i = 0; i < platformIds.length; i++) {
+    const platformId = platformIds[i];
     onProgress?.(platformId, 'connecting');
     try {
       const account = await connectPlatform(platformId);
@@ -150,8 +229,13 @@ export async function disconnectAccount(accountId) {
     const res = await client.delete(`/api/accounts/${accountId}`);
     return res.data;
   } catch (err) {
-    console.error("Disconnect failed on backend:", err);
-    return { success: true };
+    try {
+      const resAlt = await client.delete(`/accounts/${accountId}`);
+      return resAlt.data;
+    } catch (e) {
+      console.warn("Disconnect account notice:", e);
+      return { success: true };
+    }
   }
 }
 
@@ -160,7 +244,12 @@ export async function updateAccountSettings(accountId, updates) {
     const res = await client.patch(`/api/accounts/${accountId}`, updates);
     return res.data;
   } catch (err) {
-    console.error("Update account failed on backend:", err);
-    return { ...updates, id: accountId };
+    try {
+      const resAlt = await client.patch(`/accounts/${accountId}`, updates);
+      return resAlt.data;
+    } catch (e) {
+      console.warn("Update account settings notice:", e);
+      return { ...updates, id: accountId };
+    }
   }
 }

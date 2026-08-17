@@ -7,34 +7,39 @@ const MINI_CHART_DATA = [
 ];
 
 export default function AnalyticsWidgets({ kpis = {}, linkedin = {} }) {
+  const engagementVal = kpis?.totalEngagement?.value || '0';
+  const reachVal = kpis?.totalReach?.value || '0';
+  const impressionsVal = kpis?.impressions?.value || '0';
+  const engRateVal = kpis?.engagementRate?.value || '0.0%';
+
   const topKpis = [
     {
       label: 'Total Engagement',
-      value: kpis?.totalEngagement?.value || '164.8K',
+      value: engagementVal,
       icon: HeartHandshake,
-      color: 'text-rose-500',
-      bg: 'bg-rose-50'
+      color: 'text-rose-500 dark:text-rose-400',
+      bg: 'bg-rose-50 dark:bg-rose-950/60'
     },
     {
       label: 'Total Reach',
-      value: kpis?.totalReach?.value || '486.2K',
+      value: reachVal,
       icon: Users,
-      color: 'text-blue-500',
-      bg: 'bg-blue-50'
+      color: 'text-blue-500 dark:text-blue-400',
+      bg: 'bg-blue-50 dark:bg-blue-950/60'
     },
     {
       label: 'Impressions',
-      value: kpis?.impressions?.value || '1.24M',
+      value: impressionsVal,
       icon: Eye,
-      color: 'text-amber-500',
-      bg: 'bg-amber-50'
+      color: 'text-amber-500 dark:text-amber-400',
+      bg: 'bg-amber-50 dark:bg-amber-950/60'
     },
     {
       label: 'Engagement Rate',
-      value: kpis?.engagementRate?.value || '6.2%',
+      value: engRateVal,
       icon: MousePointerClick,
-      color: 'text-emerald-500',
-      bg: 'bg-emerald-50'
+      color: 'text-emerald-500 dark:text-emerald-400',
+      bg: 'bg-emerald-50 dark:bg-emerald-950/60'
     },
   ];
 
@@ -45,12 +50,12 @@ export default function AnalyticsWidgets({ kpis = {}, linkedin = {} }) {
         {topKpis.map((kpi, idx) => {
           const Icon = kpi.icon;
           return (
-            <div key={`kpi-card-${idx}`} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center justify-center text-center">
+            <div key={`kpi-card-${idx}`} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center transition-colors">
               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 ${kpi.bg} ${kpi.color}`}>
                 <Icon size={24} strokeWidth={2.5} />
               </div>
-              <h3 className="text-sm font-bold text-slate-500 tracking-wide uppercase mb-1">{kpi.label}</h3>
-              <p className="text-3xl font-black text-slate-900">{kpi.value}</p>
+              <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 tracking-wide uppercase mb-1">{kpi.label}</h3>
+              <p className="text-3xl font-black text-slate-900 dark:text-white">{kpi.value}</p>
             </div>
           );
         })}
@@ -60,18 +65,18 @@ export default function AnalyticsWidgets({ kpis = {}, linkedin = {} }) {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
         
         {/* Reach Card */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between transition-colors">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <div className="bg-blue-50 p-1.5 rounded-lg text-blue-600"><Users size={16} /></div>
-              <h3 className="font-black text-slate-900 text-lg">Reach</h3>
+              <div className="bg-blue-50 dark:bg-blue-950/60 p-1.5 rounded-lg text-blue-600 dark:text-blue-400"><Users size={16} /></div>
+              <h3 className="font-black text-slate-900 dark:text-white text-lg">Reach</h3>
             </div>
-            <p className="text-2xl font-bold text-slate-900 flex items-center gap-2">486,200</p>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md font-bold">
-                22.1% <TrendingUp size={14} />
+            <p className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">{reachVal}</p>
+            <div className="flex items-center gap-2 text-sm mt-1">
+              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md font-bold text-xs">
+                {kpis?.totalReach?.change || '+22.1%'} <TrendingUp size={14} />
               </span>
-              <span className="text-slate-400 font-medium">vs last month</span>
+              <span className="text-slate-400 dark:text-slate-400 font-medium">vs last month</span>
             </div>
           </div>
           <div className="h-24 w-32">
@@ -84,18 +89,18 @@ export default function AnalyticsWidgets({ kpis = {}, linkedin = {} }) {
         </div>
 
         {/* Impressions Card */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between transition-colors">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <div className="bg-amber-50 p-1.5 rounded-lg text-amber-600"><Eye size={16} /></div>
-              <h3 className="font-black text-slate-900 text-lg">Impressions</h3>
+              <div className="bg-amber-50 dark:bg-amber-950/60 p-1.5 rounded-lg text-amber-600 dark:text-amber-400"><Eye size={16} /></div>
+              <h3 className="font-black text-slate-900 dark:text-white text-lg">Impressions</h3>
             </div>
-            <p className="text-2xl font-bold text-slate-900 flex items-center gap-2">1,240,000</p>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md font-bold">
-                14.8% <TrendingUp size={14} />
+            <p className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">{impressionsVal}</p>
+            <div className="flex items-center gap-2 text-sm mt-1">
+              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md font-bold text-xs">
+                {kpis?.impressions?.change || '+14.8%'} <TrendingUp size={14} />
               </span>
-              <span className="text-slate-400 font-medium">vs last month</span>
+              <span className="text-slate-400 dark:text-slate-400 font-medium">vs last month</span>
             </div>
           </div>
           <div className="h-24 w-32">

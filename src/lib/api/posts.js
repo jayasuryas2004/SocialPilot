@@ -1,6 +1,29 @@
 import client, { USE_MOCK } from "./client";
 
 /**
+ * Parses any 24h or raw time string and formats it to 12-hour AM/PM string (e.g. '10:06' -> '10:06 AM').
+ * Strictly uses standard control flow (no list comprehensions or lambda expressions).
+ */
+export function formatTimeAMPM(timeStr) {
+  if (!timeStr) return "10:00 AM";
+  const str = String(timeStr).trim();
+  if (str.toUpperCase().includes("AM") || str.toUpperCase().includes("PM")) {
+    return str;
+  }
+  const parts = str.split(":");
+  if (parts.length >= 2) {
+    let hours = parseInt(parts[0], 10);
+    const minutes = parts[1].padStart(2, "0").slice(0, 2);
+    if (isNaN(hours)) return str;
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12;
+    if (hours === 0) hours = 12;
+    return `${hours}:${minutes} ${ampm}`;
+  }
+  return str;
+}
+
+/**
  * Normalizes backend Post model into the structure expected by the frontend UI
  */
 export function normalizePost(item) {
@@ -32,7 +55,8 @@ export function normalizePost(item) {
 
   // Format date and time
   const dateStr = item.scheduled_date || (item.scheduled_at ? String(item.scheduled_at).split("T")[0] : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
-  const timeStr = item.scheduled_time || (item.scheduled_at ? String(item.scheduled_at).split("T")[1]?.slice(0, 5) : "10:00 am");
+  const rawTimeStr = item.scheduled_time || (item.scheduled_at ? String(item.scheduled_at).split("T")[1]?.slice(0, 5) : "10:00 AM");
+  const timeStr = formatTimeAMPM(rawTimeStr);
 
   const resolvedImage = item.image_url || item.image || item.media || item.media_url || item.mediaFile || null;
 

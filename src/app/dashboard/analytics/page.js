@@ -36,22 +36,22 @@ export default function AnalyticsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] p-6 text-slate-900 pb-20">
+    <div className="min-h-screen bg-[#F8F9FA] dark:bg-slate-950 p-6 text-slate-900 dark:text-slate-100 pb-20 transition-colors duration-200">
       
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             Analytics Dashboard
           </h1>
-          <p className="text-slate-500 font-medium mt-1">
+          <p className="text-slate-500 dark:text-slate-400 font-medium mt-1">
             Monitor real-time social performance and multi-platform growth benchmarks
           </p>
         </div>
         
         <button 
           onClick={() => router.push('/dashboard/reports')}
-          className="bg-[#311b92] text-white font-bold text-sm px-6 py-3 rounded-xl hover:bg-[#28157a] transition-colors shadow-sm flex items-center gap-2 whitespace-nowrap cursor-pointer"
+          className="bg-[#311b92] dark:bg-[#5b21b6] text-white font-bold text-sm px-6 py-3 rounded-xl hover:bg-[#28157a] dark:hover:bg-[#4c1d95] transition-colors shadow-sm flex items-center gap-2 whitespace-nowrap cursor-pointer"
         >
           Export <Download size={16} />
         </button>
@@ -76,7 +76,10 @@ export default function AnalyticsPage() {
       </div>
 
       {/* ROW 5 & 6: Data Tables */}
-      <AnalyticsTables topPosts={report?.topPosts} />
+      <AnalyticsTables
+        topPosts={report?.topPosts}
+        campaignPerformance={report?.campaignPerformance}
+      />
 
     </div>
   );

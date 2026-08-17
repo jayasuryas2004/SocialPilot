@@ -3,7 +3,7 @@ import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus } from "lucide-react"; // Added for the button icon
+import { Plus } from "lucide-react";
 import Loader from "@/components/common/Loader";
 import EmptyState from "@/components/common/EmptyState";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
@@ -11,7 +11,6 @@ import ReportsSummaryCards from "@/components/reports/ReportsSummaryCards";
 import ReportsFilterBar from "@/components/reports/ReportsFilterBar";
 import ReportsBulkBar from "@/components/reports/ReportsBulkBar";
 import ReportsTable from "@/components/reports/ReportsTable";
-// Ensure this path points to where you saved the modal we just built!
 import GenerateReportModal from "@/components/reports/GenerateReportModal";
 import { useReports } from "@/hooks/useReports";
 import { useScheduledReports } from "@/hooks/useScheduledReports";
@@ -40,16 +39,33 @@ export default function ReportsPage() {
   const { campaigns } = useCampaignOptions();
   const { showToast } = useToast();
 
-  // Dynamic tab counts computed from the already-fetched, already-filtered result set
   const counts = useMemo(() => {
     const c = { all: reports?.length || 0 };
-    for (const cat of CATEGORIES.slice(1)) {
-      c[cat.value] = (reports || []).filter((r) => r.category === cat.value).length;
+    for (let i = 1; i < CATEGORIES.length; i++) {
+      const cat = CATEGORIES[i];
+      let catCount = 0;
+      const safeReports = reports || [];
+      for (let j = 0; j < safeReports.length; j++) {
+        if (safeReports[j].category === cat.value) {
+          catCount++;
+        }
+      }
+      c[cat.value] = catCount;
     }
     return c;
   }, [reports]);
 
-  const visibleReports = activeTab === "all" ? (reports || []) : (reports || []).filter((r) => r.category === activeTab);
+  const visibleReports = useMemo(() => {
+    const safeReports = reports || [];
+    if (activeTab === "all") return safeReports;
+    const res = [];
+    for (let i = 0; i < safeReports.length; i++) {
+      if (safeReports[i].category === activeTab) {
+        res.push(safeReports[i]);
+      }
+    }
+    return res;
+  }, [reports, activeTab]);
 
   function toggleSelect(id) {
     setSelectedIds((prev) => {
@@ -60,9 +76,16 @@ export default function ReportsPage() {
   }
   
   function toggleSelectAll() {
-    setSelectedIds((prev) =>
-      prev.size === visibleReports.length ? new Set() : new Set(visibleReports.map((r) => r.id))
-    );
+    setSelectedIds((prev) => {
+      if (prev.size === visibleReports.length) {
+        return new Set();
+      }
+      const all = new Set();
+      for (let i = 0; i < visibleReports.length; i++) {
+        all.add(visibleReports[i].id);
+      }
+      return all;
+    });
   }
 
   async function handleDelete() {
@@ -88,12 +111,10 @@ export default function ReportsPage() {
     }
   }
 
-  // UPGRADED: Actually simulates downloading a bulk export file!
   async function handleBulkExport() {
     showToast(`Preparing export for ${selectedIds.size} report(s)...`, "info");
     
     try {
-      // Simulate backend zipping delay
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       const fileContent = `Bulk Export Data\nSelected IDs: ${Array.from(selectedIds).join(', ')}`;
@@ -109,28 +130,28 @@ export default function ReportsPage() {
       window.URL.revokeObjectURL(downloadUrl);
       
       showToast("Export downloaded successfully!", "success");
-      setSelectedIds(new Set()); // Clear selection after export
+      setSelectedIds(new Set());
     } catch (error) {
       showToast("Failed to export reports.", "error");
     }
   }
 
   return (
-    <div className="p-6 md:p-8 space-y-6 min-h-screen bg-[#F8F9FA] pb-20">
+    <div className="p-6 md:p-8 space-y-6 min-h-screen bg-[#F8F9FA] dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-20 transition-colors duration-200">
       
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             Reports &amp; Exports
           </h1>
-          <p className="text-base text-gray-500 mt-2">
+          <p className="text-base text-gray-500 dark:text-slate-400 mt-2">
             Generate detailed reports for campaigns, engagement, audience growth, and publishing performance.
           </p>
         </div>
         <Button 
           onClick={() => setModalOpen(true)}
-          className="bg-[#311b92] text-white font-bold text-sm px-6 py-6 rounded-xl hover:bg-[#28157a] transition-colors shadow-sm flex items-center gap-2 whitespace-nowrap"
+          className="bg-[#311b92] dark:bg-[#5b21b6] text-white font-bold text-sm px-6 py-6 rounded-xl hover:bg-[#28157a] dark:hover:bg-[#4c1d95] transition-colors shadow-sm flex items-center gap-2 whitespace-nowrap cursor-pointer"
         >
           <Plus size={18} strokeWidth={3} /> Generate report
         </Button>
@@ -143,20 +164,20 @@ export default function ReportsPage() {
         storageUsed={loading ? "—" : `${((reports?.length || 0) * 1.8).toFixed(1)} MB`}
       />
 
-      <Card className="mb-6 shadow-sm border-gray-200 bg-white">
+      <Card className="mb-6 shadow-sm border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900">
         <CardContent className="p-4 md:p-6 overflow-hidden">
           
           <ReportsFilterBar filters={filters} onChange={setFilters} campaigns={campaigns} />
 
-          {/* CUSTOM TABS: Scrollable on mobile, clean on desktop */}
+          {/* CUSTOM TABS */}
           <div className="w-full overflow-x-auto custom-scrollbar">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-8 mb-4 min-w-max">
-              <TabsList className="flex w-full justify-start gap-8 rounded-none border-b border-gray-200 bg-transparent p-0 h-auto">
+              <TabsList className="flex w-full justify-start gap-8 rounded-none border-b border-gray-200 dark:border-slate-800 bg-transparent p-0 h-auto">
                 {CATEGORIES.map((c) => (
                   <TabsTrigger 
                     key={c.value} 
                     value={c.value}
-                    className="rounded-none border-b-2 border-transparent px-1 pb-4 pt-2 font-extrabold text-base text-slate-500 shadow-none transition-none data-[state=active]:border-purple-800 data-[state=active]:text-purple-900 data-[state=active]:shadow-none hover:text-slate-800"
+                    className="rounded-none border-b-2 border-transparent px-1 pb-4 pt-2 font-extrabold text-base text-slate-500 dark:text-slate-400 shadow-none transition-none data-[state=active]:border-purple-800 data-[state=active]:dark:border-purple-400 data-[state=active]:text-purple-900 data-[state=active]:dark:text-purple-300 data-[state=active]:shadow-none hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
                   >
                     {c.label} ({counts[c.value] ?? 0})
                   </TabsTrigger>
@@ -206,9 +227,9 @@ export default function ReportsPage() {
       </Card>
 
       {/* Scheduled Reports Card */}
-      <Card className="shadow-sm border-gray-200 bg-white">
+      <Card className="shadow-sm border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900">
         <CardContent className="p-6 md:p-8">
-          <h3 className="font-extrabold text-slate-900 mb-6 text-lg">Scheduled reports</h3>
+          <h3 className="font-extrabold text-slate-900 dark:text-white mb-6 text-lg">Scheduled reports</h3>
           
           {schedLoading ? (
             <Loader label="Loading schedule..." />
@@ -219,14 +240,14 @@ export default function ReportsPage() {
               {scheduled?.map((s) => (
                 <div key={s.id} className="flex items-center justify-between group cursor-default">
                   <div>
-                    <p className="text-base font-extrabold text-slate-900 group-hover:text-purple-800 transition-colors">
+                    <p className="text-base font-extrabold text-slate-900 dark:text-white group-hover:text-purple-800 dark:group-hover:text-purple-300 transition-colors">
                       {s.title}
                     </p>
-                    <p className="text-sm font-medium text-slate-500 mt-1">
+                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">
                       {s.frequency}
                     </p>
                   </div>
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-md">
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-md">
                     {s.format}
                   </span>
                 </div>

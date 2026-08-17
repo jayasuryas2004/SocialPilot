@@ -171,11 +171,10 @@ export default function RegisterForm() {
           <div className="w-full h-full bg-[#9ca3af] relative rounded-[24px] flex items-center justify-center overflow-hidden">
             <Image
               src="/images/Registerfr.svg"
-              alt="SocialPilot Logo"
-              width={600}
-              height={500}
+              alt="SocialPilot Illustration"
+              fill
+              className="object-cover"
               priority
-              style={{ width: "40px", height: "40px" }}
             />
             {step === 1 ? (
               <Link href="/login">

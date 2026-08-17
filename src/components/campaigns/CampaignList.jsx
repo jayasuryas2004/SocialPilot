@@ -6,6 +6,12 @@ import {
 } from 'lucide-react';
 import { FaInstagram, FaFacebook, FaLinkedin, FaXTwitter, FaYoutube } from "react-icons/fa6";
 import { deleteCampaign, updateCampaign } from "@/lib/api/campaigns";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 const PLATFORMS_LIST = [
 
@@ -250,50 +256,50 @@ export default function CampaignList({ campaigns, setCampaigns, onEditExternal }
   };
 
   return (
-    <div className="bg-white rounded-3xl shadow-sm border border-slate-200 flex flex-col relative mt-6 min-h-[600px]">
+    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col relative mt-6 min-h-[600px] transition-colors duration-200">
 
       {/* FILTER BAR */}
-      <div className="p-6 flex flex-wrap gap-4 items-center justify-between border-b border-slate-100">
+      <div className="p-6 flex flex-wrap gap-4 items-center justify-between border-b border-slate-100 dark:border-slate-800 relative z-20">
         <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
           <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium w-full sm:w-48 outline-none focus:border-[#311b92] focus:ring-1 focus:ring-[#311b92] transition-all"
+              className="pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium w-full sm:w-48 text-slate-900 dark:text-white outline-none focus:border-[#311b92] focus:ring-1 focus:ring-[#311b92] transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
               placeholder="Search..."
             />
           </div>
 
-          <select value={filterPlatform} onChange={(e) => setFilterPlatform(e.target.value)} className="border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-bold bg-white outline-none cursor-pointer hover:bg-slate-50">
-            <option>Platform</option>
+          <select value={filterPlatform} onChange={(e) => setFilterPlatform(e.target.value)} className="border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl text-sm font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-750">
+            <option value="Platform">Platform</option>
             {PLATFORMS_LIST.map((p) => <option key={p.id} value={p.id}>{p.id}</option>)}
           </select>
 
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-bold bg-white outline-none cursor-pointer hover:bg-slate-50">
-            <option>Status</option>
-            <option>Active</option><option>Scheduled</option><option>Draft</option><option>Completed</option>
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl text-sm font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-750">
+            <option value="Status">Status</option>
+            <option value="Active">Active</option><option value="Scheduled">Scheduled</option><option value="Draft">Draft</option><option value="Completed">Completed</option>
           </select>
 
-          <select value={filterObjective} onChange={(e) => setFilterObjective(e.target.value)} className="border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-bold bg-white outline-none cursor-pointer hover:bg-slate-50">
-            <option>Objective</option>
-            <option>Awareness</option><option>Sales</option>
+          <select value={filterObjective} onChange={(e) => setFilterObjective(e.target.value)} className="border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl text-sm font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-750">
+            <option value="Objective">Objective</option>
+            <option value="Awareness">Awareness</option><option value="Sales">Sales</option>
           </select>
         </div>
-        <button onClick={clearFilters} className="text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors">
+        <button onClick={clearFilters} className="text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer">
           Clear Filters
         </button>
       </div>
 
       {/* TABS */}
-      <div className="px-6 flex gap-8 border-b border-slate-100 overflow-x-auto custom-scrollbar">
+      <div className="px-6 flex gap-8 border-b border-slate-100 dark:border-slate-800 overflow-x-auto custom-scrollbar">
         {TABS.map((tab) => (
           <button
             key={tab.name}
             onClick={() => setActiveTab(tab.name)}
-            className={`py-4 text-sm font-bold border-b-[3px] transition-colors whitespace-nowrap ${
-              activeTab === tab.name ? 'border-[#311b92] text-[#311b92]' : 'border-transparent text-slate-500 hover:text-slate-800'
+            className={`py-4 text-sm font-bold border-b-[3px] transition-colors whitespace-nowrap cursor-pointer ${
+              activeTab === tab.name ? 'border-[#311b92] dark:border-purple-400 text-[#311b92] dark:text-purple-300' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
             {tab.name} ({tab.count})
@@ -317,17 +323,17 @@ export default function CampaignList({ campaigns, setCampaigns, onEditExternal }
         </div>
       )}
 
-      {/* TABLE */}
-      <div className="w-full overflow-x-auto mt-2 flex-1">
+      {/* 3. TABLE */}
+      <div className="w-full overflow-x-auto mt-2 flex-1 pb-32 min-h-[420px]">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="border-b border-slate-100 text-xs font-bold text-slate-800">
+            <tr className="border-b border-slate-100 dark:border-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200">
               <th className="py-4 pl-6 pr-4 w-12">
                 <input
                   type="checkbox"
                   checked={currentTableData.length > 0 && selectedCampaigns.length === currentTableData.length}
                   onChange={handleSelectAll}
-                  className="w-4 h-4 rounded border-slate-300 text-[#311b92] cursor-pointer"
+                  className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-[#311b92] dark:text-purple-500 cursor-pointer"
                 />
               </th>
               <th className="py-4 px-4 min-w-[250px]">Campaign</th>
@@ -340,86 +346,93 @@ export default function CampaignList({ campaigns, setCampaigns, onEditExternal }
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-slate-50">
+          <tbody className="divide-y divide-slate-50 dark:divide-slate-800/60">
             {currentTableData.length === 0 ? (
               <tr>
-                <td colSpan="8" className="text-center py-16 text-slate-500 font-medium">
+                <td colSpan="8" className="text-center py-16 text-slate-500 dark:text-slate-400 font-medium">
                   <div className="flex flex-col items-center justify-center gap-2">
-                    <Search size={32} className="text-slate-300 mb-2" />
+                    <Search size={32} className="text-slate-300 dark:text-slate-600 mb-2" />
                     <p>No campaigns found for this tab/filter.</p>
                   </div>
                 </td>
               </tr>
-            ) : currentTableData.map((camp, index) => (
-              <tr key={`campaign-row-${camp.id || index}`} className="hover:bg-slate-50/50 transition-colors group">
-                <td className="py-4 pl-6 pr-4 relative">
-                  {selectedCampaigns.includes(camp.id) && <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#311b92] rounded-r" />}
-                  <div
-                    className={`w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors ${
-                      selectedCampaigns.includes(camp.id) ? 'bg-[#311b92] border-[#311b92]' : 'border-slate-300 bg-white'
-                    }`}
-                    onClick={() => handleSelectOne(camp.id)}
-                  >
-                    {selectedCampaigns.includes(camp.id) && <CheckCircle2 size={12} className="text-white" strokeWidth={4} />}
-                  </div>
-                </td>
-
-
-                <td className="py-4 px-4">
-                  <div className="flex items-center gap-4 cursor-pointer" onClick={() => openPreview(camp)}>
-                    {camp.image && typeof camp.image === 'string' && (camp.image.startsWith('http') || camp.image.startsWith('data:image')) ? (
-                      <img src={camp.image} alt={camp.title} className="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-sm flex-shrink-0" />
-                    ) : (
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#311b92] to-[#5e35b1] text-white flex items-center justify-center shadow-sm flex-shrink-0">
-                        <FolderKanban size={22} strokeWidth={2} />
-                      </div>
+            ) : (
+              currentTableData.map((camp) => (
+                <tr key={`camp-row-${camp.id}`} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors group">
+                  <td className="py-4 pl-6 pr-4 relative">
+                    {selectedCampaigns.includes(camp.id) && (
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#311b92] dark:bg-purple-500 rounded-r" />
                     )}
-                    <div>
-                      <p className="font-bold text-slate-800 text-sm group-hover:text-[#311b92] transition-colors">{camp.title}</p>
-                      <p className="text-[11px] font-medium text-slate-400 truncate max-w-[200px] mt-0.5">{camp.subtitle}</p>
-                    </div>
-                  </div>
-                </td>
-
-                <td className="py-4 px-4">{renderPlatformIcons(camp.platforms)}</td>
-                <td className="py-4 px-4 text-xs font-bold text-slate-700">{camp.objective}</td>
-                <td className="py-4 px-4 text-xs font-bold text-slate-700">{camp.startDate}</td>
-                <td className="py-4 px-4 text-xs font-bold text-slate-700">{camp.endDate}</td>
-                <td className="py-4 px-4">{getStatusBadge(camp.status)}</td>
-
-                <td className="py-4 pr-6 pl-4 relative text-center">
-                  <div className="inline-block relative">
-                    <button
-                      onClick={() => setActiveDropdown(activeDropdown === camp.id ? null : camp.id)}
-                      className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors shadow-sm ${
-                        activeDropdown === camp.id ? 'bg-[#28157a] text-white' : 'bg-[#311b92] text-white hover:bg-[#28157a]'
+                    <div
+                      className={`w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors ${
+                        selectedCampaigns.includes(camp.id) ? 'bg-[#311b92] dark:bg-purple-600 border-[#311b92] dark:border-purple-600' : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
                       }`}
+                      onClick={() => handleSelectOne(camp.id)}
                     >
-                      <MoreVertical size={16} strokeWidth={2.5} />
-                    </button>
+                      {selectedCampaigns.includes(camp.id) && (
+                        <CheckCircle2 size={12} className="text-white" strokeWidth={4} />
+                      )}
+                    </div>
+                  </td>
 
-                    {activeDropdown === camp.id && (
-                      <>
-                        <div className="fixed inset-0 z-40" onClick={() => setActiveDropdown(null)} />
-                        <div className="absolute right-0 top-full mt-2 w-40 bg-white border border-slate-200 shadow-xl rounded-2xl z-50 flex flex-col py-2 overflow-hidden">
-                          <button onClick={() => { openPreview(camp); setActiveDropdown(null); }} className="flex items-center gap-2.5 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 text-left">
-                            <Eye size={16} strokeWidth={2.5} /> View Details
-                          </button>
-                          {camp.status !== 'Completed' && (
-                            <button onClick={() => handleEdit(camp)} className="flex items-center gap-2.5 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 text-left">
-                              <Edit size={16} strokeWidth={2.5} /> Edit
-                            </button>
-                          )}
-                          <button onClick={() => { setDeleteTarget(camp.id); setActiveDropdown(null); }} className="flex items-center gap-2.5 px-4 py-2 text-sm font-bold text-rose-600 hover:bg-rose-50 text-left">
+                  <td className="py-4 px-4 cursor-pointer" onClick={() => openPreview(camp)}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-[#311b92] dark:text-purple-300 flex items-center justify-center shrink-0 font-bold">
+                        <FolderKanban size={20} />
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-800 dark:text-white text-sm hover:text-[#311b92] dark:hover:text-purple-400 transition-colors">{camp.title}</p>
+                        <p className="text-[11px] font-medium text-slate-400 dark:text-slate-400 truncate max-w-[220px] mt-0.5">{camp.description || camp.subtitle}</p>
+                      </div>
+                    </div>
+                  </td>
+
+                  <td className="py-4 px-4">
+                    {renderPlatformIcons(camp.platforms)}
+                  </td>
+
+                  <td className="py-4 px-4 text-xs font-bold text-slate-700 dark:text-slate-300">{camp.objective}</td>
+                  <td className="py-4 px-4 text-xs font-bold text-slate-600 dark:text-slate-400">{camp.startDate}</td>
+                  <td className="py-4 px-4 text-xs font-bold text-slate-600 dark:text-slate-400">{camp.endDate}</td>
+
+                  <td className="py-4 px-4">
+                    {getStatusBadge(camp.status)}
+                  </td>
+
+                  <td className="py-4 pr-6 pl-4 text-center relative z-20">
+                    <div className="inline-block relative">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors shadow-sm bg-[#311b92] dark:bg-[#5b21b6] text-white hover:bg-[#28157a] cursor-pointer outline-none">
+                          <MoreVertical size={16} strokeWidth={2.5} />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" side="bottom" sideOffset={6} className="w-44 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl p-1.5 z-[9999]">
+                          <DropdownMenuItem
+                            onClick={() => openPreview(camp)}
+                            className="flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl cursor-pointer"
+                          >
+                            <Eye size={16} strokeWidth={2.5} /> Preview
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem
+                            onClick={() => handleEdit(camp)}
+                            className="flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl cursor-pointer"
+                          >
+                            <Edit size={16} strokeWidth={2.5} /> Edit
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem
+                            onClick={() => setDeleteTarget(camp.id)}
+                            className="flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl cursor-pointer"
+                          >
                             <Trash2 size={16} strokeWidth={2.5} /> Delete
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

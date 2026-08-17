@@ -3,7 +3,6 @@ import { useState, useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ChevronDown, Activity } from 'lucide-react';
 
-// --- MOCK DATABASE ---
 const MOCK_WEEKLY_TRENDS = [
   { date: 'Mon', engagement: 12000, reach: 24000 },
   { date: 'Tue', engagement: 15000, reach: 28000 },
@@ -24,19 +23,18 @@ const MOCK_MONTHLY_TRENDS = [
 export default function TrendChart() {
   const [timeline, setTimeline] = useState('weekly');
 
-  // Compute Data based on timeline
   const displayTrends = useMemo(() => {
     return timeline === 'weekly' ? MOCK_WEEKLY_TRENDS : MOCK_MONTHLY_TRENDS;
   }, [timeline]);
 
   return (
-    <div className="bg-white rounded-3xl shadow-sm border border-slate-200 flex flex-col h-[450px]">
+    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col h-[450px] transition-colors">
       
       {/* 1. HEADER & LEGEND */}
-      <div className="p-6 border-b border-slate-50 flex justify-between items-center shrink-0">
+      <div className="p-6 border-b border-slate-50 dark:border-slate-800 flex justify-between items-center shrink-0">
         
-        {/* Custom Header with built-in legend to match design */}
-        <h2 className="font-black text-slate-900 flex items-center gap-8 text-lg shrink-0">
+        {/* Custom Header with built-in legend */}
+        <h2 className="font-black text-slate-900 dark:text-white flex items-center gap-8 text-lg shrink-0">
           <div className="flex items-center gap-2">
              <div className="w-3.5 h-3.5 rounded-full bg-[#8b5cf6]"></div> Engagement
           </div>
@@ -50,7 +48,7 @@ export default function TrendChart() {
           <select 
             value={timeline}
             onChange={(e) => setTimeline(e.target.value)}
-            className="appearance-none border border-slate-200 pl-4 pr-10 py-2.5 rounded-xl text-sm font-bold outline-none hover:bg-slate-50 cursor-pointer bg-white text-slate-700 min-w-[120px]"
+            className="appearance-none border border-slate-200 dark:border-slate-700 pl-4 pr-10 py-2.5 rounded-xl text-sm font-bold outline-none hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 min-w-[120px]"
           >
             <option value="weekly">This Week</option>
             <option value="monthly">This Month</option>
@@ -76,13 +74,13 @@ export default function TrendChart() {
               </linearGradient>
             </defs>
 
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.3} />
             <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 13, fontWeight: 600}} dy={15} />
             <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 13, fontWeight: 600}} />
             
             <Tooltip 
-              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-              itemStyle={{ fontWeight: 800, color: '#1e293b' }}
+              contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#1e293b', color: '#fff', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+              itemStyle={{ fontWeight: 800, color: '#fff' }}
             />
             
             <Area 

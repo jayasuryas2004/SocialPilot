@@ -39,11 +39,11 @@ const FollowersTooltip = ({ active, payload }) => {
     const data = payload[0].payload;
     const barColor = PLATFORM_COLORS[data.platform.toLowerCase()] || PLATFORM_COLORS.default;
     return (
-      <div className="bg-white p-3 rounded-xl shadow-xl border border-slate-100 flex items-center gap-3">
+      <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 flex items-center gap-3">
         <div className="w-3 h-3 rounded-full" style={{ backgroundColor: barColor }} />
         <div>
-          <p className="font-bold text-slate-900 text-sm">{data.platform}</p>
-          <p className="font-black text-slate-700">{data.value.toLocaleString()} <span className="text-xs font-medium text-slate-400">Followers</span></p>
+          <p className="font-bold text-slate-900 dark:text-white text-sm">{data.platform}</p>
+          <p className="font-black text-slate-700 dark:text-slate-300">{data.value.toLocaleString()} <span className="text-xs font-medium text-slate-400">Followers</span></p>
         </div>
       </div>
     );
@@ -64,12 +64,12 @@ export default function TotalFollowers() {
   }, [followersTimeline, platformView]);
 
   return (
-    <div className="bg-white rounded-3xl shadow-sm border border-slate-200 flex flex-col overflow-hidden h-[520px]">
+    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden h-[520px] transition-colors">
        
        {/* HEADER & FILTERS */}
-       <div className="p-6 border-b border-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center shrink-0 gap-4">
-          <h2 className="font-black text-slate-900 flex items-center gap-3 text-lg">
-            <div className="bg-indigo-50 p-2 rounded-xl text-indigo-600">
+       <div className="p-6 border-b border-slate-50 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center shrink-0 gap-4">
+          <h2 className="font-black text-slate-900 dark:text-white flex items-center gap-3 text-lg">
+            <div className="bg-indigo-50 dark:bg-indigo-950/60 p-2 rounded-xl text-indigo-600 dark:text-indigo-400">
               <Users size={20} strokeWidth={2.5} />
             </div>
             Total Followers
@@ -80,7 +80,7 @@ export default function TotalFollowers() {
               <select 
                 value={followersTimeline}
                 onChange={(e) => setFollowersTimeline(e.target.value)}
-                className="border border-slate-200 pl-4 pr-10 py-2.5 rounded-xl text-sm font-bold text-slate-700 outline-none hover:bg-slate-50 cursor-pointer bg-white appearance-none w-full"
+                className="border border-slate-200 dark:border-slate-700 pl-4 pr-10 py-2.5 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 outline-none hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer bg-white dark:bg-slate-800 appearance-none w-full"
               >
                 <option value="weekly">Weekly</option>
                 <option value="monthly">Monthly</option>
@@ -92,7 +92,7 @@ export default function TotalFollowers() {
               <select 
                 value={platformView}
                 onChange={(e) => setPlatformView(e.target.value)}
-                className="border border-slate-200 pl-4 pr-10 py-2.5 rounded-xl text-sm font-bold text-slate-700 outline-none hover:bg-slate-50 cursor-pointer bg-white appearance-none w-full"
+                className="border border-slate-200 dark:border-slate-700 pl-4 pr-10 py-2.5 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 outline-none hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer bg-white dark:bg-slate-800 appearance-none w-full"
               >
                 <option value="all">All Platforms</option>
                 <option value="top4">Top 4</option>
@@ -105,7 +105,6 @@ export default function TotalFollowers() {
        {/* CHART AREA */}
        <div className="flex-1 w-full px-4 pb-6 pt-4 min-h-0">
           <ResponsiveContainer width="100%" height="100%">
-             {/* INCREASED MARGIN prevents dots/bars from being cut off on the edges */}
              <ComposedChart data={displayFollowers} margin={{ top: 20, right: 30, left: 30, bottom: 0 }}>
                <defs>
                  <linearGradient id="colorFollowers" x1="0" y1="0" x2="0" y2="1">
@@ -114,8 +113,8 @@ export default function TotalFollowers() {
                  </linearGradient>
                </defs>
                
-               <XAxis dataKey="platform" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 13, fontWeight: 600}} dy={15} />
-               <Tooltip cursor={{fill: '#f8fafc'}} content={<FollowersTooltip />} />
+               <XAxis dataKey="platform" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 13, fontWeight: 600}} dy={15} />
+               <Tooltip cursor={{fill: '#334155', opacity: 0.1}} content={<FollowersTooltip />} />
                
                <Bar dataKey="value" barSize={40} radius={[6, 6, 0, 0]}>
                 {displayFollowers.map((entry, index) => {

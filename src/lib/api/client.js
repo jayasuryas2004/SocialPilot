@@ -4,7 +4,7 @@ import { getToken, clearSession } from "@/lib/auth/session";
 // Base URL for API requests, defaulting to the local FastAPI backend
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
-// Flag to switch between live API calls and mock responses
+// Flag to switch between live API calls and mock responses (defaults to false for live backend)
 export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 
 // Create configured Axios client instance
@@ -13,16 +13,23 @@ const client = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: true,
 });
 
-// Request interceptor: attach Bearer token to headers if available
-client.interceptors.request.use((config) => {
-  const token = getToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+// Request interceptor: attach Bearer token to headers of EVERY outgoing request
+client.interceptors.request.use(
+  (config) => {
+    const token = getToken();
+    if (token) {
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
-  return config;
-});
+);
 
 // Response interceptor: handle session expiration and normalize error responses
 client.interceptors.response.use(
@@ -36,7 +43,7 @@ client.interceptors.response.use(
       // Only redirect for protected routes, not when attempting to login or register
       if (!isAuthEndpoint) {
         clearSession();
-        if (typeof window !== "undefined") {
+        if (typeof window !== "undefined" && window.location.pathname !== "/login") {
           window.location.href = "/login";
         }
       }
@@ -55,7 +62,7 @@ function normalizeError(error) {
   if (typeof data?.detail === "string") {
     message = data.detail;
   } else if (Array.isArray(data?.detail)) {
-    // When FastAPI returns Pydantic validation error lists, extract error messages
+    // Extract error messages from validation error lists
     const messages = [];
     for (let i = 0; i < data.detail.length; i++) {
       const item = data.detail[i];
@@ -69,7 +76,7 @@ function normalizeError(error) {
   } else if (data?.message) {
     message = data.message;
   } else if (error.response?.status === 401) {
-    message = "Invalid credentials. Please check your email and password.";
+    message = "Unauthorized. Please log in to continue.";
   } else if (error.code === "ERR_NETWORK" || !error.response) {
     message = "Backend service connecting...";
   } else if (error.message) {

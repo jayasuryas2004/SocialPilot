@@ -4,7 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import NotificationList from "@/components/notifications/NotificationList";
-import { getWorkspaceStatus, markNotificationRead, markAllNotificationsRead } from "@/lib/api/workspace";
+import { 
+  getWorkspaceStatus, 
+  subscribeToWorkspaceStream, 
+  markNotificationRead, 
+  markAllNotificationsRead 
+} from "@/lib/api/workspace";
 
 export default function NotificationsPage() {
   const [activeTab, setActiveTab] = useState("all");
@@ -14,30 +19,54 @@ export default function NotificationsPage() {
   useEffect(() => {
     let isMounted = true;
 
-    const loadNotifs = () => {
-      getWorkspaceStatus()
-        .then((data) => {
-          if (isMounted) {
-            const notifs = data?.notifications || [];
-            if (Array.isArray(notifs)) {
-              setNotifications(notifs);
-            }
+    // 1. Initial snapshot fetch
+    getWorkspaceStatus()
+      .then((data) => {
+        if (isMounted) {
+          const notifs = data?.notifications || [];
+          if (Array.isArray(notifs)) {
+            setNotifications(notifs);
           }
-        })
-        .catch((err) => {
-          console.warn("Workspace status fetch notice:", err);
-        })
-        .finally(() => {
-          if (isMounted) setLoading(false);
-        });
+        }
+      })
+      .catch((err) => {
+        console.warn("Notice: Initial workspace fetch failed:", err);
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    // 2. Real-time Server-Sent Events (SSE) stream subscription
+    const unsubscribeStream = subscribeToWorkspaceStream(
+      (eventData) => {
+        if (isMounted && eventData) {
+          const notifs = eventData?.notifications;
+          if (Array.isArray(notifs)) {
+            setNotifications(notifs);
+          }
+        }
+      },
+      (err) => {
+        // SSE error notice (handled gracefully by EventSource automatic retry)
+      }
+    );
+
+    // 3. Local custom event listener for instant UI updates
+    const handleUpdate = () => {
+      getWorkspaceStatus().then((data) => {
+        if (isMounted && data?.notifications) {
+          setNotifications(data.notifications);
+        }
+      }).catch(() => {});
     };
+    window.addEventListener("notifications_updated", handleUpdate);
 
-    loadNotifs();
-
-    window.addEventListener("notifications_updated", loadNotifs);
     return () => {
       isMounted = false;
-      window.removeEventListener("notifications_updated", loadNotifs);
+      if (typeof unsubscribeStream === "function") {
+        unsubscribeStream();
+      }
+      window.removeEventListener("notifications_updated", handleUpdate);
     };
   }, []);
 
@@ -94,15 +123,15 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div className="p-6 md:p-8 space-y-6">
+    <div className="p-6 md:p-8 space-y-6 min-h-screen bg-[#F8F9FA] dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-20 transition-colors duration-200">
       
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             System Notifications &amp; Activity
           </h1>
-          <p className="text-base text-gray-500 mt-2">
+          <p className="text-base text-gray-500 dark:text-slate-400 mt-2">
             Real-time APScheduler publishing logs, OAuth sync alerts, and social performance updates.
           </p>
         </div>
@@ -111,19 +140,19 @@ export default function NotificationsPage() {
           <Button 
             onClick={handleMarkAllAsRead}
             variant="outline"
-            className="border-violet-200 text-violet-700 hover:bg-violet-50 rounded-full px-6 py-5 font-bold text-sm shadow-sm transition-colors cursor-pointer"
+            className="border-violet-200 dark:border-purple-800 text-violet-700 dark:text-purple-300 hover:bg-violet-50 dark:hover:bg-purple-950/60 rounded-full px-6 py-5 font-bold text-sm shadow-sm transition-colors cursor-pointer"
           >
             Mark all as read
           </Button>
         )}
       </div>
 
-      <Card className="shadow-sm border-gray-200 bg-white">
+      <Card className="shadow-sm border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900">
         <CardContent className="p-0">
           
           {/* TABS SECTION (FILTER) */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full block">
-            <div className="px-4 md:px-6 pt-4 md:pt-6 border-b border-gray-100">
+            <div className="px-4 md:px-6 pt-4 md:pt-6 border-b border-gray-100 dark:border-slate-800">
               <TabsList className="flex w-full justify-start gap-6 md:gap-8 rounded-none bg-transparent p-0 h-auto overflow-x-auto custom-scrollbar">
                 {[
                   { value: "all", label: "All" },
@@ -135,7 +164,7 @@ export default function NotificationsPage() {
                   <TabsTrigger 
                     key={tab.value} 
                     value={tab.value}
-                    className="rounded-none border-b-2 border-transparent px-1 pb-4 pt-2 font-extrabold text-sm md:text-base text-slate-500 shadow-none transition-none data-[state=active]:border-violet-800 data-[state=active]:text-violet-900 data-[state=active]:shadow-none hover:text-slate-800 whitespace-nowrap cursor-pointer"
+                    className="rounded-none border-b-2 border-transparent px-1 pb-4 pt-2 font-extrabold text-sm md:text-base text-slate-500 dark:text-slate-400 shadow-none transition-none data-[state=active]:border-violet-800 data-[state=active]:dark:border-violet-400 data-[state=active]:text-violet-900 data-[state=active]:dark:text-violet-300 data-[state=active]:shadow-none hover:text-slate-800 dark:hover:text-slate-200 whitespace-nowrap cursor-pointer"
                   >
                     {tab.label} {counts[tab.value] > 0 && `(${counts[tab.value]})`}
                   </TabsTrigger>
@@ -147,7 +176,7 @@ export default function NotificationsPage() {
           {/* NOTIFICATIONS SECTION (CONTENT) */}
           <div className="w-full">
             {loading ? (
-              <div className="p-12 text-center text-slate-400 font-medium animate-pulse">
+              <div className="p-12 text-center text-slate-400 dark:text-slate-500 font-medium animate-pulse">
                 Loading notifications...
               </div>
             ) : (

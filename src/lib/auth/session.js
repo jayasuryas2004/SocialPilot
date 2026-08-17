@@ -2,6 +2,8 @@
 const TOKEN_KEY = "sp_token";
 const USER_KEY = "sp_user";
 
+const TOKEN_KEYS = ["sp_token", "token", "access_token", "jwt"];
+
 /**
  * Persist the authentication token and user information.
  * Stores the JWT token in cookies (for Next.js SSR / middleware access)
@@ -41,17 +43,26 @@ export function getToken() {
   }
 
   // 1. Try reading the token from cookies
-  const cookieMatch = document.cookie.match(new RegExp(`${TOKEN_KEY}=([^;]+)`));
-  if (cookieMatch && cookieMatch[1]) {
-    return cookieMatch[1];
+  for (let i = 0; i < TOKEN_KEYS.length; i++) {
+    const key = TOKEN_KEYS[i];
+    const cookieMatch = document.cookie.match(new RegExp(`(?:^|;\\s*)${key}=([^;]+)`));
+    if (cookieMatch && cookieMatch[1]) {
+      return cookieMatch[1].trim();
+    }
   }
 
   // 2. Fall back to localStorage if available
   if (typeof window !== "undefined") {
-    try {
-      return localStorage.getItem(TOKEN_KEY);
-    } catch (err) {
-      return null;
+    for (let i = 0; i < TOKEN_KEYS.length; i++) {
+      const key = TOKEN_KEYS[i];
+      try {
+        const storedVal = localStorage.getItem(key);
+        if (storedVal && storedVal.trim()) {
+          return storedVal.trim();
+        }
+      } catch (err) {
+        // Ignore storage access errors
+      }
     }
   }
 
@@ -86,16 +97,26 @@ export function clearSession() {
     return;
   }
 
-  // Expire the authentication cookie
-  document.cookie = `${TOKEN_KEY}=; path=/; max-age=0; SameSite=Lax`;
+  // Expire all possible authentication cookies
+  for (let i = 0; i < TOKEN_KEYS.length; i++) {
+    const key = TOKEN_KEYS[i];
+    document.cookie = `${key}=; path=/; max-age=0; SameSite=Lax`;
+  }
 
   // Remove stored items from localStorage
   if (typeof window !== "undefined") {
+    for (let i = 0; i < TOKEN_KEYS.length; i++) {
+      const key = TOKEN_KEYS[i];
+      try {
+        localStorage.removeItem(key);
+      } catch (err) {
+        // Ignore
+      }
+    }
     try {
-      localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
     } catch (err) {
-      console.error("Failed to clear localStorage session:", err);
+      // Ignore
     }
   }
-}
+}

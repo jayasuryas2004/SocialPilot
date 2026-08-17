@@ -1,4 +1,7 @@
 import client from "./client";
+import { getToken } from "@/lib/auth/session";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 /**
  * Fetches workspace status including real background worker notifications
@@ -24,6 +27,59 @@ export async function getWorkspaceStatus() {
       };
     }
   }
+}
+
+/**
+ * Subscribes to real-time Server-Sent Events (SSE) workspace stream.
+ * Returns a cleanup function that cleanly closes the EventSource connection.
+ */
+export function subscribeToWorkspaceStream(onMessage, onError) {
+  if (typeof window === "undefined") {
+    return function cleanup() {};
+  }
+
+  const token = getToken();
+  let streamUrl = `${API_BASE_URL}/api/workspace/stream`;
+  if (token) {
+    streamUrl = `${streamUrl}?token=${encodeURIComponent(token)}`;
+  }
+
+  let eventSource = null;
+  try {
+    eventSource = new EventSource(streamUrl);
+
+    eventSource.onmessage = function (event) {
+      if (!event || !event.data) return;
+      try {
+        const payload = JSON.parse(event.data);
+        if (onMessage && typeof onMessage === "function") {
+          onMessage(payload);
+        }
+      } catch (parseError) {
+        console.warn("Notice: Failed to parse SSE event packet:", parseError);
+      }
+    };
+
+    eventSource.onerror = function (err) {
+      if (onError && typeof onError === "function") {
+        onError(err);
+      }
+    };
+  } catch (initErr) {
+    console.warn("Notice: EventSource initialization error:", initErr);
+  }
+
+  // Cleanup handler invoked on component unmount
+  return function cleanup() {
+    if (eventSource) {
+      try {
+        eventSource.close();
+      } catch (closeErr) {
+        console.warn("Notice: Error closing EventSource stream:", closeErr);
+      }
+      eventSource = null;
+    }
+  };
 }
 
 /**
