@@ -37,7 +37,10 @@ from app.api.workspace import (
     notif_router,
     notif_router_alt
 )
+from fastapi.staticfiles import StaticFiles
 from app.api.accounts import router as accounts_router, router_alt as accounts_alt_router
+from app.api.settings import router as settings_router, router_api as settings_api_router
+from app.api.admin import router as admin_alt_router, admin_router
 
 load_dotenv()
 
@@ -150,10 +153,58 @@ app.add_middleware(
 )
 
 
+def ensure_database_columns():
+    """
+    Checks and migrates missing user columns safely.
+    Strictly uses standard for/while loops (no comprehensions or lambdas).
+    """
+    try:
+        from sqlalchemy import text
+        with engine.begin() as conn:
+            columns_to_add = [
+                ("first_name", "VARCHAR"),
+                ("last_name", "VARCHAR"),
+                ("username", "VARCHAR"),
+                ("avatar_url", "VARCHAR"),
+                ("theme", "VARCHAR DEFAULT 'System'"),
+                ("language", "VARCHAR DEFAULT 'English'")
+            ]
+
+            existing_cols = []
+            if str(engine.url).startswith("sqlite"):
+                result = conn.execute(text("PRAGMA table_info(users)"))
+                for row in result.fetchall():
+                    existing_cols.append(row[1])
+            else:
+                result = conn.execute(text(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name='users'"
+                ))
+                for row in result.fetchall():
+                    existing_cols.append(row[0])
+
+            for col_info in columns_to_add:
+                col_name = col_info[0]
+                col_type = col_info[1]
+                if col_name not in existing_cols:
+                    try:
+                        conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type};"))
+                    except Exception as alter_err:
+                        print(f"Notice adding column {col_name}: {alter_err}")
+    except Exception as e:
+        print(f"Notice during schema column check: {e}")
+
+
+# Ensure uploads directory structure exists and mount static route
+uploads_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "uploads"))
+os.makedirs(os.path.join(uploads_root, "avatars"), exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=uploads_root), name="uploads")
+
+
 @app.on_event("startup")
 def startup_event():
-    # 1. Initialize database schema tables
+    # 1. Initialize database schema tables and ensure columns
     Base.metadata.create_all(bind=engine)
+    ensure_database_columns()
 
     # 2. Seed dynamic workspace notifications into database
     seed_notifications_database()
@@ -162,8 +213,9 @@ def startup_event():
     start_scheduler()
 
 
-# Create database tables and seed workspace notifications
+# Create database tables, ensure columns, and seed workspace notifications
 Base.metadata.create_all(bind=engine)
+ensure_database_columns()
 seed_notifications_database()
 
 # Register API Routers
@@ -186,6 +238,10 @@ app.include_router(notif_router)
 app.include_router(notif_router_alt)
 app.include_router(accounts_router)
 app.include_router(accounts_alt_router)
+app.include_router(settings_router)
+app.include_router(settings_api_router)
+app.include_router(admin_router)
+app.include_router(admin_alt_router)
 
 
 @app.get("/metrics")

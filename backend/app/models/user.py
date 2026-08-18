@@ -12,9 +12,15 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
+    first_name = Column(String, nullable=True)
+    last_name = Column(String, nullable=True)
+    username = Column(String, nullable=True)
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
     role = Column(String, default="creator")
+    avatar_url = Column(String, nullable=True)
+    theme = Column(String, default="System", nullable=True)
+    language = Column(String, default="English", nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Cascading relationships: deleting a User automatically removes their associated resources

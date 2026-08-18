@@ -1,8 +1,9 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { 
   Moon, Sun, Globe, LogOut, 
-  ChevronDown, Check, ShieldCheck 
+  ChevronDown, Check, ShieldCheck, Settings 
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAppTheme } from "@/context/ThemeProvider";
@@ -88,6 +89,10 @@ export default function ProfileDropdown() {
     : "Content Creator";
   const initials = getInitials(displayName);
   const avatarColor = getAvatarColor(displayName);
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  const avatarSrc = user?.avatar_url 
+    ? (user.avatar_url.startsWith("http") ? user.avatar_url : `${apiUrl}${user.avatar_url}`)
+    : null;
 
   const handleLogoutClick = () => {
     setIsOpen(false);
@@ -107,8 +112,12 @@ export default function ProfileDropdown() {
           <p className="font-bold text-sm text-slate-900 dark:text-slate-100">{displayName}</p>
           <p className="text-xs text-slate-400 dark:text-slate-400 font-medium">{displayRole}</p>
         </div>
-        <div className={`w-10 h-10 rounded-full ${avatarColor} text-white flex items-center justify-center font-black text-sm shadow-md`}>
-          {initials}
+        <div className={`w-10 h-10 rounded-full ${avatarColor} text-white flex items-center justify-center font-black text-sm shadow-md overflow-hidden shrink-0`}>
+          {avatarSrc ? (
+            <img src={avatarSrc} alt={displayName} className="w-full h-full object-cover" />
+          ) : (
+            initials
+          )}
         </div>
         <ChevronDown 
           size={14} 
@@ -123,8 +132,12 @@ export default function ProfileDropdown() {
           {/* 1. Header with Active User Profile & Role */}
           <div className="p-5 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-800/40">
             <div className="flex items-center gap-3 mb-2">
-              <div className={`w-11 h-11 rounded-full ${avatarColor} text-white flex items-center justify-center font-black text-base shadow-sm shrink-0`}>
-                {initials}
+              <div className={`w-11 h-11 rounded-full ${avatarColor} text-white flex items-center justify-center font-black text-base shadow-sm shrink-0 overflow-hidden`}>
+                {avatarSrc ? (
+                  <img src={avatarSrc} alt={displayName} className="w-full h-full object-cover" />
+                ) : (
+                  initials
+                )}
               </div>
               <div className="overflow-hidden">
                 <p className="font-black text-sm text-slate-900 dark:text-white truncate">{displayName}</p>
@@ -139,6 +152,16 @@ export default function ProfileDropdown() {
 
           {/* 2. Menu Options */}
           <div className="p-2 space-y-1">
+
+            {/* ⚙️ Settings Navigation Link (Directly above Dark Mode) */}
+            <Link
+              href="/dashboard/settings"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-slate-700 dark:text-slate-200 font-bold text-xs cursor-pointer group"
+            >
+              <Settings size={16} className="text-[#311b92] dark:text-purple-400 group-hover:rotate-45 transition-transform duration-200" />
+              <span>⚙️ {t("settings", "Settings")}</span>
+            </Link>
             
             {/* Dark Mode Toggle Switch */}
             <div className="flex items-center justify-between px-3.5 py-2.5 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
