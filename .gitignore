@@ -30,7 +30,13 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
+backend/.env
+backend/.env.*
 !.env.example
+
+# local uploads
+uploads/
+backend/uploads/
 
 # vercel
 .vercel

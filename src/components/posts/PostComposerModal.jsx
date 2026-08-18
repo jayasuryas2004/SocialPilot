@@ -2,19 +2,19 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  X, Image as ImageIcon, Calendar, Clock, Hash,
-  Send, Loader2, Smile, MapPin, Check, Sparkles
+  X, Image as ImageIcon, Video, Film, Calendar, Clock, Hash,
+  Send, Loader2, Smile, MapPin, Check, Sparkles, Share2
 } from 'lucide-react';
 import {
   FaInstagram, FaFacebook, FaLinkedin, FaXTwitter, FaYoutube, FaReddit, FaPinterest
 } from "react-icons/fa6";
 import { getCampaigns } from "@/lib/api/campaigns";
-import { createPost } from "@/lib/api/posts";
+import { createPost, uploadMedia, publishMultiPlatform } from "@/lib/api/posts";
 
 const PLATFORMS = [
   { id: 'linkedin', label: 'LinkedIn', icon: FaLinkedin, color: 'hover:text-[#0A66C2] hover:bg-blue-50', activeColor: 'text-[#0A66C2] bg-blue-50 border-blue-200' },
-  { id: 'instagram', label: 'Instagram', icon: FaInstagram, color: 'hover:text-[#E1306C] hover:bg-pink-50', activeColor: 'text-[#E1306C] bg-pink-50 border-pink-200' },
   { id: 'facebook', label: 'Facebook', icon: FaFacebook, color: 'hover:text-[#1877F2] hover:bg-blue-50', activeColor: 'text-[#1877F2] bg-blue-50 border-blue-200' },
+  { id: 'instagram', label: 'Instagram', icon: FaInstagram, color: 'hover:text-[#E1306C] hover:bg-pink-50', activeColor: 'text-[#E1306C] bg-pink-50 border-pink-200' },
   { id: 'x-twitter', label: 'X (Twitter)', icon: FaXTwitter, color: 'hover:text-[#0f1419] hover:bg-slate-100', activeColor: 'text-[#0f1419] bg-slate-100 border-slate-300' },
   { id: 'youtube', label: 'YouTube', icon: FaYoutube, color: 'hover:text-[#FF0000] hover:bg-red-50', activeColor: 'text-[#FF0000] bg-red-50 border-red-200' },
   { id: 'reddit', label: 'Reddit', icon: FaReddit, color: 'hover:text-[#FF4500] hover:bg-orange-50', activeColor: 'text-[#FF4500] bg-orange-50 border-orange-200' },
@@ -40,13 +40,16 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
 
-  const [selectedPlatforms, setSelectedPlatforms] = useState(['linkedin']);
+  const [selectedPlatforms, setSelectedPlatforms] = useState(['linkedin', 'facebook']);
   const [content, setContent] = useState('');
   const [media, setMedia] = useState(null);
+  const [mediaType, setMediaType] = useState('image'); // 'image' | 'video'
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
   const [campaignId, setCampaignId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPublishingNow, setIsPublishingNow] = useState(false);
   const [loadedCampaigns, setLoadedCampaigns] = useState(campaigns);
 
   // Interactive Toolbar States
@@ -103,14 +106,45 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
     );
   };
 
-  const handleMediaUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setMedia(reader.result);
-      };
-      reader.readAsDataURL(file);
+  const handleMediaUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Enforce size limits conditionally
+    if (mediaType === 'image') {
+      const maxImageSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxImageSize) {
+        alert("Image size exceeds 5MB limit. Please select an image under 5MB.");
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+    } else if (mediaType === 'video') {
+      const maxVideoSize = 50 * 1024 * 1024; // 50MB
+      if (file.size > maxVideoSize) {
+        alert("Video size exceeds 50MB limit. Please select a video under 50MB.");
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+    }
+
+    // Set immediate preview via Data URL / Object URL
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setMedia(reader.result);
+    };
+    reader.readAsDataURL(file);
+
+    // Upload to memory-safe backend endpoint in background
+    try {
+      setIsUploadingMedia(true);
+      const uploadRes = await uploadMedia(file, mediaType);
+      if (uploadRes?.media_url) {
+        setMedia(uploadRes.media_url);
+      }
+    } catch (uploadErr) {
+      console.warn("Background upload notice (retaining base64 payload):", uploadErr);
+    } finally {
+      setIsUploadingMedia(false);
     }
   };
 
@@ -136,7 +170,8 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
   const resetForm = () => {
     setContent('');
     setMedia(null);
-    setSelectedPlatforms(['linkedin']);
+    setMediaType('image');
+    setSelectedPlatforms(['linkedin', 'facebook']);
     setScheduleDate('');
     setScheduleTime('');
     setCampaignId('');
@@ -145,10 +180,47 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
     setShowLocationPicker(false);
   };
 
+  // 1. Direct Publish Now Handler
+  const handlePublishNow = async () => {
+    if (selectedPlatforms.length === 0) return alert("Please select at least one platform (e.g., Facebook, LinkedIn).");
+    if (!content.trim() && !media) return alert("Please add some content or media.");
+
+    setIsPublishingNow(true);
+    const fullCaption = locationTag 
+      ? `${content.trim()}\n\n📍 ${locationTag}`
+      : content.trim();
+
+    const publishPayload = {
+      content: fullCaption,
+      platforms: selectedPlatforms,
+      title: content.trim().slice(0, 40) || "SocialPilot Post",
+      image_url: media,
+      media_url: media,
+      media_type: mediaType
+    };
+
+    console.log("Publishing live to Multi-Platform Engine:", publishPayload);
+
+    try {
+      const res = await publishMultiPlatform(publishPayload);
+      console.log("Publish result:", res);
+      alert(res.message || "Post published successfully to selected platforms!");
+      resetForm();
+      onClose();
+    } catch (err) {
+      console.error("Failed to publish post:", err);
+      const detail = err.response?.data?.detail || "Failed to publish post. Please verify your connected social accounts.";
+      alert(detail);
+    } finally {
+      setIsPublishingNow(false);
+    }
+  };
+
+  // 2. Schedule Post Handler
   const handleSubmit = async () => {
     if (selectedPlatforms.length === 0) return alert("Please select at least one platform.");
-    if (!content.trim() && !media) return alert("Please add some content or an image.");
-    if (!scheduleDate || !scheduleTime) return alert("Please select a date and time.");
+    if (!content.trim() && !media) return alert("Please add some content or media.");
+    if (!scheduleDate || !scheduleTime) return alert("Please select a date and time to schedule, or click 'Publish Now'.");
 
     setIsSubmitting(true);
 
@@ -157,7 +229,7 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
       : content.trim();
 
     const postPayload = {
-      platforms: selectedPlatforms.join(", "),
+      platforms: selectedPlatforms,
       platform: selectedPlatforms.join(", "),
       title: content.trim().slice(0, 40) || "SocialPilot Post",
       content: fullCaption,
@@ -165,6 +237,7 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
       image: media,
       media: media,
       media_url: media,
+      media_type: mediaType,
       mediaFile: media,
       scheduledAt: `${scheduleDate}T${scheduleTime}`,
       scheduled_date: scheduleDate,
@@ -184,12 +257,21 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
       resetForm();
       onClose();
     } catch (err) {
-
       console.error("Failed to save post:", err);
       alert("Failed to schedule post. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Helper to format media preview URL
+  const getMediaPreviewUrl = (url) => {
+    if (!url) return "";
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+      return url;
+    }
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+    return `${apiUrl}${url}`;
   };
 
   return createPortal(
@@ -198,23 +280,35 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
 
         <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white">
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-black text-slate-900">Create Post</h2>
-            {selectedPlatforms.includes('linkedin') && (
-              <span className="bg-[#0A66C2]/10 text-[#0A66C2] text-xs font-bold px-2 py-0.5 rounded-md border border-[#0A66C2]/20">
-                LinkedIn OAuth Verified
-              </span>
-            )}
+            <h2 className="text-xl font-black text-slate-900">Create & Publish Post</h2>
+            <div className="flex items-center gap-1.5">
+              {selectedPlatforms.includes('linkedin') && (
+                <span className="bg-[#0A66C2]/10 text-[#0A66C2] text-xs font-bold px-2 py-0.5 rounded-md border border-[#0A66C2]/20">
+                  LinkedIn
+                </span>
+              )}
+              {selectedPlatforms.includes('facebook') && (
+                <span className="bg-[#1877F2]/10 text-[#1877F2] text-xs font-bold px-2 py-0.5 rounded-md border border-[#1877F2]/20">
+                  Facebook
+                </span>
+              )}
+            </div>
           </div>
-          <button onClick={onClose} disabled={isSubmitting} className="p-2 text-slate-400 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-50 cursor-pointer">
+          <button onClick={onClose} disabled={isSubmitting || isPublishingNow} className="p-2 text-slate-400 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-50 cursor-pointer">
             <X size={18} strokeWidth={2.5} />
           </button>
         </div>
 
         <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-[#F8F9FA]">
 
-          {/* PLATFORMS */}
+          {/* PLATFORMS SELECTION TOGGLES */}
           <div className="mb-6">
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Select Platforms</label>
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Select Platforms</label>
+              <span className="text-[11px] font-bold text-slate-400">
+                {selectedPlatforms.length} selected
+              </span>
+            </div>
             <div className="flex flex-wrap gap-3">
               {PLATFORMS.map((platform) => {
                 const Icon = platform.icon;
@@ -224,16 +318,67 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
                     key={platform.id}
                     type="button"
                     onClick={() => togglePlatform(platform.id)}
-                    className={`w-12 h-12 rounded-xl flex items-center justify-center border-2 transition-all duration-200 shadow-sm cursor-pointer
-                      ${isActive ? platform.activeColor : `border-slate-200 text-slate-400 bg-white ${platform.color}`}
+                    className={`px-3.5 py-2.5 rounded-2xl flex items-center gap-2 border-2 transition-all duration-200 shadow-sm cursor-pointer text-xs font-bold
+                      ${isActive ? platform.activeColor : `border-slate-200 text-slate-500 bg-white ${platform.color}`}
                     `}
                     title={platform.label}
                   >
-                    <Icon size={20} />
+                    <Icon size={16} />
+                    <span>{platform.label}</span>
+                    {isActive && <Check size={14} className="ml-0.5 text-current" />}
                   </button>
                 );
               })}
             </div>
+          </div>
+
+          {/* MEDIA TYPE SELECTOR TOGGLE */}
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Media Format:</span>
+              <div className="inline-flex p-1 rounded-xl bg-slate-200/80 border border-slate-300/60 shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (mediaType !== 'image') {
+                      setMediaType('image');
+                      removeMedia();
+                    }
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    mediaType === 'image'
+                      ? 'bg-white text-[#311b92] shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <ImageIcon size={14} />
+                  <span>Image (max 5MB)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (mediaType !== 'video') {
+                      setMediaType('video');
+                      removeMedia();
+                    }
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    mediaType === 'video'
+                      ? 'bg-white text-[#311b92] shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Video size={14} />
+                  <span>Video (max 50MB)</span>
+                </button>
+              </div>
+            </div>
+
+            {isUploadingMedia && (
+              <span className="text-[11px] font-bold text-purple-600 flex items-center gap-1.5">
+                <Loader2 size={13} className="animate-spin" /> Uploading media...
+              </span>
+            )}
           </div>
 
           {/* COMPOSER CARD */}
@@ -257,11 +402,29 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
               </div>
             )}
 
-            {/* DYNAMIC IMAGE UPLOAD PREVIEW */}
+            {/* DYNAMIC MEDIA UPLOAD PREVIEW (IMAGE & VIDEO) */}
             {media && (
-              <div className="relative mx-4 mb-4 w-40 h-40 rounded-2xl border border-slate-200 overflow-hidden group shadow-sm bg-slate-50">
-                <img src={media} alt="Upload preview" className="w-full h-full object-cover" />
-                <button onClick={removeMedia} className="absolute top-2 right-2 bg-slate-900/70 text-white p-1.5 rounded-full opacity-90 group-hover:opacity-100 transition-opacity hover:bg-rose-500 cursor-pointer shadow-md">
+              <div className="relative mx-4 mb-4 rounded-2xl border border-slate-200 overflow-hidden group shadow-sm bg-slate-950/5">
+                {mediaType === 'video' ? (
+                  <video 
+                    src={getMediaPreviewUrl(media)} 
+                    controls 
+                    className="w-full max-h-60 rounded-2xl object-contain bg-black" 
+                  />
+                ) : (
+                  <div className="w-40 h-40">
+                    <img 
+                      src={getMediaPreviewUrl(media)} 
+                      alt="Upload preview" 
+                      className="w-full h-full object-cover rounded-2xl" 
+                    />
+                  </div>
+                )}
+                <button 
+                  onClick={removeMedia} 
+                  className="absolute top-2 right-2 bg-slate-900/70 text-white p-1.5 rounded-full opacity-90 group-hover:opacity-100 transition-opacity hover:bg-rose-500 cursor-pointer shadow-md z-10"
+                  title="Remove Media"
+                >
                   <X size={14} />
                 </button>
               </div>
@@ -275,10 +438,15 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
                   ref={fileInputRef}
                   onChange={handleMediaUpload}
                   className="hidden"
-                  accept="image/*,video/*"
+                  accept={mediaType === 'video' ? "video/mp4,video/quicktime,video/webm" : "image/*"}
                 />
-                <button onClick={() => fileInputRef.current?.click()} className="p-2 text-slate-500 hover:text-[#311b92] hover:bg-purple-50 rounded-lg transition-colors cursor-pointer" title="Add Media">
-                  <ImageIcon size={18} strokeWidth={2.5} />
+                <button 
+                  onClick={() => fileInputRef.current?.click()} 
+                  className="p-2 text-slate-500 hover:text-[#311b92] hover:bg-purple-50 rounded-lg transition-colors cursor-pointer flex items-center gap-1 text-xs font-bold" 
+                  title={mediaType === 'video' ? "Upload Video" : "Upload Image"}
+                >
+                  {mediaType === 'video' ? <Video size={18} strokeWidth={2.5} /> : <ImageIcon size={18} strokeWidth={2.5} />}
+                  <span>{mediaType === 'video' ? 'Add Video' : 'Add Image'}</span>
                 </button>
 
                 {/* EMOJI BUTTON */}
@@ -318,7 +486,7 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
                 {/* LOCATION BUTTON */}
                 <div className="relative">
                   <button 
-                    onClick={() => { setShowLocationPicker(!showLocationPicker); setShowEmojiPicker(false); }}
+                    onClick={() => { setShowLocationPicker(!showLocationPicker); setShowEmojiPicker(false); }} 
                     className={`p-2 rounded-lg transition-colors cursor-pointer ${showLocationPicker ? 'text-[#311b92] bg-purple-100' : 'text-slate-500 hover:text-[#311b92] hover:bg-purple-50'}`}
                     title="Add Location"
                   >
@@ -373,88 +541,119 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
                 </div>
               </div>
 
-              <span className={`text-xs font-bold ${content.length > 280 ? 'text-rose-500' : 'text-slate-400'}`}>
-                {content.length} / 280
-              </span>
+              <div className="text-[11px] font-bold text-slate-400">
+                {content.length} characters
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Schedule Date & Time</label>
-              <div className="flex flex-col gap-3">
-                <div className="relative">
-                  <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#311b92] pointer-events-none" />
-                  <input
-                    type="date"
-                    value={scheduleDate}
-                    onChange={(e) => setScheduleDate(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-[#311b92] text-sm font-bold text-slate-700"
-                  />
-                </div>
-                <div className="relative">
-                  <Clock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#311b92] pointer-events-none" />
-                  <input
-                    type="time"
-                    value={scheduleTime}
-                    onChange={(e) => setScheduleTime(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-[#311b92] text-sm font-bold text-slate-700"
-                  />
-                </div>
+          {/* SCHEDULE AND CAMPAIGN ROW */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Schedule Date</label>
+              <div className="relative">
+                <input
+                  type="date"
+                  value={scheduleDate}
+                  onChange={(e) => setScheduleDate(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-[#311b92] focus:ring-1 focus:ring-[#311b92]"
+                />
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Assign to Campaign</label>
-              <div className="relative flex-1">
-                <Hash size={16} className="absolute left-3 top-3.5 text-slate-400 pointer-events-none" />
-                <select
-                  value={campaignId}
-                  onChange={(e) => setCampaignId(e.target.value)}
-                  className="w-full h-full min-h-[44px] pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-[#311b92] text-sm font-bold text-slate-700 cursor-pointer appearance-none"
-                >
-                  <option value="">None (Independent Post)</option>
-                  {loadedCampaigns.map((camp, index) => (
-                    <option key={`post-composer-camp-${camp.id || index}`} value={camp.id}>{camp.title || camp.campaign_name}</option>
-                  ))}
-                </select>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Schedule Time</label>
+              <div className="relative">
+                <input
+                  type="time"
+                  value={scheduleTime}
+                  onChange={(e) => setScheduleTime(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-[#311b92] focus:ring-1 focus:ring-[#311b92]"
+                />
               </div>
-              {loadedCampaigns.length === 0 ? (
-                <p className="text-[10px] text-amber-600 mt-3 leading-snug font-bold">
-                  No campaigns yet — create one first to assign this post to it.
-                </p>
-              ) : (
-                <p className="text-[10px] text-slate-400 mt-3 leading-snug">
-                  Grouping posts into campaigns allows you to track their collective engagement and reach in the analytics dashboard.
-                </p>
-              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Campaign (Optional)</label>
+              <select
+                value={campaignId}
+                onChange={(e) => setCampaignId(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-[#311b92] focus:ring-1 focus:ring-[#311b92] cursor-pointer"
+              >
+                <option value="">No Campaign</option>
+                {loadedCampaigns.map((camp) => (
+                  <option key={camp.id} value={camp.id}>
+                    {camp.campaign_name || camp.name || camp.title || `Campaign #${camp.id}`}
+                  </option>
+                ))}
+              </select>
             </div>
 
           </div>
 
         </div>
 
-        <div className="px-6 py-5 border-t border-slate-100 flex justify-end gap-3 bg-white shrink-0">
+        {/* MODAL FOOTER ACTIONS */}
+        <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between bg-white">
           <button
             type="button"
-            onClick={onClose}
-            disabled={isSubmitting}
-            className="px-6 py-2.5 rounded-xl font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50 cursor-pointer"
+            onClick={resetForm}
+            className="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
           >
-            Cancel
+            Clear All
           </button>
-          <button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="px-8 py-2.5 rounded-xl font-bold text-white bg-[#311b92] hover:bg-[#28157a] transition-colors shadow-sm flex items-center justify-center gap-2 disabled:opacity-70 min-w-[160px] cursor-pointer"
-          >
-            {isSubmitting ? (
-              <><Loader2 size={18} className="animate-spin" /> Scheduling...</>
-            ) : (
-              <><Send size={18} /> Schedule Post</>
-            )}
-          </button>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+
+            {/* DIRECT PUBLISH NOW BUTTON */}
+            <button
+              type="button"
+              onClick={handlePublishNow}
+              disabled={isSubmitting || isPublishingNow || isUploadingMedia}
+              className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              title="Publish immediately to selected platforms"
+            >
+              {isPublishingNow ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  <span>Publishing...</span>
+                </>
+              ) : (
+                <>
+                  <Share2 size={14} />
+                  <span>Publish Now</span>
+                </>
+              )}
+            </button>
+
+            {/* SCHEDULE POST BUTTON */}
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isSubmitting || isPublishingNow || isUploadingMedia}
+              className="px-5 py-2.5 rounded-xl bg-[#311b92] hover:bg-[#261577] text-white text-xs font-bold shadow-md shadow-purple-900/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  <span>Scheduling...</span>
+                </>
+              ) : (
+                <>
+                  <Send size={14} />
+                  <span>Schedule Post</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
       </div>

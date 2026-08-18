@@ -5,6 +5,7 @@ import {
   CheckCircle2, Check, RotateCcw
 } from 'lucide-react';
 import { PLATFORM_LIST, connectPlatforms } from '@/lib/api/accounts';
+import { getUser, getToken } from '@/lib/auth/session';
 
 // step: 'pick' -> 'permissions' -> 'connecting' -> 'summary'
 export default function OAuthConnectModal({ isOpen, onClose, onConnected, connectedPlatformIds = [] }) {
@@ -29,12 +30,34 @@ export default function OAuthConnectModal({ isOpen, onClose, onConnected, connec
     );
   };
 
-  const selectedPlatforms = PLATFORM_LIST.filter((p) => selectedIds.includes(p.id));
-
   const startConnecting = async () => {
+    const currentUser = typeof window !== 'undefined' ? getUser() : null;
+    const token = typeof window !== 'undefined' ? getToken() : null;
+    const userId = currentUser?.id || currentUser?.user_id;
+
+    if (selectedIds.includes('facebook') || selectedIds.includes('instagram')) {
+      if (typeof window !== 'undefined') {
+        let url = "http://localhost:8000/api/social/facebook/login";
+        if (userId) {
+          url += `?user_id=${userId}`;
+        } else if (token) {
+          url += `?token=${token}`;
+        }
+        window.location.href = url;
+      }
+      return;
+    }
+
     if (selectedIds.includes('linkedin')) {
-      const { initiateLinkedInLogin } = await import("@/lib/api/oauth");
-      initiateLinkedInLogin();
+      if (typeof window !== 'undefined') {
+        let url = "http://localhost:8000/oauth/linkedin/login?redirect=true";
+        if (userId) {
+          url += `&user_id=${userId}`;
+        } else if (token) {
+          url += `&token=${token}`;
+        }
+        window.location.href = url;
+      }
       return;
     }
 

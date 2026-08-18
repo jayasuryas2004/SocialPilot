@@ -1,3 +1,4 @@
+import os
 import base64
 import urllib.parse
 import httpx
@@ -115,15 +116,40 @@ def publish_to_linkedin(post, db):
 
     try:
         with httpx.Client(timeout=30.0) as client:
-            image_data_str = getattr(post, "image_url", None)
+            image_data_str = getattr(post, "media_url", None) or getattr(post, "image_url", None)
             asset_urn = None
 
-            # --- 3-STEP LINKEDIN MEDIA IMAGE UPLOAD PROTOCOL ---
-            if image_data_str and len(image_data_str.strip()) > 0:
-                print(f"Processing media for Post ID {post.id}, raw string length: {len(image_data_str)}")
+            # Determine whether media is Video or Image
+            is_video = False
+            media_type_attr = getattr(post, "media_type", None)
+            if media_type_attr and str(media_type_attr).lower() == "video":
+                is_video = True
+            elif image_data_str:
+                lower_str = str(image_data_str).lower()
+                if "video/" in lower_str or lower_str.endswith(".mp4") or lower_str.endswith(".webm") or lower_str.endswith(".mov") or lower_str.endswith(".mkv"):
+                    is_video = True
+
+            if is_video:
+                recipe_str = "urn:li:digitalmediaRecipe:feedshare-video"
+                share_category = "VIDEO"
+                content_type_hdr = "video/mp4"
+            else:
+                recipe_str = "urn:li:digitalmediaRecipe:feedshare-image"
+                share_category = "IMAGE"
+                content_type_hdr = "image/jpeg"
+
+            # --- 3-STEP LINKEDIN MEDIA UPLOAD PROTOCOL (IMAGE & VIDEO) ---
+            if image_data_str and len(str(image_data_str).strip()) > 0:
+                print(f"Processing media for Post ID {post.id} (Category: {share_category}), raw string length: {len(image_data_str)}")
                 image_bytes = None
                 try:
-                    if image_data_str.startswith("data:"):
+                    if image_data_str.startswith("/uploads/") or image_data_str.startswith("uploads/"):
+                        rel_path = image_data_str.lstrip("/")
+                        abs_media_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", rel_path))
+                        if os.path.exists(abs_media_path):
+                            with open(abs_media_path, "rb") as f:
+                                image_bytes = f.read()
+                    elif image_data_str.startswith("data:"):
                         parts = image_data_str.split(",", 1)
                         if len(parts) > 1:
                             b64_str = parts[1]
@@ -131,23 +157,23 @@ def publish_to_linkedin(post, db):
                             b64_str = parts[0]
                         image_bytes = base64.b64decode(b64_str)
                     elif image_data_str.startswith("http://") or image_data_str.startswith("https://"):
-                        img_res = client.get(image_data_str, timeout=15.0)
+                        img_res = client.get(image_data_str, timeout=30.0)
                         if img_res.status_code == 200:
                             image_bytes = img_res.content
                     else:
                         image_bytes = base64.b64decode(image_data_str)
                 except Exception as b64_err:
-                    print(f"Warning: Could not decode post image bytes for post {post.id}: {b64_err}")
+                    print(f"Warning: Could not decode post media bytes for post {post.id}: {b64_err}")
                     image_bytes = None
 
                 if image_bytes is not None and len(image_bytes) > 0:
-                    print(f"Image bytes decoded successfully: {len(image_bytes)} bytes.")
+                    print(f"Media bytes decoded successfully: {len(image_bytes)} bytes.")
 
-                    # Step 1: Register upload with LinkedIn
+                    # Step 1: Register upload with LinkedIn (Conditional Recipe)
                     register_payload = {
                         "registerUploadRequest": {
                             "recipes": [
-                                "urn:li:digitalmediaRecipe:feedshare-image"
+                                recipe_str
                             ],
                             "owner": author_urn,
                             "supportedUploadMechanism": [
@@ -161,7 +187,7 @@ def publish_to_linkedin(post, db):
                         json=register_payload,
                         headers=headers
                     )
-                    print("Step 1 (Register):", reg_res.status_code, reg_res.text)
+                    print(f"Step 1 (Register {share_category}):", reg_res.status_code, reg_res.text)
 
                     if reg_res.status_code in [200, 201]:
                         reg_data = reg_res.json()
@@ -174,24 +200,24 @@ def publish_to_linkedin(post, db):
                         upload_url = http_upload_req.get("uploadUrl")
 
                         if asset_urn and upload_url:
-                            # Step 2: Upload image binary bytes to LinkedIn uploadUrl
+                            # Step 2: Upload media binary bytes to LinkedIn uploadUrl
                             upload_headers = {
                                 "Authorization": f"Bearer {access_token}",
-                                "Content-Type": "image/jpeg"
+                                "Content-Type": content_type_hdr
                             }
                             up_res = client.put(
                                 upload_url,
                                 content=image_bytes,
                                 headers=upload_headers
                             )
-                            print("Step 2 (Upload):", up_res.status_code, up_res.text)
+                            print(f"Step 2 (Upload {share_category}):", up_res.status_code, up_res.text)
                     elif reg_res.status_code == 401 or "65600" in reg_res.text or "INVALID_ACCESS_TOKEN" in reg_res.text:
                         _handle_token_expiration(social_account, getattr(post, "user_id", None), db)
                         return False, "LinkedIn authentication expired. Please reconnect your account from the Accounts page."
                     else:
                         print("Notice: LinkedIn registerUpload failed:", reg_res.status_code, reg_res.text)
 
-            # --- STEP 3: CONSTRUCT UGC POST PAYLOAD (IMAGE VS TEXT) ---
+            # --- STEP 3: CONSTRUCT UGC POST PAYLOAD (IMAGE / VIDEO VS TEXT) ---
             if asset_urn:
                 ugc_payload = {
                     "author": author_urn,
@@ -201,7 +227,7 @@ def publish_to_linkedin(post, db):
                             "shareCommentary": {
                                 "text": post_text
                             },
-                            "shareMediaCategory": "IMAGE",
+                            "shareMediaCategory": share_category,
                             "media": [
                                 {
                                     "status": "READY",

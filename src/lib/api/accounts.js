@@ -71,54 +71,9 @@ export const PLATFORM_CONFIG = {
 
 export const PLATFORM_LIST = Object.values(PLATFORM_CONFIG);
 
-export const MOCK_ACCOUNTS = [
-  {
-    id: 'acc_mock_fb',
-    platform: 'facebook',
-    handle: '@socialpilot_fb',
-    displayName: 'SocialPilot Official',
-    status: 'connected',
-    posts: 24,
-    reach: 580000,
-    engagementRate: 10.2,
-    connectedAt: '2026-05-01',
-    tokenExpiresAt: '2026-11-01',
-    avatar: null,
-    is_live_oauth: false,
-  },
-  {
-    id: 'acc_mock_ig',
-    platform: 'instagram',
-    handle: '@socialpilot_app',
-    displayName: 'SocialPilot App',
-    status: 'connected',
-    posts: 41,
-    reach: 902000,
-    engagementRate: 14.6,
-    connectedAt: '2026-04-12',
-    tokenExpiresAt: '2026-10-12',
-    avatar: null,
-    is_live_oauth: false,
-  },
-  {
-    id: 'acc_mock_x',
-    platform: 'x-twitter',
-    handle: '@socialpilot_io',
-    displayName: 'SocialPilot Tech',
-    status: 'connected',
-    posts: 18,
-    reach: 320000,
-    engagementRate: 8.9,
-    connectedAt: '2026-06-01',
-    tokenExpiresAt: '2026-12-01',
-    avatar: null,
-    is_live_oauth: false,
-  },
-];
-
 /**
- * Hybrid Data Layer: Fetches real connected accounts from backend API,
- * then merges them with visual showcase mock accounts. Real accounts appear first.
+ * Dynamic Data Layer: Fetches real connected accounts from backend API (GET /api/accounts).
+ * Returns strictly the real connected accounts from the database, or an empty array.
  * Strictly uses standard for loops.
  */
 export async function fetchAccounts() {
@@ -147,60 +102,58 @@ export async function fetchAccounts() {
     }
   }
 
-  // Merge live accounts with mock accounts (live accounts appear first)
-  const merged = [];
-  const livePlatforms = [];
-
+  const result = [];
   for (let i = 0; i < liveAccounts.length; i++) {
-    const liveAcc = liveAccounts[i];
-    merged.push(liveAcc);
-    if (liveAcc && liveAcc.platform) {
-      livePlatforms.push(liveAcc.platform.toLowerCase());
+    if (liveAccounts[i]) {
+      result.push(liveAccounts[i]);
     }
   }
 
-  for (let j = 0; j < MOCK_ACCOUNTS.length; j++) {
-    const mockAcc = MOCK_ACCOUNTS[j];
-    if (mockAcc && mockAcc.platform) {
-      const p = mockAcc.platform.toLowerCase();
-      if (!livePlatforms.includes(p)) {
-        merged.push(mockAcc);
-      }
-    }
-  }
-
-  return merged;
+  return result;
 }
 
 /**
  * Initiates connection to a specific social media platform.
- * For LinkedIn, directs user to the official backend OAuth authorization route.
+ * Executes a hard browser redirect (window.location.href) to the genuine FastAPI OAuth endpoints.
  */
+import { getUser, getToken } from "@/lib/auth/session";
+
 export function connectPlatform(platformId) {
-  if (platformId === 'linkedin') {
+  const pid = (platformId || '').toLowerCase();
+  const currentUser = typeof window !== 'undefined' ? getUser() : null;
+  const token = typeof window !== 'undefined' ? getToken() : null;
+  const userId = currentUser?.id || currentUser?.user_id;
+
+  if (pid === 'linkedin') {
     if (typeof window !== 'undefined') {
-      window.location.href = `${API_BASE_URL}/oauth/linkedin/login?redirect=true`;
+      let url = "http://localhost:8000/oauth/linkedin/login?redirect=true";
+      if (userId) {
+        url += `&user_id=${userId}`;
+      } else if (token) {
+        url += `&token=${token}`;
+      }
+      window.location.href = url;
     }
     return Promise.resolve({ status: 'connecting' });
   }
 
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        id: `acc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        platform: platformId,
-        handle: `@${platformId}_user`,
-        displayName: `${PLATFORM_CONFIG[platformId]?.name || platformId} Account`,
-        status: 'connected',
-        posts: 0,
-        reach: 0,
-        engagementRate: 0,
-        connectedAt: new Date().toISOString().slice(0, 10),
-        tokenExpiresAt: null,
-        avatar: null,
-      });
-    }, 800);
-  });
+  if (pid === 'facebook' || pid === 'instagram') {
+    if (typeof window !== 'undefined') {
+      let url = "http://localhost:8000/api/social/facebook/login";
+      if (userId) {
+        url += `?user_id=${userId}`;
+      } else if (token) {
+        url += `?token=${token}`;
+      }
+      window.location.href = url;
+    }
+    return Promise.resolve({ status: 'connecting' });
+  }
+
+  if (typeof window !== 'undefined') {
+    alert(`Direct OAuth integration for ${PLATFORM_CONFIG[pid]?.name || platformId} is coming soon. Please connect Facebook, Instagram, or LinkedIn.`);
+  }
+  return Promise.reject(new Error(`OAuth provider for ${platformId} not configured yet.`));
 }
 
 export async function connectPlatforms(platformIds, onProgress) {

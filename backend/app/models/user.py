@@ -44,3 +44,8 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan"
     )
+    scheduled_posts = relationship(
+        "ScheduledPost",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )

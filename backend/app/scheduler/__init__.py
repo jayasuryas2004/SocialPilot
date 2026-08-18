@@ -18,6 +18,7 @@ from app.services.social_media import (
     publish_to_facebook,
     publish_to_twitter
 )
+from app.scheduler.worker import process_scheduled_posts
 
 scheduler = BackgroundScheduler()
 
@@ -299,9 +300,10 @@ def sync_linkedin_deletions():
 def start_scheduler():
     """
     Initializes and starts the APScheduler background job runner.
-    Runs publish_posts every 1 minute and sync_linkedin_deletions every 5 minutes.
+    Runs publish_posts and process_scheduled_posts every 1 minute, and sync_linkedin_deletions every 5 minutes.
     """
     scheduler.add_job(publish_posts, "interval", minutes=1, id="publish_posts_job", replace_existing=True)
+    scheduler.add_job(process_scheduled_posts, "interval", minutes=1, id="process_scheduled_posts_job", replace_existing=True)
     scheduler.add_job(sync_linkedin_deletions, "interval", minutes=5, id="sync_linkedin_deletions_job", replace_existing=True)
     scheduler.start()
     print("APScheduler initialized: active interval jobs for publishing & LinkedIn deletion sync.")

@@ -17,6 +17,7 @@ class PostCreate(BaseModel):
     image: Optional[str] = None
     media: Optional[str] = None
     media_url: Optional[str] = None
+    media_type: Optional[str] = "image"
     mediaFile: Optional[str] = None
 
 
@@ -35,6 +36,7 @@ class PostResponse(BaseModel):
     image: Optional[str] = None
     media: Optional[str] = None
     media_url: Optional[str] = None
+    media_type: Optional[str] = "image"
 
     class Config:
         from_attributes = True

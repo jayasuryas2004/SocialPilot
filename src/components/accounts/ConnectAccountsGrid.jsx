@@ -9,8 +9,9 @@ export default function ConnectAccountsGrid({ accounts = [], onConnectPlatform }
   const connectedPlatformIds = [];
   for (let i = 0; i < safeAccounts.length; i++) {
     const acc = safeAccounts[i];
-    if (acc && acc.platform) {
-      const p = acc.platform.toLowerCase();
+    const rawPlatform = acc?.platform || acc?.platform_name || acc?.name;
+    if (rawPlatform && (acc.status || 'connected') === 'connected') {
+      const p = String(rawPlatform).toLowerCase().trim();
       if (!connectedPlatformIds.includes(p)) {
         connectedPlatformIds.push(p);
       }

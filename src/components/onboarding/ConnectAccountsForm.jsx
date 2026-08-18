@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Check, Loader2, X, AlertTriangle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const platformsData = [
   {
@@ -51,40 +51,35 @@ const platformsData = [
   },
 ];
 
+import { fetchAccounts, disconnectAccount } from "@/lib/api/accounts";
+import { getUser, getToken } from "@/lib/auth/session";
+
 const TOTAL_PLATFORMS = platformsData.length;
-const STORAGE_KEY = "socialpilot_connected_platforms";
 
 export default function ConnectAccounts() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [connectedPlatforms, setConnectedPlatforms] = useState([]);
+  const [liveAccounts, setLiveAccounts] = useState([]);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [platformToDisconnect, setPlatformToDisconnect] = useState(null);
   const [oauthFeedback, setOauthFeedback] = useState(null);
 
-  // Restore previously connected platforms and check OAuth return params after mount (client-only).
+  // Fetch genuine connected accounts from backend API on mount or whenever searchParams change
   useEffect(() => {
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const statusParam = urlParams.get("status");
-      const platformParam = urlParams.get("platform");
-      const messageParam = urlParams.get("message");
+    loadLiveConnections();
+  }, [searchParams]);
 
-      const stored = window.localStorage.getItem(STORAGE_KEY);
-      let initialPlatforms = [];
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          initialPlatforms = parsed;
-        }
-      }
+  const loadLiveConnections = async () => {
+    try {
+      const statusParam = searchParams?.get("status") || (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("status") : null);
+      const platformParam = searchParams?.get("platform") || (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("platform") : null);
+      const messageParam = searchParams?.get("message") || (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("message") : null);
 
       if (statusParam === "success" && platformParam) {
-        if (!initialPlatforms.includes(platformParam)) {
-          initialPlatforms.push(platformParam);
-        }
         setOauthFeedback({
           type: "success",
           message: `Successfully connected your ${platformParam.toUpperCase()} account!`
@@ -96,60 +91,110 @@ export default function ConnectAccounts() {
         });
       }
 
-      setConnectedPlatforms(initialPlatforms);
+      const accounts = await fetchAccounts();
+      const safeAccs = Array.isArray(accounts) ? accounts : [];
+      setLiveAccounts(safeAccs);
+
+      const liveIds = [];
+      for (let i = 0; i < safeAccs.length; i++) {
+        const acc = safeAccs[i];
+        const rawPlatform = acc?.platform || acc?.platform_name || acc?.name;
+        if (rawPlatform && (acc.status || 'connected') === 'connected') {
+          const p = rawPlatform.toLowerCase().trim();
+          if (!liveIds.includes(p)) {
+            liveIds.push(p);
+          }
+        }
+      }
+      setConnectedPlatforms(liveIds);
     } catch (err) {
-      console.warn("Could not read saved connections:", err);
+      console.warn("Could not load live connections:", err);
+      setConnectedPlatforms([]);
+      setLiveAccounts([]);
     } finally {
       setHasLoaded(true);
     }
-  }, []);
+  };
 
-  // Persist connections whenever they change, after initial load.
-  useEffect(() => {
-    if (!hasLoaded) return;
-    try {
-      window.localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(connectedPlatforms)
-      );
-    } catch (err) {
-      console.warn("Could not save connections:", err);
+  // Derived boolean states based strictly on live API response
+  const isFbConnected = liveAccounts.some(acc => (acc.platform || acc.platform_name || "").toLowerCase() === "facebook");
+  const isLiConnected = liveAccounts.some(acc => (acc.platform || acc.platform_name || "").toLowerCase() === "linkedin");
+  const isIgConnected = liveAccounts.some(acc => (acc.platform || acc.platform_name || "").toLowerCase() === "instagram");
+  const isXConnected = liveAccounts.some(acc => ["x", "twitter", "x-twitter"].includes((acc.platform || acc.platform_name || "").toLowerCase()));
+  const isYtConnected = liveAccounts.some(acc => (acc.platform || acc.platform_name || "").toLowerCase() === "youtube");
+  const isPinConnected = liveAccounts.some(acc => (acc.platform || acc.platform_name || "").toLowerCase() === "pinterest");
+  const isRedditConnected = liveAccounts.some(acc => (acc.platform || acc.platform_name || "").toLowerCase() === "reddit");
+
+  const getIsPlatformConnected = (platformId) => {
+    const pid = String(platformId).toLowerCase();
+    if (pid === "facebook") return isFbConnected;
+    if (pid === "linkedin") return isLiConnected;
+    if (pid === "instagram") return isIgConnected;
+    if (pid === "twitter" || pid === "x") return isXConnected;
+    if (pid === "youtube") return isYtConnected;
+    if (pid === "pinterest") return isPinConnected;
+    if (pid === "reddit") return isRedditConnected;
+    return liveAccounts.some(acc => (acc.platform || acc.platform_name || "").toLowerCase() === pid);
+  };
+
+  const connectedList = platformsData.filter((p) => getIsPlatformConnected(p.id));
+  const unconnectedList = platformsData.filter((p) => !getIsPlatformConnected(p.id));
+
+  const getOAuthUrl = (platformId) => {
+    const currentUser = getUser();
+    const token = getToken();
+    const userId = currentUser?.id || currentUser?.user_id;
+
+    if (platformId === "facebook" || platformId === "instagram") {
+      let url = "http://localhost:8000/api/social/facebook/login";
+      if (userId) {
+        url += `?user_id=${userId}`;
+      } else if (token) {
+        url += `?token=${token}`;
+      }
+      return url;
     }
-  }, [connectedPlatforms, hasLoaded]);
 
-  const connectedList = platformsData.filter((p) =>
-    connectedPlatforms.includes(p.id)
-  );
-  const unconnectedList = platformsData.filter(
-    (p) => !connectedPlatforms.includes(p.id)
-  );
+    if (platformId === "linkedin") {
+      let url = "http://localhost:8000/oauth/linkedin/login?redirect=true";
+      if (userId) {
+        url += `&user_id=${userId}`;
+      } else if (token) {
+        url += `&token=${token}`;
+      }
+      return url;
+    }
+
+    return null;
+  };
 
   const handlePlatformClick = (platform) => {
-    if (connectedPlatforms.includes(platform.id)) return;
+    if (!platform || connectedPlatforms.includes(platform.id)) return;
+    const pid = platform.id.toLowerCase();
+    const oauthUrl = getOAuthUrl(pid);
+
+    if (oauthUrl) {
+      window.location.href = oauthUrl;
+      return;
+    }
+
     setSelectedPlatform(platform);
   };
 
   const handleConnect = async () => {
-    if (selectedPlatform?.id === "linkedin") {
-      setIsConnecting(true);
-      try {
-        const { initiateLinkedInLogin } = await import("@/lib/api/oauth");
-        initiateLinkedInLogin();
-        return;
-      } catch (err) {
-        console.warn("Notice during OAuth redirect:", err);
-      }
+    if (!selectedPlatform) return;
+    const pid = selectedPlatform.id.toLowerCase();
+    setIsConnecting(true);
+
+    const oauthUrl = getOAuthUrl(pid);
+    if (oauthUrl) {
+      window.location.href = oauthUrl;
+      return;
     }
 
-    setIsConnecting(true);
-    setTimeout(() => {
-      setConnectedPlatforms((prev) => {
-        if (prev.includes(selectedPlatform.id)) return prev;
-        return [...prev, selectedPlatform.id];
-      });
-      setIsConnecting(false);
-      setSelectedPlatform(null);
-    }, 1500);
+    alert(`Direct OAuth integration for ${selectedPlatform.name} is coming soon. Please connect Facebook, Instagram, or LinkedIn.`);
+    setIsConnecting(false);
+    setSelectedPlatform(null);
   };
 
   const handleDisconnectClick = (e, platform) => {
@@ -157,11 +202,28 @@ export default function ConnectAccounts() {
     setPlatformToDisconnect(platform);
   };
 
-  const confirmDisconnect = () => {
+  const confirmDisconnect = async () => {
+    if (!platformToDisconnect) return;
+    const targetPlatformId = platformToDisconnect.id.toLowerCase();
+
+    // Find any live account matching this platform
+    const targetAcc = liveAccounts.find(
+      (a) => a.platform && a.platform.toLowerCase() === targetPlatformId
+    );
+
+    if (targetAcc && targetAcc.id) {
+      try {
+        await disconnectAccount(targetAcc.id);
+      } catch (err) {
+        console.warn("Disconnect notice:", err);
+      }
+    }
+
     setConnectedPlatforms((prev) =>
       prev.filter((id) => id !== platformToDisconnect.id)
     );
     setPlatformToDisconnect(null);
+    loadLiveConnections();
   };
 
   return (

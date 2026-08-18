@@ -22,6 +22,8 @@ class Post(Base):
     scheduled_at = Column(DateTime, nullable=True)
     status = Column(String, default="Scheduled", nullable=True)
     image_url = Column(Text, nullable=True)
+    media_url = Column(Text, nullable=True)
+    media_type = Column(String, default="image", nullable=True)
     linkedin_urn = Column(String, nullable=True)
 
     # Relationships

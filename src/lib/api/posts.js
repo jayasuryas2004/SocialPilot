@@ -58,7 +58,14 @@ export function normalizePost(item) {
   const rawTimeStr = item.scheduled_time || (item.scheduled_at ? String(item.scheduled_at).split("T")[1]?.slice(0, 5) : "10:00 AM");
   const timeStr = formatTimeAMPM(rawTimeStr);
 
-  const resolvedImage = item.image_url || item.image || item.media || item.media_url || item.mediaFile || null;
+  let resolvedImage = item.media_url || item.image_url || item.image || item.media || item.mediaFile || null;
+  if (resolvedImage && typeof resolvedImage === "string") {
+    resolvedImage = resolvedImage.trim();
+    if (resolvedImage.startsWith("/")) {
+      const backendBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      resolvedImage = `${backendBase}${resolvedImage}`;
+    }
+  }
 
   return {
     id: item.id,
@@ -78,7 +85,7 @@ export function normalizePost(item) {
     scheduled_time: item.scheduled_time || null,
     status: item.status || "Scheduled",
     image_url: resolvedImage,
-    image: resolvedImage || "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=150&h=150&fit=crop",
+    image: resolvedImage || null,
     media: resolvedImage,
     media_url: resolvedImage,
   };
@@ -149,6 +156,7 @@ export async function createPost(payload) {
     image: imgData,
     media: imgData,
     media_url: imgData,
+    media_type: payload.media_type || "image",
     mediaFile: imgData,
   };
 
@@ -160,6 +168,47 @@ export async function createPost(payload) {
   const response = await client.post("/posts/", backendPayload);
   const created = response.data?.data || response.data?.post || response.data;
   return normalizePost(created);
+}
+
+/**
+ * POST /api/social/upload : Memory-safe chunked media upload
+ */
+export async function uploadMedia(file, mediaType = "image") {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("media_type", mediaType);
+
+  try {
+    const response = await client.post("/api/social/upload", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data"
+      }
+    });
+    return response.data;
+  } catch (err) {
+    const response = await client.post("/posts/upload-media", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data"
+      }
+    });
+    return response.data;
+  }
+}
+
+/**
+ * POST /api/social/publish : Publish directly to Facebook, LinkedIn, etc.
+ */
+export async function publishMultiPlatform(payload) {
+  const response = await client.post("/api/social/publish", payload);
+  return response.data;
+}
+
+/**
+ * POST /api/social/schedule : Schedule post for future background publication
+ */
+export async function scheduleSocialPost(payload) {
+  const response = await client.post("/api/social/schedule", payload);
+  return response.data;
 }
 
 /**
@@ -185,6 +234,10 @@ export async function updatePost(id, payload) {
     status: payload.status || "Scheduled",
     campaign_id: payload.campaign_id || payload.campaignId ? Number(payload.campaign_id || payload.campaignId) : null,
   };
+
+  if (payload.media_type) {
+    backendPayload.media_type = payload.media_type;
+  }
 
   if (imgData) {
     backendPayload.image_url = imgData;

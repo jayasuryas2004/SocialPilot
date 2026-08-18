@@ -227,19 +227,67 @@ export default function PostsList() {
   };
 
 
+  const parsePlatforms = (post) => {
+    if (!post) return ['instagram'];
+    const platformList =
+      typeof post.platforms === 'string'
+        ? post.platforms.split(',').map((p) => p.trim().toLowerCase())
+        : (post.platforms || (post.platform ? [post.platform] : []));
+
+    if (Array.isArray(platformList) && platformList.length > 0) {
+      return platformList.map((p) => String(p).trim().toLowerCase()).filter(Boolean);
+    }
+    return ['instagram'];
+  };
+
   const getPlatformIcon = (platform, size = 16) => {
-    switch (platform.toLowerCase()) {
+    const p = String(platform || '').toLowerCase().trim();
+    switch (p) {
       case 'instagram': return <FaInstagram size={size} color="#E1306C" />;
       case 'linkedin': return <FaLinkedin size={size} color="#0A66C2" />;
       case 'facebook': return <FaFacebook size={size} color="#1877F2" />;
-      case 'x-twitter': return <FaXTwitter size={size} color="#0f1419" />;
+      case 'x-twitter':
+      case 'twitter': return <FaXTwitter size={size} color="#0f1419" />;
       default: return <FaInstagram size={size} color="#E1306C" />;
     }
   };
 
+  const renderMultiPlatformIcons = (post, size = 16) => {
+    const platformList =
+      typeof post.platforms === 'string'
+        ? post.platforms.split(',').map((p) => p.trim().toLowerCase())
+        : (post.platforms || (post.platform ? [post.platform] : ['instagram']));
+
+    const safeList = Array.isArray(platformList) && platformList.length > 0
+      ? platformList.map((p) => String(p).trim().toLowerCase()).filter(Boolean)
+      : ['instagram'];
+
+    return (
+      <div className="flex gap-2 items-center flex-wrap">
+        {safeList.map((platform, index) => (
+          <div
+            key={`post-platform-${post.id || 'p'}-${platform}-${index}`}
+            title={platform.charAt(0).toUpperCase() + platform.slice(1)}
+            className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-xs hover:scale-105 transition-transform"
+          >
+            {getPlatformIcon(platform, size)}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const getPostImage = (p) => {
     if (!p) return null;
-    return p.image_url || p.image || p.media || p.media_url || null;
+    let url = p.media_url || p.image_url || p.image || p.media || null;
+    if (!url || typeof url !== "string") return null;
+    url = url.trim();
+    if (!url) return null;
+    if (url.startsWith("/")) {
+      const backendBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      return `${backendBase}${url}`;
+    }
+    return url;
   };
 
 
@@ -382,14 +430,21 @@ export default function PostsList() {
                 </td>
                 <td className="py-4 px-4">
                   <div
-                    className="w-12 h-12 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer hover:opacity-80 transition-opacity shadow-sm flex items-center justify-center"
+                    className="w-12 h-12 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer hover:opacity-80 transition-opacity shadow-sm flex items-center justify-center relative flex-shrink-0"
                     onClick={() => openPreview(post)}
                   >
                     {getPostImage(post) ? (
-                      <img src={getPostImage(post)} alt="preview" className="w-full h-full object-cover" />
+                      <img
+                        src={getPostImage(post)}
+                        alt="preview"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
                     ) : (
-                      <div className="flex items-center justify-center w-full h-full bg-purple-50 dark:bg-purple-950/60">
-                        {getPlatformIcon(post.platform, 20)}
+                      <div className="flex items-center justify-center w-full h-full bg-purple-50 dark:bg-purple-950/60 p-1">
+                        {renderMultiPlatformIcons(post, 14)}
                       </div>
                     )}
                   </div>
@@ -400,18 +455,20 @@ export default function PostsList() {
                   <p className="text-[11px] font-medium text-slate-400 dark:text-slate-400 truncate max-w-[200px] mt-0.5">{post.subtitle}</p>
                 </td>
                 <td className="py-4 px-4">
-                  <div className="flex items-center gap-2">
-                    {getPlatformIcon(post.platform)}
+                  <div className="flex items-center gap-3">
+                    {renderMultiPlatformIcons(post, 14)}
                     <div className="flex flex-col">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{post.platform}</span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                          {parsePlatforms(post).join(', ')}
+                        </span>
                         {post.is_live && (
                           <span className="bg-[#0A66C2] text-white text-[8px] font-extrabold px-1.5 py-0.2 rounded-full tracking-tight">
                             LIVE
                           </span>
                         )}
                       </div>
-                      <span className="text-[10px] text-slate-400">@{post.handle}</span>
+                      <span className="text-[10px] text-slate-400">@{post.handle || 'socialpilot'}</span>
                     </div>
                   </div>
                 </td>
@@ -555,9 +612,22 @@ export default function PostsList() {
       {previewPost && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-8">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden max-w-[700px] w-full max-h-full shadow-2xl flex flex-col md:flex-row">
-            <div className="w-full md:w-5/12 bg-slate-900 flex-shrink-0 h-48 md:h-auto relative">
-              <img src={getPostImage(previewPost)} alt={previewPost.title} className="w-full h-full object-cover opacity-90" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+            <div className="w-full md:w-5/12 bg-slate-900 flex-shrink-0 h-48 md:h-auto min-h-[180px] relative flex items-center justify-center overflow-hidden">
+              {getPostImage(previewPost) ? (
+                <img
+                  src={getPostImage(previewPost)}
+                  alt={previewPost.title}
+                  className="w-full h-full object-cover opacity-90"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              ) : null}
+              <div className={`w-full h-full flex flex-col items-center justify-center p-6 bg-gradient-to-br from-[#311b92] to-[#5b21b6] text-white gap-2 ${getPostImage(previewPost) ? 'hidden' : 'flex'}`}>
+                {renderMultiPlatformIcons(previewPost, 24)}
+                <span className="text-xs font-bold text-white/90 text-center line-clamp-2">{previewPost.title || 'Social Post Preview'}</span>
+              </div>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none"></div>
             </div>
 
             <div className="p-8 w-full md:w-7/12 flex flex-col relative overflow-y-auto">
