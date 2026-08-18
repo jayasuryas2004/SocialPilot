@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import AppButton from "@/components/ui/AppButton";
 
@@ -12,7 +13,9 @@ export default function FooterCTA() {
           Join 4,000+ businesses scheduling smarter, allocating faster, and growing fast with SocialPilot.
         </p>
         <div className="">
-              <AppButton variant="primary" className="px-6 py-5 text-lg">Get Started</AppButton>
+          <Link href="/login">
+            <AppButton variant="primary" className="px-6 py-5 text-lg">Get Started</AppButton>
+          </Link>
         </div>
       </div>
     </section>

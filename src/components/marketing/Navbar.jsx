@@ -27,9 +27,11 @@ export default function Navbar() {
 
         <div className="flex items-center gap-3">
           <Link href="/login">
-  <AppButton variant="outline" className="px-6 py-2 text-sm">Login</AppButton>
-</Link>
-          <AppButton variant="primary" className="px-6 py-2 text-sm">Get Started</AppButton>
+            <AppButton variant="outline" className="px-6 py-2 text-sm">Login</AppButton>
+          </Link>
+          <Link href="/login">
+            <AppButton variant="primary" className="px-6 py-2 text-sm">Get Started</AppButton>
+          </Link>
         </div>
       </div>
     </nav>
