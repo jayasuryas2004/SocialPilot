@@ -45,7 +45,7 @@ def facebook_login(
     db: Session = Depends(get_db)
 ):
     """
-    Generates Meta v18.0 OAuth Dialog Authorization URL and immediately
+    Generates Meta v19.0 OAuth Dialog Authorization URL and immediately
     redirects the browser via an HTTP 307 RedirectResponse.
     Requests permissions: pages_manage_posts, pages_read_engagement, pages_show_list, instagram_basic, instagram_content_publish.
     Encodes caller user state dynamically into state query parameter.
@@ -79,7 +79,7 @@ def facebook_login(
     }
 
     query_string = urllib.parse.urlencode(query_params)
-    auth_url = f"https://www.facebook.com/v18.0/dialog/oauth?{query_string}"
+    auth_url = f"https://www.facebook.com/v19.0/dialog/oauth?{query_string}"
 
     return RedirectResponse(url=auth_url, status_code=307)
 
@@ -101,8 +101,9 @@ async def facebook_callback(
     1. Validates incoming authorization code.
     2. Exchanges authorization code for a User Access Token.
     3. Dynamically extracts active user ID from state parameter.
-    4. Retrieves connected Facebook Pages and linked Instagram Professional accounts.
-    5. Encrypts tokens and persists records to SocialAccount table with correct user_id.
+    4. Explicitly queries GET https://graph.facebook.com/v19.0/me/accounts?access_token={user_token}
+       to extract the Page ID and Page Access Token.
+    5. Saves the Page ID and encrypted Page Token to SocialAccount table with correct user_id.
     6. Redirects the user back to http://localhost:3000/connect_accounts?status=success&platform=facebook.
     Strictly uses standard procedural for and while loops (zero comprehensions/lambdas).
     """
@@ -165,13 +166,12 @@ async def facebook_callback(
             detail="Missing or malformed OAuth state parameter. User ID could not be identified."
         )
 
-    # Ensure target_user_id is integer type
     target_user_id = int(target_user_id)
 
     # 3. Exchange authorization code for User Access Token
     user_token = None
     try:
-        token_endpoint = "https://graph.facebook.com/v18.0/oauth/access_token"
+        token_endpoint = "https://graph.facebook.com/v19.0/oauth/access_token"
         token_params = {
             "client_id": client_id,
             "client_secret": client_secret,
@@ -208,10 +208,10 @@ async def facebook_callback(
             status_code=307
         )
 
-    # 4. Fetch User's Connected Facebook Pages
+    # 4. Explicitly fetch Connected Facebook Pages & Page Access Tokens via GET /v19.0/me/accounts
     pages_data = []
     try:
-        pages_endpoint = "https://graph.facebook.com/v18.0/me/accounts"
+        pages_endpoint = "https://graph.facebook.com/v19.0/me/accounts"
         pages_params = {
             "access_token": user_token
         }
@@ -224,6 +224,7 @@ async def facebook_callback(
             raw_data = accounts_json.get("data", [])
             if isinstance(raw_data, list):
                 pages_data = raw_data
+                print(f"[FACEBOOK OAUTH] Successfully fetched {len(pages_data)} Facebook Page(s) for user {target_user_id}.")
         else:
             print(f"[FACEBOOK OAUTH NOTICE] Pages query returned status {accounts_res.status_code}: {accounts_res.text}")
 
@@ -236,9 +237,9 @@ async def facebook_callback(
         for page in pages_data:
             page_id = page.get("id")
             page_name = page.get("name") or "Facebook Page"
-            page_access_token = page.get("access_token") or user_token
+            page_access_token = page.get("access_token")
 
-            if not page_id:
+            if not page_id or not page_access_token:
                 continue
 
             encrypted_token = encrypt_token(page_access_token)
@@ -256,6 +257,7 @@ async def facebook_callback(
                 existing_account.updated_at = datetime.utcnow()
                 db.add(existing_account)
                 saved_accounts_count = saved_accounts_count + 1
+                print(f"[FACEBOOK OAUTH] Updated Facebook Page record {page_id} ('{page_name}') for user {target_user_id}")
             else:
                 new_account = SocialAccount(
                     user_id=target_user_id,
@@ -268,10 +270,11 @@ async def facebook_callback(
                 )
                 db.add(new_account)
                 saved_accounts_count = saved_accounts_count + 1
+                print(f"[FACEBOOK OAUTH] Created new Facebook Page record {page_id} ('{page_name}') for user {target_user_id}")
 
             # Check for linked Instagram Business Account on this Facebook Page
             try:
-                ig_query_url = f"https://graph.facebook.com/v18.0/{page_id}"
+                ig_query_url = f"https://graph.facebook.com/v19.0/{page_id}"
                 ig_params = {
                     "fields": "instagram_business_account",
                     "access_token": page_access_token
@@ -313,7 +316,7 @@ async def facebook_callback(
             except Exception as ig_lookup_err:
                 print(f"Notice: Instagram account lookup on page {page_id} notice: {ig_lookup_err}")
 
-        # If user has no separate Facebook Pages, register their user profile as fallback
+        # If user has no separate Facebook Pages, query user info and register with warning
         if saved_accounts_count == 0:
             user_profile_name = "Facebook User"
             user_profile_id = f"fb_{int(datetime.utcnow().timestamp())}"
@@ -321,7 +324,7 @@ async def facebook_callback(
             try:
                 async with httpx.AsyncClient(timeout=15.0) as client:
                     me_res = await client.get(
-                        "https://graph.facebook.com/v18.0/me",
+                        "https://graph.facebook.com/v19.0/me",
                         params={"fields": "id,name", "access_token": user_token}
                     )
                     if me_res.status_code == 200:
@@ -358,8 +361,10 @@ async def facebook_callback(
                 )
                 db.add(new_user_account)
 
+            print(f"[FACEBOOK OAUTH WARNING] User {target_user_id} has no Facebook Pages. Created profile record {user_profile_id}, but note Graph API v19.0 requires a Page to publish feed posts.")
+
         db.commit()
-        print(f"[FACEBOOK OAUTH SUCCESS] Successfully persisted Facebook account(s) for user ID {target_user_id}.")
+        print(f"[FACEBOOK OAUTH SUCCESS] Successfully persisted Facebook credentials for user ID {target_user_id}.")
 
     except Exception as db_err:
         db.rollback()

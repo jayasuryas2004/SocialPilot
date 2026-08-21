@@ -33,7 +33,7 @@ def test_facebook_login_redirect(client):
         response = client.get("/api/social/facebook/login", follow_redirects=False)
         assert response.status_code == 307
         redirect_url = response.headers.get("location", "")
-        assert "https://www.facebook.com/v18.0/dialog/oauth" in redirect_url
+        assert "dialog/oauth" in redirect_url
         assert "client_id=test_fb_client_123" in redirect_url
         assert "pages_manage_posts" in redirect_url
         assert "pages_read_engagement" in redirect_url

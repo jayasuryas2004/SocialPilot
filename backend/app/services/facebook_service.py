@@ -10,31 +10,43 @@ async def publish_to_facebook(
     image_url: Optional[str] = None
 ) -> Tuple[bool, Dict[str, Any]]:
     """
-    Publishes message or media content to a connected Facebook Page using Meta Graph API v18.0.
-    - If image_url or media_url is provided, sends a POST request to https://graph.facebook.com/v18.0/{page_id}/photos with url and message.
-    - If text-only, sends a POST request to https://graph.facebook.com/v18.0/{page_id}/feed with message.
-    - Uses response.raise_for_status() immediately after POST request and catches HTTPStatusError to extract and surface real Meta JSON errors.
-    Strictly uses standard procedural control flow (zero comprehensions/lambdas).
+    Publishes message or media content to a connected Facebook Page using Meta Graph API v19.0.
+    
+    Security & Architecture Rules:
+    - Strictly target /{page_id}/photos (media) or /{page_id}/feed (text) using a valid Page Access Token.
+    - Personal timeline (/me/feed) publishing is deprecated in Graph API v19.0+ and forbidden.
+    - Explicitly inspects response and surfaces real Meta Graph API JSON errors without swallowing them.
+    - Strictly uses standard procedural control flow (zero comprehensions or lambda expressions).
     """
-    clean_page_id = str(page_id).strip()
-    clean_token = str(page_token).strip()
+    clean_page_id = str(page_id or "").strip()
+    clean_token = str(page_token or "").strip()
     clean_message = str(message or "").strip()
     clean_media = str(media_url or image_url or "").strip()
 
-    if len(clean_page_id) == 0 or len(clean_token) == 0:
-        return False, {"status": "failed", "error": "Missing page_id or access_token for Facebook publishing."}
+    if len(clean_page_id) == 0 or clean_page_id.lower() == "me":
+        return False, {
+            "status": "failed",
+            "error": "Invalid or missing Facebook Page ID. User profile publishing is disabled; a valid Page ID is required."
+        }
 
-    # Distinguish between media photo post vs text-only feed post
+    if len(clean_token) == 0:
+        return False, {
+            "status": "failed",
+            "error": "Missing Facebook Page Access Token for Page publishing."
+        }
+
+    # Meta Graph API v19.0 endpoints
+    api_version = "v19.0"
     if len(clean_media) > 0:
-        endpoint = f"https://graph.facebook.com/v18.0/{clean_page_id}/photos"
+        endpoint = f"https://graph.facebook.com/{api_version}/{clean_page_id}/photos"
         payload = {
             "url": clean_media,
             "message": clean_message,
             "access_token": clean_token
         }
-        print(f"[FACEBOOK PUBLISH] Executing photo post to {endpoint} with media_url: {clean_media}")
+        print(f"[FACEBOOK PUBLISH] Executing photo post to {endpoint} with media: {clean_media}")
     else:
-        endpoint = f"https://graph.facebook.com/v18.0/{clean_page_id}/feed"
+        endpoint = f"https://graph.facebook.com/{api_version}/{clean_page_id}/feed"
         payload = {
             "message": clean_message,
             "access_token": clean_token
@@ -80,11 +92,18 @@ async def publish_to_facebook(
         except Exception:
             err_json = {"detail": error_text, "status_code": status_code}
 
+        # Extract nested Meta Graph API error message if available
+        meta_error_msg = error_text
+        if isinstance(err_json, dict) and "error" in err_json:
+            meta_inner = err_json.get("error", {})
+            if isinstance(meta_inner, dict) and meta_inner.get("message"):
+                meta_error_msg = f"{meta_inner.get('type', 'OAuthException')}: {meta_inner.get('message')} (Code: {meta_inner.get('code')})"
+
         return False, {
             "status": "failed",
             "status_code": status_code,
             "error": err_json,
-            "detail": f"Meta Graph API error ({status_code}): {error_text}"
+            "detail": f"Meta Graph API error ({status_code}): {meta_error_msg}"
         }
     except Exception as exc:
         print(f"[FACEBOOK PUBLISH EXCEPTION] Network or unexpected exception: {exc}")

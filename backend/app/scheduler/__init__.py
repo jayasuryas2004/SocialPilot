@@ -125,7 +125,48 @@ def publish_posts():
 
                 # 3. Facebook dispatch
                 if "facebook" in platform_lower:
-                    publish_to_facebook(post)
+                    fb_account = db.query(SocialAccount).filter(SocialAccount.platform == "facebook").first()
+                    if not fb_account or not fb_account.access_token:
+                        overall_success = False
+                        failure_reasons.append("Facebook: No connected Facebook account in vault.")
+                        print("FACEBOOK ABORTED: Missing Facebook account in vault.")
+                    elif not fb_account.platform_user_id or fb_account.platform_user_id == "me":
+                        overall_success = False
+                        failure_reasons.append("Facebook: Invalid Page ID. Page Access Token and Page ID are required.")
+                        print("FACEBOOK ABORTED: Missing Page ID.")
+                    else:
+                        try:
+                            fb_token = decrypt_token(fb_account.access_token)
+                            fb_page_id = str(fb_account.platform_user_id).strip()
+                            fb_msg = post.content or post.title or ""
+                            if post.media_url and len(str(post.media_url).strip()) > 0:
+                                ep = f"https://graph.facebook.com/v19.0/{fb_page_id}/photos"
+                                p_data = {"url": str(post.media_url).strip(), "message": fb_msg, "access_token": fb_token}
+                            else:
+                                ep = f"https://graph.facebook.com/v19.0/{fb_page_id}/feed"
+                                p_data = {"message": fb_msg, "access_token": fb_token}
+
+                            with httpx.Client(timeout=30.0) as cl:
+                                fb_res = cl.post(ep, data=p_data)
+
+                            if fb_res.status_code in [200, 201]:
+                                fb_json = fb_res.json()
+                                print(f"[FACEBOOK SUCCESS] Post ID: {fb_json.get('id')}")
+                            else:
+                                overall_success = False
+                                err_txt = fb_res.text
+                                try:
+                                    err_json = fb_res.json()
+                                    if isinstance(err_json, dict) and "error" in err_json:
+                                        err_txt = err_json["error"].get("message", err_txt)
+                                except Exception:
+                                    pass
+                                failure_reasons.append(f"Facebook: Failed ({fb_res.status_code}): {err_txt}")
+                                print(f"FACEBOOK FAILED: Status {fb_res.status_code} - {err_txt}")
+                        except Exception as fb_exc:
+                            overall_success = False
+                            failure_reasons.append(f"Facebook: {str(fb_exc)}")
+                            print(f"FACEBOOK EXCEPTION: {fb_exc}")
 
                 # 4. Twitter / X dispatch
                 if "twitter" in platform_lower or "x" in platform_lower:
@@ -186,6 +227,7 @@ def sync_linkedin_deletions():
     When LinkedIn returns 404/410/deleted, updates local PostgreSQL database status to 'Deleted',
     invalidates tenant cache, and notifies user.
     If 401 error occurs, marks the LinkedIn account as disconnected and notifies the user.
+    Silently bypasses 403 Forbidden since openid write-only scope does not include UGC read permission.
     Uses standard iterative for loops (no list comprehensions or lambda expressions).
     """
     db: Session = SessionLocal()
@@ -222,7 +264,6 @@ def sync_linkedin_deletions():
                     continue
 
                 post_urn_str = str(post_urn).strip()
-                print(f"Checking sync for URN: {post_urn_str}")
 
                 try:
                     quoted_urn = urllib.parse.quote(post_urn_str)
@@ -232,7 +273,6 @@ def sync_linkedin_deletions():
                         check_url = f"https://api.linkedin.com/v2/ugcPosts/{quoted_urn}"
 
                     res = client.get(check_url, headers=headers)
-                    print(f"Sync check response for Post {post.id} ({check_url}): {res.status_code}")
 
                     if res.status_code == 401 or "65600" in res.text or "INVALID_ACCESS_TOKEN" in res.text:
                         social_account.status = "disconnected"
@@ -249,6 +289,10 @@ def sync_linkedin_deletions():
                         db.commit()
                         print("NOTICE: LinkedIn OAuth token expired during sync check. Account marked as disconnected.")
                         break
+
+                    if res.status_code == 403:
+                        # Silently skip: Write-only scope does not grant UGC read permission
+                        continue
 
                     # Reverse deletion detection: 404, 410, or resource deleted errors
                     is_deleted_on_linkedin = False

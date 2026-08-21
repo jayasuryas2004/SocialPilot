@@ -76,10 +76,11 @@ export const PLATFORM_LIST = Object.values(PLATFORM_CONFIG);
  * Returns strictly the real connected accounts from the database, or an empty array.
  * Strictly uses standard for loops.
  */
-export async function fetchAccounts() {
+export async function fetchAccounts(forceRefresh = false) {
   let liveAccounts = [];
+  const cacheBust = forceRefresh ? `?t=${Date.now()}` : '';
   try {
-    const res = await client.get('/api/accounts');
+    const res = await client.get(`/api/accounts${cacheBust}`);
     if (res && res.data) {
       if (Array.isArray(res.data)) {
         liveAccounts = res.data;
@@ -89,7 +90,7 @@ export async function fetchAccounts() {
     }
   } catch (err) {
     try {
-      const resAlt = await client.get('/accounts');
+      const resAlt = await client.get(`/accounts${cacheBust}`);
       if (resAlt && resAlt.data) {
         if (Array.isArray(resAlt.data)) {
           liveAccounts = resAlt.data;

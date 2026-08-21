@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Check, Loader2, X, AlertTriangle } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { Check, Loader2, X, AlertTriangle, ShieldCheck, RefreshCw } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { fetchAccounts, disconnectAccount } from "@/lib/api/accounts";
+import { getUser, getToken } from "@/lib/auth/session";
 
 const platformsData = [
   {
@@ -51,47 +53,25 @@ const platformsData = [
   },
 ];
 
-import { fetchAccounts, disconnectAccount } from "@/lib/api/accounts";
-import { getUser, getToken } from "@/lib/auth/session";
-
 const TOTAL_PLATFORMS = platformsData.length;
 
-export default function ConnectAccounts() {
+export default function ConnectAccountsForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const [connectedPlatforms, setConnectedPlatforms] = useState([]);
   const [liveAccounts, setLiveAccounts] = useState([]);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncingPlatform, setSyncingPlatform] = useState(null);
   const [selectedPlatform, setSelectedPlatform] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [platformToDisconnect, setPlatformToDisconnect] = useState(null);
   const [oauthFeedback, setOauthFeedback] = useState(null);
 
-  // Fetch genuine connected accounts from backend API on mount or whenever searchParams change
-  useEffect(() => {
-    loadLiveConnections();
-  }, [searchParams]);
-
-  const loadLiveConnections = async () => {
+  const loadLiveConnections = useCallback(async (forceRefresh = false) => {
     try {
-      const statusParam = searchParams?.get("status") || (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("status") : null);
-      const platformParam = searchParams?.get("platform") || (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("platform") : null);
-      const messageParam = searchParams?.get("message") || (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("message") : null);
-
-      if (statusParam === "success" && platformParam) {
-        setOauthFeedback({
-          type: "success",
-          message: `Successfully connected your ${platformParam.toUpperCase()} account!`
-        });
-      } else if (statusParam === "error") {
-        setOauthFeedback({
-          type: "error",
-          message: messageParam || "Failed to connect social account. Please try again."
-        });
-      }
-
-      const accounts = await fetchAccounts();
+      const accounts = await fetchAccounts(forceRefresh);
       const safeAccs = Array.isArray(accounts) ? accounts : [];
       setLiveAccounts(safeAccs);
 
@@ -99,31 +79,125 @@ export default function ConnectAccounts() {
       for (let i = 0; i < safeAccs.length; i++) {
         const acc = safeAccs[i];
         const rawPlatform = acc?.platform || acc?.platform_name || acc?.name;
-        if (rawPlatform && (acc.status || 'connected') === 'connected') {
-          const p = rawPlatform.toLowerCase().trim();
+        if (rawPlatform && (acc.status || "connected") === "connected") {
+          let p = rawPlatform.toLowerCase().trim();
+          if (p === "meta" || p === "fb") p = "facebook";
+          if (p === "li") p = "linkedin";
+          if (p === "ig") p = "instagram";
+          if (p === "x" || p === "twitter") p = "twitter";
+          if (p === "yt") p = "youtube";
+          if (p === "pin") p = "pinterest";
+
           if (!liveIds.includes(p)) {
             liveIds.push(p);
           }
         }
       }
       setConnectedPlatforms(liveIds);
+      return safeAccs;
     } catch (err) {
       console.warn("Could not load live connections:", err);
       setConnectedPlatforms([]);
       setLiveAccounts([]);
+      return [];
     } finally {
       setHasLoaded(true);
     }
-  };
+  }, []);
+
+  // Sync state and OAuth callback interceptor
+  useEffect(() => {
+    const statusParam =
+      searchParams?.get("status") ||
+      (typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("status")
+        : null);
+    const platformParam =
+      searchParams?.get("platform") ||
+      (typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("platform")
+        : null);
+    const messageParam =
+      searchParams?.get("message") ||
+      (typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("message")
+        : null);
+
+    if (statusParam === "success") {
+      // 1. Instantly trigger sync loading state
+      setIsSyncing(true);
+      setSyncingPlatform(platformParam ? platformParam.toUpperCase() : "Account");
+
+      // 2. Add 750ms debounce to allow backend database transaction to settle, then force cache-busted fetch
+      const syncTimer = setTimeout(async () => {
+        await loadLiveConnections(true);
+        setIsSyncing(false);
+        setSyncingPlatform(null);
+        setOauthFeedback({
+          type: "success",
+          message: `Successfully connected and verified your ${platformParam ? platformParam.toUpperCase() : "social"} account!`,
+        });
+
+        // 3. Clean URL query parameters seamlessly
+        if (typeof window !== "undefined") {
+          const cleanUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, cleanUrl);
+        }
+      }, 750);
+
+      return () => clearTimeout(syncTimer);
+    } else if (statusParam === "error") {
+      setOauthFeedback({
+        type: "error",
+        message:
+          messageParam ||
+          "Failed to connect social account. Please try again or check OAuth permissions.",
+      });
+      loadLiveConnections(false);
+      if (typeof window !== "undefined") {
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
+    } else {
+      loadLiveConnections(false);
+    }
+  }, [searchParams, loadLiveConnections]);
 
   // Derived boolean states based strictly on live API response
-  const isFbConnected = liveAccounts.some(acc => (acc.platform || acc.platform_name || "").toLowerCase() === "facebook");
-  const isLiConnected = liveAccounts.some(acc => (acc.platform || acc.platform_name || "").toLowerCase() === "linkedin");
-  const isIgConnected = liveAccounts.some(acc => (acc.platform || acc.platform_name || "").toLowerCase() === "instagram");
-  const isXConnected = liveAccounts.some(acc => ["x", "twitter", "x-twitter"].includes((acc.platform || acc.platform_name || "").toLowerCase()));
-  const isYtConnected = liveAccounts.some(acc => (acc.platform || acc.platform_name || "").toLowerCase() === "youtube");
-  const isPinConnected = liveAccounts.some(acc => (acc.platform || acc.platform_name || "").toLowerCase() === "pinterest");
-  const isRedditConnected = liveAccounts.some(acc => (acc.platform || acc.platform_name || "").toLowerCase() === "reddit");
+  const isFbConnected = liveAccounts.some(
+    (acc) =>
+      (acc.platform || acc.platform_name || "").toLowerCase() === "facebook" ||
+      (acc.platform || acc.platform_name || "").toLowerCase() === "fb"
+  );
+  const isLiConnected = liveAccounts.some(
+    (acc) =>
+      (acc.platform || acc.platform_name || "").toLowerCase() === "linkedin" ||
+      (acc.platform || acc.platform_name || "").toLowerCase() === "li"
+  );
+  const isIgConnected = liveAccounts.some(
+    (acc) =>
+      (acc.platform || acc.platform_name || "").toLowerCase() === "instagram" ||
+      (acc.platform || acc.platform_name || "").toLowerCase() === "ig"
+  );
+  const isXConnected = liveAccounts.some((acc) =>
+    ["x", "twitter", "x-twitter"].includes(
+      (acc.platform || acc.platform_name || "").toLowerCase()
+    )
+  );
+  const isYtConnected = liveAccounts.some(
+    (acc) =>
+      (acc.platform || acc.platform_name || "").toLowerCase() === "youtube" ||
+      (acc.platform || acc.platform_name || "").toLowerCase() === "yt"
+  );
+  const isPinConnected = liveAccounts.some(
+    (acc) =>
+      (acc.platform || acc.platform_name || "").toLowerCase() === "pinterest" ||
+      (acc.platform || acc.platform_name || "").toLowerCase() === "pin"
+  );
+  const isRedditConnected = liveAccounts.some(
+    (acc) =>
+      (acc.platform || acc.platform_name || "").toLowerCase() === "reddit"
+  );
 
   const getIsPlatformConnected = (platformId) => {
     const pid = String(platformId).toLowerCase();
@@ -134,7 +208,10 @@ export default function ConnectAccounts() {
     if (pid === "youtube") return isYtConnected;
     if (pid === "pinterest") return isPinConnected;
     if (pid === "reddit") return isRedditConnected;
-    return liveAccounts.some(acc => (acc.platform || acc.platform_name || "").toLowerCase() === pid);
+    return liveAccounts.some(
+      (acc) =>
+        (acc.platform || acc.platform_name || "").toLowerCase() === pid
+    );
   };
 
   const connectedList = platformsData.filter((p) => getIsPlatformConnected(p.id));
@@ -169,7 +246,7 @@ export default function ConnectAccounts() {
   };
 
   const handlePlatformClick = (platform) => {
-    if (!platform || connectedPlatforms.includes(platform.id)) return;
+    if (!platform || getIsPlatformConnected(platform.id)) return;
     const pid = platform.id.toLowerCase();
     const oauthUrl = getOAuthUrl(pid);
 
@@ -192,7 +269,9 @@ export default function ConnectAccounts() {
       return;
     }
 
-    alert(`Direct OAuth integration for ${selectedPlatform.name} is coming soon. Please connect Facebook, Instagram, or LinkedIn.`);
+    alert(
+      `Direct OAuth integration for ${selectedPlatform.name} is coming soon. Please connect Facebook, Instagram, or LinkedIn.`
+    );
     setIsConnecting(false);
     setSelectedPlatform(null);
   };
@@ -206,9 +285,9 @@ export default function ConnectAccounts() {
     if (!platformToDisconnect) return;
     const targetPlatformId = platformToDisconnect.id.toLowerCase();
 
-    // Find any live account matching this platform
     const targetAcc = liveAccounts.find(
-      (a) => a.platform && a.platform.toLowerCase() === targetPlatformId
+      (a) =>
+        (a.platform || a.platform_name || "").toLowerCase() === targetPlatformId
     );
 
     if (targetAcc && targetAcc.id) {
@@ -223,7 +302,7 @@ export default function ConnectAccounts() {
       prev.filter((id) => id !== platformToDisconnect.id)
     );
     setPlatformToDisconnect(null);
-    loadLiveConnections();
+    await loadLiveConnections(true);
   };
 
   return (
@@ -259,19 +338,49 @@ export default function ConnectAccounts() {
           <span className="text-slate-400">Dashboard</span>
         </div>
 
+        {/* Syncing Loading Overlay Banner */}
+        {isSyncing && (
+          <div className="mb-6 p-5 rounded-2xl bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 border border-purple-200/80 shadow-sm flex items-center justify-between animate-in fade-in duration-300">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-[#5b21b6] text-white flex items-center justify-center flex-shrink-0 shadow-md">
+                <Loader2 className="w-5 h-5 animate-spin" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-purple-950 flex items-center gap-2">
+                  Finalizing {syncingPlatform} Connection
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-200/60 text-purple-800 animate-pulse">
+                    Syncing database...
+                  </span>
+                </h4>
+                <p className="text-xs text-purple-700 font-medium mt-0.5">
+                  Synchronizing access tokens with your account and updating live connection status.
+                </p>
+              </div>
+            </div>
+            <RefreshCw className="w-4 h-4 text-purple-400 animate-spin mr-2" />
+          </div>
+        )}
+
         {/* Feedback Alert if OAuth redirected back */}
-        {oauthFeedback && (
+        {oauthFeedback && !isSyncing && (
           <div
-            className={`mb-6 p-4 rounded-xl flex items-center justify-between text-sm font-medium ${
+            className={`mb-6 p-4 rounded-xl flex items-center justify-between text-sm font-medium animate-in fade-in slide-in-from-top-2 duration-300 ${
               oauthFeedback.type === "success"
                 ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
                 : "bg-red-50 text-red-800 border border-red-200"
             }`}
           >
-            <span>{oauthFeedback.message}</span>
+            <div className="flex items-center gap-2.5">
+              {oauthFeedback.type === "success" ? (
+                <ShieldCheck className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+              ) : (
+                <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0" />
+              )}
+              <span>{oauthFeedback.message}</span>
+            </div>
             <button
               onClick={() => setOauthFeedback(null)}
-              className="text-slate-400 hover:text-slate-600 ml-4"
+              className="text-slate-400 hover:text-slate-600 ml-4 p-1 rounded-md"
             >
               ✕
             </button>
@@ -294,14 +403,13 @@ export default function ConnectAccounts() {
         {/* Progress Bar */}
         <div className="flex items-center justify-between mb-4">
           <span className="font-semibold text-slate-800">
-            {connectedPlatforms.length} of {TOTAL_PLATFORMS} platforms
-            connected
+            {connectedList.length} of {TOTAL_PLATFORMS} platforms connected
           </span>
           <div className="w-48 h-2 bg-slate-100 rounded-full overflow-hidden">
             <div
               className="h-full bg-[#5b21b6] transition-all duration-500 ease-out"
               style={{
-                width: `${(connectedPlatforms.length / TOTAL_PLATFORMS) * 100}%`,
+                width: `${(connectedList.length / TOTAL_PLATFORMS) * 100}%`,
               }}
             />
           </div>
@@ -352,17 +460,20 @@ export default function ConnectAccounts() {
           </div>
         )}
 
-        {/* SECTION 2: AVAILABLE TO CONNECT */}
+        {/* SECTION 2: AVAILABLE ACCOUNTS */}
         {unconnectedList.length > 0 && (
-          <div className={connectedList.length > 0 ? "mb-12 pt-2" : "mb-12"}>
+          <div className="mb-12">
+            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">
+              Available Platforms
+            </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {unconnectedList.map((platform) => (
                 <div
                   key={platform.id}
                   onClick={() => handlePlatformClick(platform)}
-                  className="relative flex items-center p-4 rounded-xl border-2 border-slate-100 bg-white/60 hover:bg-white hover:border-slate-300 transition-all cursor-pointer group"
+                  className="relative flex items-center p-4 rounded-xl border border-slate-200 bg-white hover:border-[#5b21b6] hover:shadow-md cursor-pointer transition-all group"
                 >
-                  <div className="w-12 h-12 mr-4 flex-shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                  <div className="w-12 h-12 mr-4 flex-shrink-0">
                     <Image
                       src={platform.src}
                       alt={platform.name}
@@ -373,123 +484,138 @@ export default function ConnectAccounts() {
                     />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-slate-900">
+                    <h3 className="font-semibold text-slate-900 group-hover:text-[#5b21b6] transition-colors">
                       {platform.name}
                     </h3>
-                    <p className="text-sm text-slate-400">Not connected</p>
+                    <p className="text-sm text-slate-400 font-medium">
+                      Not connected
+                    </p>
                   </div>
+                  <button
+                    type="button"
+                    className="ml-2 flex-shrink-0 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 group-hover:bg-[#5b21b6] group-hover:text-white group-hover:border-[#5b21b6] transition-all"
+                  >
+                    Connect
+                  </button>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Footer Actions */}
-        <div className="flex items-center justify-between border-t border-slate-200 pt-8 pb-12">
-          <button
-            type="button"
-            onClick={() => router.push("/dashboard")}
-            className="text-slate-400 hover:text-slate-700 font-medium text-sm transition-colors cursor-pointer"
+        {/* Bottom Actions */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-slate-200 mb-12">
+          <Link
+            href="/dashboard"
+            className="text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors"
           >
-            Skip for now
-          </button>
-
+            I&apos;ll do this later
+          </Link>
           <button
-            type="button"
             onClick={() => router.push("/dashboard")}
-            className="px-6 py-3 rounded-lg font-semibold transition-all bg-[#5b21b6] hover:bg-[#4c1d95] text-white shadow-md cursor-pointer flex items-center gap-2"
+            disabled={connectedList.length === 0}
+            className="w-full sm:w-auto px-8 py-3 rounded-xl bg-[#5b21b6] text-white font-semibold shadow-lg shadow-purple-900/20 hover:bg-[#4c1d95] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
-            Continue to dashboard →
+            Continue to Dashboard ({connectedList.length}/{TOTAL_PLATFORMS})
           </button>
         </div>
       </div>
 
-      {/* Connection Modal Overlay */}
+      {/* Direct OAuth Pre-Flight Modal */}
       {selectedPlatform && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center mx-4 animate-in fade-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 mx-auto mb-6">
-              <Image
-                src={selectedPlatform.src}
-                alt={selectedPlatform.name}
-                width={64}
-                height={64}
-                className="w-full h-full object-contain"
-              />
-            </div>
-
-            <p className="text-slate-500 text-sm mb-1">
-              socialpilot.app is requesting access to your
-            </p>
-            <h2 className="text-xl font-bold text-slate-900 mb-6">
-              {selectedPlatform.name} account
-            </h2>
-
-            <div className="bg-slate-50 rounded-xl p-4 text-left mb-8">
-              {selectedPlatform.permissions.map((permission, idx) => (
-                <div key={idx} className="flex items-start mb-2 last:mb-0">
-                  <Check className="w-4 h-4 text-[#5b21b6] mr-2 mt-0.5 shrink-0" />
-                  <span className="text-sm text-slate-600">{permission}</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 pb-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-slate-50 shrink-0">
+                  <Image
+                    src={selectedPlatform.src}
+                    alt={selectedPlatform.name}
+                    width={28}
+                    height={28}
+                  />
                 </div>
-              ))}
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm">
+                    Connect {selectedPlatform.name}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Official API Authorization
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedPlatform(null)}
+                className="text-slate-400 hover:text-slate-600 rounded-lg p-1"
+              >
+                <X size={18} />
+              </button>
             </div>
 
-            {isConnecting ? (
-              <div className="flex items-center justify-center text-[#5b21b6] font-medium py-2">
-                <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                Connecting...
-              </div>
-            ) : (
-              <div className="flex gap-4">
+            <div className="p-6">
+              <p className="text-xs text-slate-600 mb-4">
+                You will be redirected to {selectedPlatform.name} to authorize
+                SocialPilot. SocialPilot will request permission to:
+              </p>
+              <ul className="space-y-2 mb-6">
+                {selectedPlatform.permissions?.map((perm, index) => (
+                  <li
+                    key={index}
+                    className="flex items-center gap-2 text-xs text-slate-700 font-medium"
+                  >
+                    <Check className="w-4 h-4 text-emerald-600" />
+                    <span>{perm}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="flex gap-3">
                 <button
-                  type="button"
                   onClick={() => setSelectedPlatform(null)}
-                  className="flex-1 py-3 px-4 border border-slate-200 text-slate-600 font-semibold rounded-lg hover:bg-slate-50 transition-colors"
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
-                  type="button"
                   onClick={handleConnect}
-                  className="flex-1 py-3 px-4 bg-[#5b21b6] hover:bg-[#4c1d95] text-white font-semibold rounded-lg transition-colors shadow-md cursor-pointer"
+                  disabled={isConnecting}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-[#5b21b6] text-white hover:bg-[#4c1d95] transition-all"
                 >
-                  Allow access
+                  {isConnecting ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      Redirecting...
+                    </>
+                  ) : (
+                    "Authorize via OAuth"
+                  )}
                 </button>
               </div>
-            )}
+            </div>
           </div>
         </div>
       )}
 
       {/* Disconnect Confirmation Modal */}
       {platformToDisconnect && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center mx-4 animate-in fade-in zoom-in-95 duration-200">
-            <div className="w-14 h-14 mx-auto mb-5 rounded-full bg-red-50 flex items-center justify-center">
-              <AlertTriangle className="w-7 h-7 text-red-500" />
-            </div>
-
-            <h2 className="text-xl font-bold text-slate-900 mb-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-sm bg-white border border-slate-200 rounded-2xl shadow-xl p-6 animate-in zoom-in-95 duration-200">
+            <h3 className="text-base font-bold text-slate-900 mb-2">
               Disconnect {platformToDisconnect.name}?
-            </h2>
-            <p className="text-slate-500 text-sm mb-8">
-              We&apos;ll stop publishing posts and reading analytics for this
-              account. You can reconnect it any time — this won&apos;t delete
-              anything on {platformToDisconnect.name} itself.
+            </h3>
+            <p className="text-xs text-slate-500 mb-6">
+              This will pause scheduled posts for this platform until you reconnect.
             </p>
-
-            <div className="flex gap-4">
+            <div className="flex gap-3">
               <button
-                type="button"
                 onClick={() => setPlatformToDisconnect(null)}
-                className="flex-1 py-3 px-4 border border-slate-200 text-slate-600 font-semibold rounded-lg hover:bg-slate-50 transition-colors"
+                className="flex-1 px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
               <button
-                type="button"
                 onClick={confirmDisconnect}
-                className="flex-1 py-3 px-4 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg transition-colors shadow-md"
+                className="flex-1 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition-colors"
               >
                 Disconnect
               </button>

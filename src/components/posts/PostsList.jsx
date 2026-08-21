@@ -455,21 +455,24 @@ export default function PostsList() {
                   <p className="text-[11px] font-medium text-slate-400 dark:text-slate-400 truncate max-w-[200px] mt-0.5">{post.subtitle}</p>
                 </td>
                 <td className="py-4 px-4">
-                  <div className="flex items-center gap-3">
-                    {renderMultiPlatformIcons(post, 14)}
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                          {parsePlatforms(post).join(', ')}
-                        </span>
-                        {post.is_live && (
-                          <span className="bg-[#0A66C2] text-white text-[8px] font-extrabold px-1.5 py-0.2 rounded-full tracking-tight">
-                            LIVE
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-[10px] text-slate-400">@{post.handle || 'socialpilot'}</span>
-                    </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {parsePlatforms(post).map((p, idx) => {
+                      const pLabel = p.charAt(0).toUpperCase() + p.slice(1);
+                      return (
+                        <div
+                          key={`post-badge-${post.id || 'p'}-${p}-${idx}`}
+                          className="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 shadow-xs"
+                        >
+                          {getPlatformIcon(p, 13)}
+                          <span>{pLabel}</span>
+                        </div>
+                      );
+                    })}
+                    {post.is_live && (
+                      <span className="bg-[#0A66C2] text-white text-[8px] font-extrabold px-1.5 py-0.5 rounded-full tracking-tight">
+                        LIVE
+                      </span>
+                    )}
                   </div>
                 </td>
 

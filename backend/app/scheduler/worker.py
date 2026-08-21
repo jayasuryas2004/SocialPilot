@@ -21,8 +21,8 @@ def process_scheduled_posts(db: Optional[Session] = None) -> List[Dict[str, Any]
     1. Queries the database for all ScheduledPost records where status == 'pending' and scheduled_for <= current_time.
     2. Iterates through pending posts using standard procedural loops.
     3. Immediately updates status to 'processing' before dispatching to prevent duplicate publishing on next tick.
-    4. Passes content and platforms to the Phase 7 multi-platform publisher.
-    5. Updates status to 'published' on success, or 'failed' if an exception occurs.
+    4. Evaluates each platform individually without aggregating success blindly.
+    5. Updates status to 'published', 'partial_success', or 'failed' based on per-platform outcomes.
     Strictly follows Python AST rules: standard procedural for and while loops only (zero comprehensions/lambdas).
     Maintains strict error isolation so a failure on one post never crashes the worker.
     """
@@ -80,7 +80,8 @@ def process_scheduled_posts(db: Optional[Session] = None) -> List[Dict[str, Any]
             else:
                 user_accounts = accounts_query.all()
 
-            post_success = True
+            successful_platforms_count = 0
+            failed_platforms_count = 0
             platform_outcomes = {}
 
             # 4. Isolated dispatch per scheduled post
@@ -97,30 +98,50 @@ def process_scheduled_posts(db: Optional[Session] = None) -> List[Dict[str, Any]
                                     break
 
                             if not fb_account or not fb_account.access_token:
-                                platform_outcomes["facebook"] = "No connected Facebook account in vault."
-                                post_success = False
+                                platform_outcomes["facebook"] = "Missing Facebook account in vault."
+                                failed_platforms_count = failed_platforms_count + 1
+                                print("FACEBOOK ABORTED: Missing Facebook account in vault.")
+                            elif not fb_account.platform_user_id or fb_account.platform_user_id == "me":
+                                platform_outcomes["facebook"] = "Invalid Facebook Page ID. Page Access Token and Page ID are required."
+                                failed_platforms_count = failed_platforms_count + 1
+                                print("FACEBOOK ABORTED: Missing Page ID.")
                             else:
                                 page_token = decrypt_token(fb_account.access_token)
-                                page_id = fb_account.platform_user_id or "me"
+                                page_id = str(fb_account.platform_user_id).strip()
 
-                                # Synchronous/Async execution support for Facebook Graph API
-                                fb_endpoint = f"https://graph.facebook.com/v18.0/{page_id}/feed"
+                                # Meta Graph API v19.0 endpoint
+                                if post.media_url and len(str(post.media_url).strip()) > 0:
+                                    fb_endpoint = f"https://graph.facebook.com/v19.0/{page_id}/photos"
+                                    fb_payload = {"url": str(post.media_url).strip(), "message": post_content, "access_token": page_token}
+                                else:
+                                    fb_endpoint = f"https://graph.facebook.com/v19.0/{page_id}/feed"
+                                    fb_payload = {"message": post_content, "access_token": page_token}
+
                                 with httpx.Client(timeout=30.0) as client:
-                                    fb_res = client.post(
-                                        fb_endpoint,
-                                        data={"message": post_content, "access_token": page_token}
-                                    )
+                                    fb_res = client.post(fb_endpoint, data=fb_payload)
 
                                 if fb_res.status_code in [200, 201]:
                                     fb_json = fb_res.json()
-                                    platform_outcomes["facebook"] = f"Success (Post ID: {fb_json.get('id')})"
+                                    fb_post_id = fb_json.get("id")
+                                    platform_outcomes["facebook"] = f"Success (Post ID: {fb_post_id})"
+                                    successful_platforms_count = successful_platforms_count + 1
+                                    print(f"[FACEBOOK SUCCESS] Published to Facebook Page {page_id}. Post ID: {fb_post_id}")
                                 else:
-                                    platform_outcomes["facebook"] = f"Failed (Status: {fb_res.status_code})"
-                                    post_success = False
+                                    err_detail = fb_res.text
+                                    try:
+                                        err_json = fb_res.json()
+                                        if isinstance(err_json, dict) and "error" in err_json:
+                                            err_detail = err_json["error"].get("message", err_detail)
+                                    except Exception:
+                                        pass
+                                    platform_outcomes["facebook"] = f"Failed (Status {fb_res.status_code}): {err_detail}"
+                                    failed_platforms_count = failed_platforms_count + 1
+                                    print(f"FACEBOOK FAILED: Status {fb_res.status_code} - {err_detail}")
 
                         except Exception as fb_exc:
                             platform_outcomes["facebook"] = f"Exception: {str(fb_exc)}"
-                            post_success = False
+                            failed_platforms_count = failed_platforms_count + 1
+                            print(f"FACEBOOK EXCEPTION: {fb_exc}")
 
                     # LinkedIn Publishing
                     elif platform_name in ["linkedin", "li"]:
@@ -142,29 +163,32 @@ def process_scheduled_posts(db: Optional[Session] = None) -> List[Dict[str, Any]
                             li_success, li_detail = publish_to_linkedin(tracking_post, db)
                             if li_success:
                                 platform_outcomes["linkedin"] = f"Success ({li_detail})"
+                                successful_platforms_count = successful_platforms_count + 1
+                                print(f"[LINKEDIN SUCCESS] Published Post #{post_id} to LinkedIn: {li_detail}")
                             else:
                                 platform_outcomes["linkedin"] = f"Failed ({li_detail})"
-                                post_success = False
+                                failed_platforms_count = failed_platforms_count + 1
+                                print(f"[LINKEDIN FAILED] Post #{post_id} failed on LinkedIn: {li_detail}")
                         except Exception as li_exc:
                             platform_outcomes["linkedin"] = f"Exception: {str(li_exc)}"
-                            post_success = False
+                            failed_platforms_count = failed_platforms_count + 1
+                            print(f"[LINKEDIN EXCEPTION] Error on LinkedIn for Post #{post_id}: {li_exc}")
 
                     else:
                         platform_outcomes[platform_name] = f"Staged for {platform_name}"
 
-                # 5. Update database record status based on execution result
+                # 5. Update database record status based on individual platform outcomes
                 summary_parts = []
                 for p_name in platform_outcomes:
                     summary_parts.append(f"{p_name}: {platform_outcomes[p_name]}")
                 summary_str = "; ".join(summary_parts)
 
-                if post_success:
+                if failed_platforms_count == 0 and successful_platforms_count > 0:
                     post.status = "published"
                     post.result_detail = summary_str
                     post.updated_at = datetime.utcnow()
                     db.commit()
 
-                    # Notify user
                     notif = Notification(
                         user_id=user_id,
                         title="Scheduled Post Published",
@@ -174,7 +198,25 @@ def process_scheduled_posts(db: Optional[Session] = None) -> List[Dict[str, Any]
                     )
                     db.add(notif)
                     db.commit()
-                    print(f"[SCHEDULER SUCCESS] Post #{post_id} marked as published: {summary_str}")
+                    print(f"[SCHEDULER SUCCESS] Post #{post_id} fully published: {summary_str}")
+
+                elif successful_platforms_count > 0 and failed_platforms_count > 0:
+                    post.status = "partial_success"
+                    post.result_detail = summary_str
+                    post.updated_at = datetime.utcnow()
+                    db.commit()
+
+                    notif = Notification(
+                        user_id=user_id,
+                        title="Scheduled Post Partially Published",
+                        message=f"Scheduled post #{post_id} partially succeeded: {summary_str}",
+                        type="publishing",
+                        category="publishing"
+                    )
+                    db.add(notif)
+                    db.commit()
+                    print(f"[SCHEDULER PARTIAL SUCCESS] Post #{post_id} partially published: {summary_str}")
+
                 else:
                     post.status = "failed"
                     post.result_detail = summary_str
@@ -190,7 +232,7 @@ def process_scheduled_posts(db: Optional[Session] = None) -> List[Dict[str, Any]
                     )
                     db.add(notif)
                     db.commit()
-                    print(f"[SCHEDULER FAILURE] Post #{post_id} marked as failed: {summary_str}")
+                    print(f"[SCHEDULER FAILURE] Post #{post_id} failed: {summary_str}")
 
                 processed_results.append({
                     "post_id": post_id,
@@ -199,7 +241,6 @@ def process_scheduled_posts(db: Optional[Session] = None) -> List[Dict[str, Any]
                 })
 
             except Exception as single_post_err:
-                # Error isolation: continue to next post even if one raises unhandled exception
                 print(f"[SCHEDULER EXCEPTION] Error processing post #{post_id}: {single_post_err}")
                 try:
                     sentry_sdk.capture_exception(single_post_err)
