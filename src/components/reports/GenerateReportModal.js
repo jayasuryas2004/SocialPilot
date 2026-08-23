@@ -31,7 +31,8 @@ export default function GenerateReportModal({ open, onOpenChange, onGenerate }) 
       }
 
       // Download compiled report
-      const downloadTarget = createdReport?.fileUrl || (createdReport?.id ? `http://localhost:8000/api/reports/${createdReport.id}/download` : null);
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+      const downloadTarget = createdReport?.fileUrl || (createdReport?.id ? `${apiBase}/api/reports/${createdReport.id}/download` : null);
       if (downloadTarget) {
         window.open(downloadTarget, "_blank");
       }

@@ -127,7 +127,7 @@ export function connectPlatform(platformId) {
 
   if (pid === 'linkedin') {
     if (typeof window !== 'undefined') {
-      let url = "http://localhost:8000/oauth/linkedin/login?redirect=true";
+      let url = `${API_BASE_URL}/oauth/linkedin/login?redirect=true`;
       if (userId) {
         url += `&user_id=${userId}`;
       } else if (token) {
@@ -140,7 +140,7 @@ export function connectPlatform(platformId) {
 
   if (pid === 'facebook' || pid === 'instagram') {
     if (typeof window !== 'undefined') {
-      let url = "http://localhost:8000/api/social/facebook/login";
+      let url = `${API_BASE_URL}/api/social/facebook/login`;
       if (userId) {
         url += `?user_id=${userId}`;
       } else if (token) {

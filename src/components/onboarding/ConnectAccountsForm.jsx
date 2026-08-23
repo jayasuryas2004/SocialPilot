@@ -221,9 +221,10 @@ export default function ConnectAccountsForm() {
     const currentUser = getUser();
     const token = getToken();
     const userId = currentUser?.id || currentUser?.user_id;
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
     if (platformId === "facebook" || platformId === "instagram") {
-      let url = "http://localhost:8000/api/social/facebook/login";
+      let url = `${apiBase}/api/social/facebook/login`;
       if (userId) {
         url += `?user_id=${userId}`;
       } else if (token) {
@@ -233,7 +234,7 @@ export default function ConnectAccountsForm() {
     }
 
     if (platformId === "linkedin") {
-      let url = "http://localhost:8000/oauth/linkedin/login?redirect=true";
+      let url = `${apiBase}/oauth/linkedin/login?redirect=true`;
       if (userId) {
         url += `&user_id=${userId}`;
       } else if (token) {

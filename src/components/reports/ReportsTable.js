@@ -87,7 +87,7 @@ export default function ReportsTable({
                 <div className="flex items-center justify-end gap-2 relative z-10">
                   {r.status === REPORT_STATUS.READY && (
                     <a 
-                      href={r.fileUrl || `http://localhost:8000/api/reports/${r.id}/download`} 
+                      href={r.fileUrl || (r.id ? `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/reports/${r.id}/download` : '#')} 
                       target="_blank" 
                       rel="noreferrer"
                       download
