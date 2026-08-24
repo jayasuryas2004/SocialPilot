@@ -32,10 +32,10 @@ def get_oauth_config():
     """
     load_dotenv()
     return {
-        "client_id": os.getenv("LINKEDIN_CLIENT_ID", ""),
-        "client_secret": os.getenv("LINKEDIN_CLIENT_SECRET", ""),
-        "redirect_uri": os.getenv("LINKEDIN_REDIRECT_URI", "http://localhost:8000/oauth/linkedin/callback"),
-        "frontend_url": os.getenv("FRONTEND_URL", "http://localhost:3000")
+        "client_id": os.getenv("LINKEDIN_CLIENT_ID", "").strip(),
+        "client_secret": os.getenv("LINKEDIN_CLIENT_SECRET", "").strip(),
+        "redirect_uri": os.getenv("LINKEDIN_REDIRECT_URI", "http://localhost:8000/oauth/linkedin/callback").strip(),
+        "frontend_url": os.getenv("FRONTEND_URL", "http://localhost:3000").strip()
     }
 
 
