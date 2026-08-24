@@ -144,10 +144,15 @@ export default function ConnectAccountsForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const initialIsSyncing =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("status") === "success"
+      : false;
+
   const [connectedPlatforms, setConnectedPlatforms] = useState([]);
   const [liveAccounts, setLiveAccounts] = useState([]);
   const [hasLoaded, setHasLoaded] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(initialIsSyncing);
   const [syncingPlatform, setSyncingPlatform] = useState(null);
   const [selectedPlatform, setSelectedPlatform] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -224,13 +229,6 @@ export default function ConnectAccountsForm() {
 
         try {
           await loadLiveConnections(true);
-
-          if (!isCancelled) {
-            setOauthFeedback({
-              type: "success",
-              message: `Successfully connected and verified your ${platformParam ? platformParam.toUpperCase() : "social"} account!`,
-            });
-          }
         } catch (err) {
           console.warn("OAuth sync error:", err);
         } finally {
@@ -413,9 +411,6 @@ export default function ConnectAccountsForm() {
 
   return (
     <div className="min-h-screen bg-[#f8f9fc] flex flex-col items-center pt-8 px-4 relative">
-      {/* Antigravity OAuth Syncing Fullscreen Loader */}
-      {isSyncing && <OAuthSyncLoader syncingPlatform={syncingPlatform} />}
-
       {/* Brand Header with Logo */}
       <div className="w-full max-w-4xl mb-8 flex items-center">
         <div className="flex items-center gap-2">
@@ -432,203 +427,195 @@ export default function ConnectAccountsForm() {
         </div>
       </div>
 
-      <div className="w-full max-w-4xl">
-        {/* Breadcrumbs */}
-        <div className="flex items-center gap-2 text-sm font-medium mb-8">
-          <Link
-            href="/register"
-            className="text-[#5b21b6] hover:underline cursor-pointer"
-          >
-            Account
-          </Link>
-          <span className="text-slate-300">→</span>
-          <span className="text-[#5b21b6]">Connect accounts</span>
-          <span className="text-slate-300">→</span>
-          <span className="text-slate-400">Dashboard</span>
-        </div>
-
-        {/* Syncing Loading Overlay Banner */}
-        {isSyncing && (
-          <div className="mb-6 p-5 rounded-2xl bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 border border-purple-200/80 shadow-sm flex items-center justify-between animate-in fade-in duration-300">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-[#5b21b6] text-white flex items-center justify-center flex-shrink-0 shadow-md">
-                <Loader2 className="w-5 h-5 animate-spin" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-purple-950 flex items-center gap-2">
-                  Finalizing {syncingPlatform} Connection
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-200/60 text-purple-800 animate-pulse">
-                    Syncing database...
-                  </span>
-                </h4>
-                <p className="text-xs text-purple-700 font-medium mt-0.5">
-                  Synchronizing access tokens with your account and updating live connection status.
-                </p>
-              </div>
-            </div>
-            <RefreshCw className="w-4 h-4 text-purple-400 animate-spin mr-2" />
-          </div>
-        )}
-
-        {/* Feedback Alert if OAuth redirected back */}
-        {oauthFeedback && !isSyncing && (
-          <div
-            className={`mb-6 p-4 rounded-xl flex items-center justify-between text-sm font-medium animate-in fade-in slide-in-from-top-2 duration-300 ${
-              oauthFeedback.type === "success"
-                ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                : "bg-red-50 text-red-800 border border-red-200"
-            }`}
-          >
-            <div className="flex items-center gap-2.5">
-              {oauthFeedback.type === "success" ? (
-                <ShieldCheck className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-              ) : (
-                <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0" />
-              )}
-              <span>{oauthFeedback.message}</span>
-            </div>
-            <button
-              onClick={() => setOauthFeedback(null)}
-              className="text-slate-400 hover:text-slate-600 ml-4 p-1 rounded-md"
+      {isSyncing ? (
+        <OAuthSyncLoader syncingPlatform={syncingPlatform} />
+      ) : (
+        <div className="w-full max-w-4xl animate-in fade-in duration-300">
+          {/* Breadcrumbs */}
+          <div className="flex items-center gap-2 text-sm font-medium mb-8">
+            <Link
+              href="/register"
+              className="text-[#5b21b6] hover:underline cursor-pointer"
             >
-              ✕
+              Account
+            </Link>
+            <span className="text-slate-300">→</span>
+            <span className="text-[#5b21b6]">Connect accounts</span>
+            <span className="text-slate-300">→</span>
+            <span className="text-slate-400">Dashboard</span>
+          </div>
+
+          {/* Feedback Alert if OAuth error returned */}
+          {oauthFeedback && oauthFeedback.type === "error" && (
+            <div className="mb-6 p-4 rounded-xl flex items-center justify-between text-sm font-medium bg-red-50 text-red-800 border border-red-200 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="flex items-center gap-2.5">
+                <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                <span>{oauthFeedback.message}</span>
+              </div>
+              <button
+                onClick={() => setOauthFeedback(null)}
+                className="text-slate-400 hover:text-slate-600 ml-4 p-1 rounded-md"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* Header */}
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">
+            Connect your social media accounts
+          </h1>
+          <p className="text-slate-600 mb-1">
+            Link at least one account so we can publish, schedule, and pull
+            performance data on your behalf.
+          </p>
+          <p className="text-slate-400 text-sm mb-10">
+            We never see or store your platform password — access is granted
+            through each platform&apos;s own secure login screen.
+          </p>
+
+          {/* Progress Bar */}
+          <div className="mb-8">
+            <div className="flex justify-between items-center text-xs font-semibold text-slate-500 mb-2">
+              <span>Connected accounts</span>
+              <span className="text-[#5b21b6]">
+                {connectedList.length} of {TOTAL_PLATFORMS} connected
+              </span>
+            </div>
+            <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-[#5b21b6] to-[#7c3aed] rounded-full transition-all duration-500"
+                style={{
+                  width: `${(connectedList.length / TOTAL_PLATFORMS) * 100}%`,
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Connected Accounts Section */}
+          {connectedList.length > 0 && (
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Connected ({connectedList.length})
+                </h2>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {connectedList.map((platform) => {
+                  const acc = liveAccounts.find(
+                    (a) =>
+                      (a.platform || a.platform_name || "").toLowerCase() ===
+                      platform.id.toLowerCase()
+                  );
+                  return (
+                    <div
+                      key={platform.id}
+                      className="group relative p-4 rounded-2xl bg-white border-2 border-emerald-200/80 shadow-xs hover:shadow-md transition-all flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center p-2 border border-slate-100 flex-shrink-0">
+                          <Image
+                            src={platform.src}
+                            alt={platform.name}
+                            width={24}
+                            height={24}
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-semibold text-slate-900 truncate">
+                              {platform.name}
+                            </p>
+                            <CheckCircle2
+                              size={14}
+                              className="text-emerald-500 flex-shrink-0"
+                            />
+                          </div>
+                          <p className="text-xs text-slate-400 truncate">
+                            {acc?.account_name ||
+                              acc?.display_name ||
+                              acc?.handle ||
+                              acc?.platform_user_id ||
+                              "Connected"}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => handleDisconnectClick(e, platform)}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all flex-shrink-0"
+                        title="Disconnect"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Available to Connect Section */}
+          {unconnectedList.length > 0 && (
+            <div className="mb-10">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
+                Available to Connect ({unconnectedList.length})
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {unconnectedList.map((platform) => (
+                  <div
+                    key={platform.id}
+                    onClick={() => handlePlatformClick(platform)}
+                    className="group p-4 rounded-2xl bg-white border border-slate-200 hover:border-[#5b21b6]/40 hover:shadow-md cursor-pointer transition-all flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-slate-50 group-hover:bg-purple-50/50 flex items-center justify-center p-2 border border-slate-100 transition-colors flex-shrink-0">
+                        <Image
+                          src={platform.src}
+                          alt={platform.name}
+                          width={24}
+                          height={24}
+                        />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900 group-hover:text-[#5b21b6] transition-colors">
+                          {platform.name}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          {platform.description}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="ml-2 flex-shrink-0 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 group-hover:bg-[#5b21b6] group-hover:text-white group-hover:border-[#5b21b6] transition-all"
+                    >
+                      Connect
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Bottom Actions */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-slate-200 mb-12">
+            <Link
+              href="/dashboard"
+              className="text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+            >
+              I&apos;ll do this later
+            </Link>
+            <button
+              onClick={() => router.push("/dashboard")}
+              disabled={connectedList.length === 0}
+              className="w-full sm:w-auto px-8 py-3 rounded-xl bg-[#5b21b6] text-white font-semibold shadow-lg shadow-purple-900/20 hover:bg-[#4c1d95] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              Continue to Dashboard ({connectedList.length}/{TOTAL_PLATFORMS})
             </button>
           </div>
-        )}
-
-        {/* Header */}
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">
-          Connect your social media accounts
-        </h1>
-        <p className="text-slate-600 mb-1">
-          Link at least one account so we can publish, schedule, and pull
-          performance data on your behalf.
-        </p>
-        <p className="text-slate-400 text-sm mb-10">
-          We never see or store your platform password — access is granted
-          through each platform&apos;s own secure login screen.
-        </p>
-
-        {/* Progress Bar */}
-        <div className="flex items-center justify-between mb-4">
-          <span className="font-semibold text-slate-800">
-            {connectedList.length} of {TOTAL_PLATFORMS} platforms connected
-          </span>
-          <div className="w-48 h-2 bg-slate-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-[#5b21b6] transition-all duration-500 ease-out"
-              style={{
-                width: `${(connectedList.length / TOTAL_PLATFORMS) * 100}%`,
-              }}
-            />
-          </div>
         </div>
-
-        {/* SECTION 1: CONNECTED ACCOUNTS */}
-        {connectedList.length > 0 && (
-          <div className="mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">
-              Connected Accounts
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {connectedList.map((platform) => (
-                <div
-                  key={platform.id}
-                  className="relative flex items-center p-4 rounded-xl border-2 border-[#5b21b6] bg-white shadow-sm transition-all group"
-                >
-                  <div className="w-12 h-12 mr-4 flex-shrink-0">
-                    <Image
-                      src={platform.src}
-                      alt={platform.name}
-                      width={48}
-                      height={48}
-                      className="w-full h-full object-contain"
-                      priority
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-slate-900">
-                      {platform.name}
-                    </h3>
-                    <p className="text-sm text-green-600 flex items-center gap-1 font-medium">
-                      <Check className="w-3.5 h-3.5" /> Connected
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={(e) => handleDisconnectClick(e, platform)}
-                    aria-label={`Disconnect ${platform.name}`}
-                    title={`Disconnect ${platform.name}`}
-                    className="ml-2 flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* SECTION 2: AVAILABLE ACCOUNTS */}
-        {unconnectedList.length > 0 && (
-          <div className="mb-12">
-            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">
-              Available Platforms
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {unconnectedList.map((platform) => (
-                <div
-                  key={platform.id}
-                  onClick={() => handlePlatformClick(platform)}
-                  className="relative flex items-center p-4 rounded-xl border border-slate-200 bg-white hover:border-[#5b21b6] hover:shadow-md cursor-pointer transition-all group"
-                >
-                  <div className="w-12 h-12 mr-4 flex-shrink-0">
-                    <Image
-                      src={platform.src}
-                      alt={platform.name}
-                      width={48}
-                      height={48}
-                      className="w-full h-full object-contain"
-                      priority
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-slate-900 group-hover:text-[#5b21b6] transition-colors">
-                      {platform.name}
-                    </h3>
-                    <p className="text-sm text-slate-400 font-medium">
-                      Not connected
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    className="ml-2 flex-shrink-0 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 group-hover:bg-[#5b21b6] group-hover:text-white group-hover:border-[#5b21b6] transition-all"
-                  >
-                    Connect
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Bottom Actions */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-slate-200 mb-12">
-          <Link
-            href="/dashboard"
-            className="text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors"
-          >
-            I&apos;ll do this later
-          </Link>
-          <button
-            onClick={() => router.push("/dashboard")}
-            disabled={connectedList.length === 0}
-            className="w-full sm:w-auto px-8 py-3 rounded-xl bg-[#5b21b6] text-white font-semibold shadow-lg shadow-purple-900/20 hover:bg-[#4c1d95] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-          >
-            Continue to Dashboard ({connectedList.length}/{TOTAL_PLATFORMS})
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* Direct OAuth Pre-Flight Modal */}
       {selectedPlatform && (
