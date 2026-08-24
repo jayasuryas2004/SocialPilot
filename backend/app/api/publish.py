@@ -4,6 +4,7 @@ from typing import Optional, List, Dict, Any, Union
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+import pytz
 
 from app.database import get_db
 from app.models.user import User
@@ -339,20 +340,27 @@ async def schedule_social_post(
             detail="Post content cannot be empty."
         )
 
-    # 1. Normalize and validate future timestamp
+    # 1. Normalize and convert timezone for scheduled_for
+    scheduled_for_val = getattr(payload, "scheduled_for", None)
+    scheduled_time_utc = None
+
+    if scheduled_for_val is not None:
+        if isinstance(scheduled_for_val, datetime):
+            if scheduled_for_val.tzinfo is not None and scheduled_for_val.tzinfo.utcoffset(scheduled_for_val) is not None:
+                scheduled_time_utc = scheduled_for_val.astimezone(pytz.utc).replace(tzinfo=None)
+            else:
+                # Localize naive datetime to user's timezone (Asia/Kolkata) and convert to UTC
+                ist_tz = pytz.timezone("Asia/Kolkata")
+                localized_dt = ist_tz.localize(scheduled_for_val)
+                scheduled_time_utc = localized_dt.astimezone(pytz.utc).replace(tzinfo=None)
+
     now_utc = datetime.utcnow()
-    scheduled_time = payload.scheduled_for
-
-    if scheduled_time.tzinfo is not None:
-        scheduled_time_naive = scheduled_time.astimezone(timezone.utc).replace(tzinfo=None)
-    else:
-        scheduled_time_naive = scheduled_time
-
-    if scheduled_time_naive <= now_utc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="scheduled_for timestamp must be in the future."
-        )
+    if scheduled_time_utc is not None:
+        if scheduled_time_utc <= now_utc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="scheduled_for timestamp must be in the future."
+            )
 
     current_user = get_request_user(auth_creds, db)
     user_id = current_user.id if current_user else None
@@ -378,14 +386,14 @@ async def schedule_social_post(
 
     platforms_str = ", ".join(target_platforms)
 
-    # 3. Create ScheduledPost record
+    # 3. Create ScheduledPost record with UTC scheduled_for
     scheduled_post = ScheduledPost(
         user_id=user_id,
         content=payload.content.strip(),
         platforms=platforms_str,
         media_url=payload.media_url or payload.image_url,
         media_type=payload.media_type or "image",
-        scheduled_for=scheduled_time_naive,
+        scheduled_for=scheduled_time_utc,
         status="pending",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
@@ -395,7 +403,7 @@ async def schedule_social_post(
     db.commit()
     db.refresh(scheduled_post)
 
-    print(f"[SCHEDULER] Successfully scheduled post #{scheduled_post.id} for {scheduled_time_naive.isoformat()} UTC.")
+    print(f"[SCHEDULER] Successfully scheduled post #{scheduled_post.id} for {scheduled_time_utc.isoformat() if scheduled_time_utc else 'None'} UTC.")
 
     return {
         "message": "Post scheduled successfully for background publishing.",
