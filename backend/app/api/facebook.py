@@ -13,6 +13,7 @@ from app.models.social_account import SocialAccount
 from app.models.user import User
 from app.core.vault import encrypt_token
 from app.core.security import decode_access_token
+from app.core.redis import delete_cached
 
 load_dotenv()
 
@@ -365,6 +366,13 @@ async def facebook_callback(
 
         db.commit()
         print(f"[FACEBOOK OAUTH SUCCESS] Successfully persisted Facebook credentials for user ID {target_user_id}.")
+
+        # Delete Redis cache key for this user immediately after database commit
+        try:
+            await delete_cached(f"user_{target_user_id}_accounts")
+            print(f"[FACEBOOK CACHE] Invalidated cache key user_{target_user_id}_accounts")
+        except Exception as cache_err:
+            print(f"Notice: Redis cache invalidation error: {cache_err}")
 
     except Exception as db_err:
         db.rollback()

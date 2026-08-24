@@ -13,6 +13,7 @@ from app.models.social_account import SocialAccount
 from app.models.user import User
 from app.core.vault import encrypt_token
 from app.core.security import get_current_user, decode_access_token
+from app.core.redis import delete_cached
 
 # Load environment variables from .env file
 load_dotenv()
@@ -301,6 +302,13 @@ async def linkedin_callback(
 
                 db.commit()
                 print(f"[OAUTH DB SUCCESS] Successfully committed LinkedIn OAuth credentials for user_id={user_tenant_id}")
+
+                # Delete Redis cache key for this specific user immediately after commit
+                try:
+                    await delete_cached(f"user_{user_tenant_id}_accounts")
+                    print(f"[OAUTH CACHE] Invalidated cache key user_{user_tenant_id}_accounts")
+                except Exception as cache_err:
+                    print(f"Notice: Redis cache invalidation error: {cache_err}")
             except Exception as db_err:
                 db.rollback()
                 print(f"[OAUTH DB ERROR] Database transaction failed while saving LinkedIn credentials: {db_err}")

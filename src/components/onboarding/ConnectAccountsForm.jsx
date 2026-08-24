@@ -55,6 +55,91 @@ const platformsData = [
 
 const TOTAL_PLATFORMS = platformsData.length;
 
+function OAuthSyncLoader({ syncingPlatform }) {
+  const orbitingIcons = [
+    { src: "/images/facebook.svg", label: "Facebook", delay: "0s", angle: 0 },
+    { src: "/images/linkedin.svg", label: "LinkedIn", delay: "0.8s", angle: 51 },
+    { src: "/images/instagram.svg", label: "Instagram", delay: "1.6s", angle: 102 },
+    { src: "/images/x-twitter.svg", label: "Twitter", delay: "2.4s", angle: 154 },
+    { src: "/images/youtube.svg", label: "YouTube", delay: "3.2s", angle: 205 },
+    { src: "/images/pinterest.svg", label: "Pinterest", delay: "4.0s", angle: 257 },
+    { src: "/images/reddit.svg", label: "Reddit", delay: "4.8s", angle: 308 },
+  ];
+
+  const renderedOrbitIcons = [];
+  for (let i = 0; i < orbitingIcons.length; i = i + 1) {
+    const item = orbitingIcons[i];
+    const angleRad = (item.angle * Math.PI) / 180;
+    const radius = 95;
+    const x = Math.round(Math.cos(angleRad) * radius);
+    const y = Math.round(Math.sin(angleRad) * radius);
+
+    renderedOrbitIcons.push(
+      <div
+        key={`orbit-icon-${item.label}-${i}`}
+        className="absolute w-11 h-11 rounded-2xl bg-white dark:bg-slate-800 shadow-xl border border-slate-100 dark:border-slate-700 flex items-center justify-center p-2 animate-pulse"
+        style={{
+          transform: `translate(${x}px, ${y}px)`,
+          animationDelay: item.delay,
+        }}
+      >
+        <Image
+          src={item.src}
+          alt={item.label}
+          width={24}
+          height={24}
+          className="object-contain drop-shadow-sm"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-10 shadow-2xl flex flex-col items-center text-center max-w-md w-full mx-4 relative overflow-hidden">
+        {/* Ambient Glow */}
+        <div className="absolute -top-24 -left-24 w-56 h-56 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -right-24 w-56 h-56 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
+
+        {/* Antigravity Orbit Animation Stage */}
+        <div className="relative w-64 h-64 flex items-center justify-center my-4">
+          {/* Animated Orbit Rings */}
+          <div className="absolute inset-0 rounded-full border-2 border-dashed border-purple-300/50 dark:border-purple-600/30 animate-[spin_24s_linear_infinite]" />
+          <div className="absolute inset-6 rounded-full border border-blue-300/40 dark:border-blue-500/20 animate-[spin_16s_linear_infinite_reverse]" />
+
+          {/* Orbiting Icons */}
+          {renderedOrbitIcons}
+
+          {/* Center Brand Logo with Glowing Pulse */}
+          <div className="relative z-10 w-20 h-20 rounded-2xl bg-gradient-to-tr from-[#311b92] to-[#5b21b6] p-3 shadow-2xl flex items-center justify-center border-2 border-white/60 dark:border-purple-400/40 animate-bounce">
+            <Image
+              src="/images/logo.svg"
+              alt="SocialPilot Logo"
+              width={44}
+              height={44}
+              className="object-contain drop-shadow-md brightness-200 contrast-200"
+            />
+          </div>
+        </div>
+
+        {/* Status Text */}
+        <div className="mt-4 space-y-2 relative z-10">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-50 dark:bg-purple-950/60 border border-purple-200/60 dark:border-purple-800 text-purple-700 dark:text-purple-300 text-xs font-bold uppercase tracking-wider">
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-600" />
+            <span>{syncingPlatform ? `${syncingPlatform} Account` : "OAuth Syncing"}</span>
+          </div>
+          <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+            Securely syncing your social accounts...
+          </h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+            Verifying permissions and pulling fresh connection tokens from the vault.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ConnectAccountsForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -76,7 +161,7 @@ export default function ConnectAccountsForm() {
       setLiveAccounts(safeAccs);
 
       const liveIds = [];
-      for (let i = 0; i < safeAccs.length; i++) {
+      for (let i = 0; i < safeAccs.length; i = i + 1) {
         const acc = safeAccs[i];
         const rawPlatform = acc?.platform || acc?.platform_name || acc?.name;
         if (rawPlatform && (acc.status || "connected") === "connected") {
@@ -88,7 +173,14 @@ export default function ConnectAccountsForm() {
           if (p === "yt") p = "youtube";
           if (p === "pin") p = "pinterest";
 
-          if (!liveIds.includes(p)) {
+          let alreadyPresent = false;
+          for (let j = 0; j < liveIds.length; j = j + 1) {
+            if (liveIds[j] === p) {
+              alreadyPresent = true;
+              break;
+            }
+          }
+          if (!alreadyPresent) {
             liveIds.push(p);
           }
         }
@@ -107,6 +199,8 @@ export default function ConnectAccountsForm() {
 
   // Sync state and OAuth callback interceptor
   useEffect(() => {
+    let isCancelled = false;
+
     const statusParam =
       searchParams?.get("status") ||
       (typeof window !== "undefined"
@@ -123,44 +217,55 @@ export default function ConnectAccountsForm() {
         ? new URLSearchParams(window.location.search).get("message")
         : null);
 
-    if (statusParam === "success") {
-      // 1. Instantly trigger sync loading state
-      setIsSyncing(true);
-      setSyncingPlatform(platformParam ? platformParam.toUpperCase() : "Account");
+    const handleOAuthSync = async () => {
+      if (statusParam === "success") {
+        setIsSyncing(true);
+        setSyncingPlatform(platformParam ? platformParam.toUpperCase() : "Social");
 
-      // 2. Add 750ms debounce to allow backend database transaction to settle, then force cache-busted fetch
-      const syncTimer = setTimeout(async () => {
-        await loadLiveConnections(true);
-        setIsSyncing(false);
-        setSyncingPlatform(null);
+        try {
+          await loadLiveConnections(true);
+
+          if (!isCancelled) {
+            setOauthFeedback({
+              type: "success",
+              message: `Successfully connected and verified your ${platformParam ? platformParam.toUpperCase() : "social"} account!`,
+            });
+          }
+        } catch (err) {
+          console.warn("OAuth sync error:", err);
+        } finally {
+          if (!isCancelled) {
+            setIsSyncing(false);
+            setSyncingPlatform(null);
+            // Execute URL cleanup only after the fresh data resolves
+            if (typeof window !== "undefined") {
+              const cleanUrl = window.location.pathname;
+              window.history.replaceState({}, document.title, cleanUrl);
+            }
+          }
+        }
+      } else if (statusParam === "error") {
         setOauthFeedback({
-          type: "success",
-          message: `Successfully connected and verified your ${platformParam ? platformParam.toUpperCase() : "social"} account!`,
+          type: "error",
+          message:
+            messageParam ||
+            "Failed to connect social account. Please try again or check OAuth permissions.",
         });
-
-        // 3. Clean URL query parameters seamlessly
+        await loadLiveConnections(true);
         if (typeof window !== "undefined") {
           const cleanUrl = window.location.pathname;
           window.history.replaceState({}, document.title, cleanUrl);
         }
-      }, 750);
-
-      return () => clearTimeout(syncTimer);
-    } else if (statusParam === "error") {
-      setOauthFeedback({
-        type: "error",
-        message:
-          messageParam ||
-          "Failed to connect social account. Please try again or check OAuth permissions.",
-      });
-      loadLiveConnections(true);
-      if (typeof window !== "undefined") {
-        const cleanUrl = window.location.pathname;
-        window.history.replaceState({}, document.title, cleanUrl);
+      } else {
+        await loadLiveConnections(true);
       }
-    } else {
-      loadLiveConnections(true);
-    }
+    };
+
+    handleOAuthSync();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [searchParams, loadLiveConnections]);
 
   // Derived boolean states based strictly on live API response
@@ -307,7 +412,10 @@ export default function ConnectAccountsForm() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8f9fc] flex flex-col items-center pt-8 px-4">
+    <div className="min-h-screen bg-[#f8f9fc] flex flex-col items-center pt-8 px-4 relative">
+      {/* Antigravity OAuth Syncing Fullscreen Loader */}
+      {isSyncing && <OAuthSyncLoader syncingPlatform={syncingPlatform} />}
+
       {/* Brand Header with Logo */}
       <div className="w-full max-w-4xl mb-8 flex items-center">
         <div className="flex items-center gap-2">
