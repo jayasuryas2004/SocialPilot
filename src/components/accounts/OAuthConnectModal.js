@@ -13,6 +13,8 @@ export default function OAuthConnectModal({ isOpen, onClose, onConnected, connec
   const [selectedIds, setSelectedIds] = useState([]);
   const [statusMap, setStatusMap] = useState({}); // { platformId: { status, error, account } }
 
+  const selectedPlatforms = PLATFORM_LIST.filter((p) => selectedIds.includes(p.id));
+
   const reset = () => {
     setStep('pick');
     setSelectedIds([]);
