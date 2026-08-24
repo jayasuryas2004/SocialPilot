@@ -153,13 +153,13 @@ export default function ConnectAccountsForm() {
           messageParam ||
           "Failed to connect social account. Please try again or check OAuth permissions.",
       });
-      loadLiveConnections(false);
+      loadLiveConnections(true);
       if (typeof window !== "undefined") {
         const cleanUrl = window.location.pathname;
         window.history.replaceState({}, document.title, cleanUrl);
       }
     } else {
-      loadLiveConnections(false);
+      loadLiveConnections(true);
     }
   }, [searchParams, loadLiveConnections]);
 

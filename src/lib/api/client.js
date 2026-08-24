@@ -12,6 +12,9 @@ const client = axios.create({
   baseURL: API_URL,
   headers: {
     "Content-Type": "application/json",
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0",
   },
   withCredentials: true,
 });
@@ -19,9 +22,12 @@ const client = axios.create({
 // Request interceptor: attach Bearer token to headers of EVERY outgoing request
 client.interceptors.request.use(
   (config) => {
+    config.headers = config.headers || {};
+    config.headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+    config.headers["Pragma"] = "no-cache";
+    config.headers["Expires"] = "0";
     const token = getToken();
     if (token) {
-      config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
