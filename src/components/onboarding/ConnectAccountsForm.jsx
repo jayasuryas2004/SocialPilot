@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Check, Loader2, X, AlertTriangle, ShieldCheck, RefreshCw } from "lucide-react";
+import { Check, CheckCircle2, Loader2, X, AlertTriangle, ShieldCheck, RefreshCw, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
