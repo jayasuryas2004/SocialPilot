@@ -55,6 +55,10 @@ from app.api.media import (
     router_alt as media_alt_router,
     router_direct as media_direct_router
 )
+from app.api.webhooks import (
+    router as webhooks_router,
+    router_alt as webhooks_alt_router
+)
 
 load_dotenv()
 
@@ -299,6 +303,8 @@ app.include_router(router_schedule_alt)
 app.include_router(media_router)
 app.include_router(media_alt_router)
 app.include_router(media_direct_router)
+app.include_router(webhooks_router)
+app.include_router(webhooks_alt_router)
 
 
 @app.get("/metrics")
