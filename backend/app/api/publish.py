@@ -87,14 +87,21 @@ async def publish_content_multi_platform(
     and returns a consolidated status report.
     Strictly uses standard procedural for and while loops (zero comprehensions/lambdas).
     """
-    if not payload.content or len(payload.content.strip()) == 0:
+    if not payload.content:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Post content cannot be empty."
+        )
+    if len(payload.content.strip()) == 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Post content cannot be empty."
         )
 
     current_user = get_request_user(auth_creds, db)
-    user_id = current_user.id if current_user else None
+    user_id = None
+    if current_user:
+        user_id = current_user.id
 
     # Parse and normalize target platforms using standard procedural loop
     raw_platforms = payload.platforms
@@ -102,26 +109,63 @@ async def publish_content_multi_platform(
 
     if isinstance(raw_platforms, list):
         for p in raw_platforms:
-            if p and len(str(p).strip()) > 0:
+            if p:
                 clean_p = str(p).strip().lower()
-                if clean_p not in target_platforms:
-                    target_platforms.append(clean_p)
-    elif isinstance(raw_platforms, str) and len(raw_platforms.strip()) > 0:
-        parts = raw_platforms.split(",")
-        for part in parts:
-            clean_part = part.strip().lower()
-            if len(clean_part) > 0 and clean_part not in target_platforms:
-                target_platforms.append(clean_part)
+                if len(clean_p) > 0:
+                    if clean_p not in target_platforms:
+                        target_platforms.append(clean_p)
+    elif isinstance(raw_platforms, str):
+        if len(raw_platforms.strip()) > 0:
+            parts = raw_platforms.split(",")
+            for part in parts:
+                clean_part = part.strip().lower()
+                if len(clean_part) > 0:
+                    if clean_part not in target_platforms:
+                        target_platforms.append(clean_part)
 
     if len(target_platforms) == 0:
         target_platforms.append("facebook")
         target_platforms.append("linkedin")
 
+    platforms_str = ", ".join(target_platforms)
     print(f"[PUBLISH ENGINE] Initiating multi-platform publish for platforms: {target_platforms}")
 
-    # Fetch user's connected social accounts
+    media_link = payload.media_url
+    if not media_link:
+        media_link = payload.image_url
+
+    post_title = payload.title
+    if not post_title:
+        if len(payload.content) > 50:
+            post_title = payload.content[:50]
+        else:
+            post_title = payload.content
+    if not post_title:
+        post_title = "SocialPilot Post"
+
+    media_type_val = "image"
+    if payload.media_type:
+        media_type_val = payload.media_type
+
+    # 1. Create single unified Post record with initial status="Publishing"
+    new_post = Post(
+        user_id=user_id,
+        title=post_title,
+        content=payload.content.strip(),
+        platforms=platforms_str,
+        platform=platforms_str,
+        status="Publishing",
+        image_url=media_link,
+        media_url=media_link,
+        media_type=media_type_val
+    )
+    db.add(new_post)
+    db.commit()
+    db.refresh(new_post)
+
+    # 2. Fetch user's connected social accounts
     accounts_query = db.query(SocialAccount)
-    if user_id:
+    if user_id is not None:
         user_accounts = accounts_query.filter(SocialAccount.user_id == user_id).all()
         if len(user_accounts) == 0:
             user_accounts = accounts_query.all()
@@ -131,20 +175,21 @@ async def publish_content_multi_platform(
     results: Dict[str, Any] = {}
     overall_success = True
 
-    # Process each requested platform with isolated error boundaries
+    # 3. Process each requested platform with isolated error boundaries
     for platform_name in target_platforms:
         print(f"[PUBLISH ENGINE] Processing platform: {platform_name}")
 
         # ----------------------------------------------------
-        # 1. META / FACEBOOK PUBLISHING
+        # 3a. META / FACEBOOK PUBLISHING
         # ----------------------------------------------------
         if platform_name in ["facebook", "meta", "fb"]:
             try:
                 fb_account = None
                 for acc in user_accounts:
-                    if acc.platform and acc.platform.lower() == "facebook":
-                        fb_account = acc
-                        break
+                    if acc.platform:
+                        if acc.platform.lower() == "facebook":
+                            fb_account = acc
+                            break
 
                 if not fb_account or not fb_account.access_token:
                     results["facebook"] = {
@@ -154,13 +199,15 @@ async def publish_content_multi_platform(
                     overall_success = False
                 else:
                     decrypted_page_token = decrypt_token(fb_account.access_token)
-                    page_id = fb_account.platform_user_id or "me"
+                    page_id = fb_account.platform_user_id
+                    if not page_id:
+                        page_id = "me"
 
                     fb_success, fb_response = await publish_to_facebook(
                         page_id=page_id,
                         page_token=decrypted_page_token,
                         message=payload.content,
-                        media_url=payload.media_url or payload.image_url
+                        media_url=media_link
                     )
 
                     if fb_success:
@@ -187,28 +234,10 @@ async def publish_content_multi_platform(
                 overall_success = False
 
         # ----------------------------------------------------
-        # 2. LINKEDIN PUBLISHING
+        # 3b. LINKEDIN PUBLISHING
         # ----------------------------------------------------
         elif platform_name in ["linkedin", "li"]:
             try:
-                media_link = payload.media_url or payload.image_url
-                post_title = payload.title or payload.content[:50]
-
-                new_post = Post(
-                    user_id=user_id,
-                    title=post_title,
-                    content=payload.content,
-                    platforms="LinkedIn",
-                    platform="LinkedIn",
-                    status="Published",
-                    image_url=media_link,
-                    media_url=media_link,
-                    media_type=payload.media_type or "image"
-                )
-                db.add(new_post)
-                db.commit()
-                db.refresh(new_post)
-
                 li_success, li_message = publish_to_linkedin(new_post, db)
 
                 if li_success:
@@ -235,23 +264,23 @@ async def publish_content_multi_platform(
                 overall_success = False
 
         # ----------------------------------------------------
-        # 3. INSTAGRAM GRAPH API PUBLISHING (2-Step Container Flow)
+        # 3c. INSTAGRAM GRAPH API PUBLISHING (2-Step Container Flow)
         # ----------------------------------------------------
         elif platform_name in ["instagram", "ig"]:
             try:
-                # Find connected Instagram account in database
                 ig_account = None
                 for acc in user_accounts:
-                    if acc.platform and acc.platform.lower() == "instagram":
-                        ig_account = acc
-                        break
-
-                # Fallback: Check if a Facebook account exists whose token can be used
-                if not ig_account:
-                    for acc in user_accounts:
-                        if acc.platform and acc.platform.lower() == "facebook":
+                    if acc.platform:
+                        if acc.platform.lower() == "instagram":
                             ig_account = acc
                             break
+
+                if not ig_account:
+                    for acc in user_accounts:
+                        if acc.platform:
+                            if acc.platform.lower() == "facebook":
+                                ig_account = acc
+                                break
 
                 if not ig_account or not ig_account.access_token:
                     results["instagram"] = {
@@ -261,9 +290,9 @@ async def publish_content_multi_platform(
                     overall_success = False
                 else:
                     decrypted_ig_token = decrypt_token(ig_account.access_token)
-                    ig_acc_id = ig_account.platform_user_id or "me"
-
-                    media_link = payload.media_url or payload.image_url
+                    ig_acc_id = ig_account.platform_user_id
+                    if not ig_acc_id:
+                        ig_acc_id = "me"
 
                     ig_success, ig_response = await publish_to_instagram(
                         ig_account_id=ig_acc_id,
@@ -297,18 +326,34 @@ async def publish_content_multi_platform(
                 overall_success = False
 
         # ----------------------------------------------------
-        # 4. OTHER PLATFORMS
+        # 3d. OTHER PLATFORMS
         # ----------------------------------------------------
         else:
             results[platform_name] = {
                 "status": "queued",
-                "detail": f"Content staged for {platform_name.capitalize()} publishing pipeline."
+                "detail": f"Content staged for {platform_name} publishing pipeline."
             }
 
+    # 4. Update Post status strictly based on overall API result
+    if overall_success:
+        new_post.status = "Published"
+    else:
+        new_post.status = "Failed"
+
+    db.add(new_post)
+    db.commit()
+    db.refresh(new_post)
+
+    msg = "Multi-platform publishing completed with partial results."
+    if overall_success:
+        msg = "Multi-platform publishing processed successfully."
+
     return {
-        "message": "Multi-platform publishing processed successfully." if overall_success else "Multi-platform publishing completed with partial results.",
+        "message": msg,
         "success": overall_success,
         "results": results,
+        "post_id": new_post.id,
+        "status": new_post.status,
         "platforms_requested": target_platforms
     }
 
