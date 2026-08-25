@@ -10,8 +10,11 @@ import pytz
 from app.database import get_db
 from app.models.post import Post
 from app.models.user import User
+from app.models.social_account import SocialAccount
 from app.schemas.post import PostCreate
+from app.core.vault import decrypt_token
 from app.services.social_media import delete_from_linkedin
+from app.services.facebook_service import delete_from_facebook
 from app.core.security import get_current_user
 
 router = APIRouter(prefix="/posts", tags=["Posts"])
@@ -387,6 +390,25 @@ def delete_post(
             delete_from_linkedin(db_post, db)
         except Exception as del_err:
             print(f"Notice during native LinkedIn delete: {del_err}")
+
+    # If post was published to Facebook and has a facebook_post_id, delete it from Facebook
+    if getattr(db_post, "facebook_post_id", None):
+        print(f"Triggering native Facebook deletion for post ID {db_post.id} (FB Post ID: {db_post.facebook_post_id})")
+        try:
+            fb_acc_query = db.query(SocialAccount).filter(SocialAccount.platform == "facebook")
+            fb_account = None
+            if getattr(db_post, "user_id", None):
+                fb_account = fb_acc_query.filter(SocialAccount.user_id == db_post.user_id).first()
+            if not fb_account:
+                fb_account = fb_acc_query.first()
+
+            if fb_account and fb_account.access_token:
+                page_token = decrypt_token(fb_account.access_token)
+                if not page_token:
+                    page_token = fb_account.access_token
+                delete_from_facebook(str(db_post.facebook_post_id), page_token)
+        except Exception as fb_del_err:
+            print(f"Notice during native Facebook delete: {fb_del_err}")
 
     try:
         db.delete(db_post)

@@ -223,6 +223,17 @@ async def publish_content_multi_platform(
                     )
 
                     if fb_success:
+                        fb_post_id_val = None
+                        if isinstance(fb_response, dict):
+                            fb_post_id_val = fb_response.get("post_id")
+                            if not fb_post_id_val:
+                                fb_post_id_val = fb_response.get("id")
+                        if fb_post_id_val is not None:
+                            new_post.facebook_post_id = str(fb_post_id_val)
+                            db.add(new_post)
+                            db.commit()
+                            db.refresh(new_post)
+
                         results["facebook"] = {
                             "status": "success",
                             "account_name": fb_account.account_name,

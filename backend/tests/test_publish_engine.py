@@ -237,3 +237,47 @@ def test_facebook_publish_with_media_photo_endpoint(client, setup_test_accounts)
         data = response.json()
         assert data["results"]["facebook"]["status"] == "success"
         assert data["results"]["facebook"]["post_id"] == "fb_photo_post_777"
+
+
+def test_delete_post_triggers_facebook_native_deletion(client, setup_test_accounts, db_session):
+    """
+    Test that deleting a post with facebook_post_id triggers delete_from_facebook.
+    """
+    from app.models.post import Post
+
+    user = setup_test_accounts
+    token = create_access_token({"sub": str(user.id), "email": user.email, "role": user.role})
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Create a test post in DB with facebook_post_id
+    test_post = Post(
+        user_id=user.id,
+        title="FB Delete Test",
+        content="Test content to delete",
+        platforms="facebook",
+        platform="facebook",
+        status="Published",
+        facebook_post_id="fb_delete_target_999"
+    )
+    db_session.add(test_post)
+    db_session.commit()
+    db_session.refresh(test_post)
+    post_id = test_post.id
+
+    deleted_post_ids = []
+
+    def mock_delete_from_facebook(post_id_val, token_val):
+        deleted_post_ids.append(post_id_val)
+        return True
+
+    with patch("app.api.post.delete_from_facebook", side_effect=mock_delete_from_facebook):
+        response = client.delete(f"/api/posts/{post_id}", headers=headers)
+        assert response.status_code == 200
+
+        # Verify delete_from_facebook was called with the post ID
+        assert "fb_delete_target_999" in deleted_post_ids
+
+        # Verify post is removed from database
+        db_check = db_session.query(Post).filter(Post.id == post_id).first()
+        assert db_check is None
+

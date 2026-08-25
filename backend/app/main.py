@@ -209,7 +209,9 @@ def ensure_database_columns():
             # 2. Posts Table Columns (media_type and media_url)
             post_columns_to_add = [
                 ("media_type", "VARCHAR DEFAULT 'image'"),
-                ("media_url", "TEXT")
+                ("media_url", "TEXT"),
+                ("linkedin_urn", "VARCHAR"),
+                ("facebook_post_id", "VARCHAR")
             ]
 
             existing_post_cols = []

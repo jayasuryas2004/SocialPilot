@@ -1,4 +1,5 @@
 import httpx
+import requests
 from typing import Dict, Any, Tuple, Optional
 
 
@@ -135,3 +136,44 @@ async def publish_to_facebook(
             "status": "failed",
             "error": str(exc)
         }
+
+
+def delete_from_facebook(post_id: str, page_access_token: str) -> bool:
+    """
+    Deletes a published post natively from Facebook Page via Meta Graph API v19.0.
+    Strictly uses standard procedural control flow (zero comprehensions/lambdas).
+    """
+    clean_post_id = str(post_id or "").strip()
+    clean_token = str(page_access_token or "").strip()
+
+    if len(clean_post_id) == 0:
+        raise Exception("Facebook deletion failed: Missing post ID.")
+    if len(clean_token) == 0:
+        raise Exception("Facebook deletion failed: Missing Page Access Token.")
+
+    url = f"https://graph.facebook.com/v19.0/{clean_post_id}?access_token={clean_token}"
+    print(f"[FACEBOOK DELETE] Executing native delete for Post ID {clean_post_id}")
+
+    try:
+        response = requests.delete(url, timeout=15.0)
+    except Exception as net_err:
+        raise Exception(f"Facebook delete network error: {net_err}")
+
+    if response.status_code in [200, 204]:
+        print(f"[FACEBOOK DELETE SUCCESS] Successfully deleted Facebook Post ID {clean_post_id}")
+        return True
+    elif response.status_code == 404:
+        print(f"[FACEBOOK DELETE NOTICE] Post ID {clean_post_id} not found on Facebook (already deleted).")
+        return True
+    else:
+        err_msg = f"Meta Graph API deletion failed ({response.status_code}): {response.text}"
+        try:
+            err_json = response.json()
+            if isinstance(err_json, dict) and "error" in err_json:
+                meta_err = err_json.get("error", {})
+                if isinstance(meta_err, dict) and meta_err.get("message"):
+                    err_msg = f"Meta API Error ({meta_err.get('code')}): {meta_err.get('message')}"
+        except Exception:
+            pass
+        raise Exception(err_msg)
+

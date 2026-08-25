@@ -166,6 +166,8 @@ def publish_posts():
 
                             if fb_res.status_code in [200, 201]:
                                 fb_json = fb_res.json()
+                                if fb_json.get("id"):
+                                    post.facebook_post_id = str(fb_json.get("id"))
                                 print(f"[FACEBOOK SUCCESS] Post ID: {fb_json.get('id')}")
                             else:
                                 overall_success = False

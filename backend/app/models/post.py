@@ -25,6 +25,7 @@ class Post(Base):
     media_url = Column(Text, nullable=True)
     media_type = Column(String, default="image", nullable=True)
     linkedin_urn = Column(String, nullable=True)
+    facebook_post_id = Column(String, nullable=True)
 
     # Relationships
     user = relationship("User", back_populates="posts")
