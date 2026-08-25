@@ -180,24 +180,21 @@ def format_combined_content(db: Session, current_user: User):
             is_linkedin = True
 
         # Extract date and time
-        fallback_dt = p.created_at
-        if fallback_dt is None:
-            fallback_dt = datetime.utcnow() + timedelta(hours=5, minutes=30)
+        local_now = datetime.utcnow() + timedelta(hours=5, minutes=30)
 
-        post_date = fallback_dt.strftime("%Y-%m-%d")
         if p.scheduled_date is not None:
             post_date = str(p.scheduled_date)
         elif p.scheduled_at is not None:
             post_date = p.scheduled_at.strftime("%Y-%m-%d")
+        else:
+            post_date = local_now.strftime("%Y-%m-%d")
 
-        raw_time = p.scheduled_time
-        if raw_time is None:
-            if p.scheduled_at is not None:
-                raw_time = p.scheduled_at.strftime("%I:%M %p")
-            elif p.created_at is not None:
-                raw_time = p.created_at.strftime("%I:%M %p")
-            else:
-                raw_time = fallback_dt.strftime("%I:%M %p")
+        if p.scheduled_time is not None:
+            raw_time = p.scheduled_time
+        elif p.scheduled_at is not None:
+            raw_time = p.scheduled_at.strftime("%I:%M %p")
+        else:
+            raw_time = local_now.strftime("%I:%M %p")
         post_time = format_time_ampm(raw_time)
 
         camp_name = "General"
