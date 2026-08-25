@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any, Union
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -147,7 +147,10 @@ async def publish_content_multi_platform(
     if payload.media_type:
         media_type_val = payload.media_type
 
-    # 1. Create single unified Post record with initial status="Publishing"
+    # Calculate local time (UTC+5:30) for accurate timestamping
+    local_time = datetime.utcnow() + timedelta(hours=5, minutes=30)
+
+    # 1. Create single unified Post record with initial status="Publishing" and local timestamp
     new_post = Post(
         user_id=user_id,
         title=post_title,
@@ -155,6 +158,9 @@ async def publish_content_multi_platform(
         platforms=platforms_str,
         platform=platforms_str,
         status="Publishing",
+        scheduled_at=local_time,
+        scheduled_date=local_time.date(),
+        scheduled_time=local_time.strftime("%I:%M %p"),
         image_url=media_link,
         media_url=media_link,
         media_type=media_type_val

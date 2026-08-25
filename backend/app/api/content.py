@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 from app.database import get_db
 from app.models.post import Post
@@ -180,7 +180,11 @@ def format_combined_content(db: Session, current_user: User):
             is_linkedin = True
 
         # Extract date and time
-        post_date = "2026-11-01"
+        fallback_dt = p.created_at
+        if fallback_dt is None:
+            fallback_dt = datetime.utcnow() + timedelta(hours=5, minutes=30)
+
+        post_date = fallback_dt.strftime("%Y-%m-%d")
         if p.scheduled_date is not None:
             post_date = str(p.scheduled_date)
         elif p.scheduled_at is not None:
@@ -190,6 +194,10 @@ def format_combined_content(db: Session, current_user: User):
         if raw_time is None:
             if p.scheduled_at is not None:
                 raw_time = p.scheduled_at.strftime("%I:%M %p")
+            elif p.created_at is not None:
+                raw_time = p.created_at.strftime("%I:%M %p")
+            else:
+                raw_time = fallback_dt.strftime("%I:%M %p")
         post_time = format_time_ampm(raw_time)
 
         camp_name = "General"

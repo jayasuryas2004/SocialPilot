@@ -342,6 +342,39 @@ export default function PostsList() {
     );
   };
 
+  const renderPreviewPlatformBadges = (post) => {
+    if (!post) return null;
+    let rawStr = post.platforms || post.platform || 'instagram';
+    let parts = String(rawStr).split(',');
+    let badges = [];
+    for (let i = 0; i < parts.length; i++) {
+      let p = parts[i].trim().toLowerCase();
+      if (p.length > 0) {
+        let pLabel = p.charAt(0).toUpperCase() + p.slice(1);
+        badges.push(
+          <div key={`modal-platform-${post.id || 'p'}-${p}-${i}`} className="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-800 dark:text-slate-200">
+            {getPlatformIcon(p, 16)}
+            <span>{pLabel}</span>
+          </div>
+        );
+      }
+    }
+    if (badges.length === 0) {
+      badges.push(
+        <div key="modal-platform-default" className="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-800 dark:text-slate-200">
+          {getPlatformIcon('instagram', 16)}
+          <span>Instagram</span>
+        </div>
+      );
+    }
+    return (
+      <div className="flex items-center gap-2 mb-6 flex-wrap">
+        {badges}
+        <span className="text-slate-400 text-sm">@{post.handle || 'socialpilot_hq'}</span>
+      </div>
+    );
+  };
+
   const getPostImage = (p) => {
     if (!p) return null;
     let url = p.media_url || p.image_url || p.image || p.media || null;
@@ -355,6 +388,35 @@ export default function PostsList() {
     return url;
   };
 
+
+  let platformFilterOptions = [];
+  for (let i = 0; i < PLATFORMS.length; i++) {
+    let p = PLATFORMS[i];
+    platformFilterOptions.push(<option key={p} value={p}>{p}</option>);
+  }
+
+  let statusFilterOptions = [];
+  for (let i = 0; i < STATUSES.length; i++) {
+    let s = STATUSES[i];
+    statusFilterOptions.push(<option key={s} value={s}>{s}</option>);
+  }
+
+  let campaignFilterOptions = [];
+  for (let i = 0; i < CAMPAIGNS.length; i++) {
+    let c = CAMPAIGNS[i];
+    campaignFilterOptions.push(<option key={c} value={c}>{c}</option>);
+  }
+
+  let previewDateLabel = "Scheduled For";
+  if (previewPost) {
+    if (previewPost.status === 'Published') {
+      previewDateLabel = "Published On";
+    } else if (previewPost.status === 'PUBLISHED') {
+      previewDateLabel = "Published On";
+    } else if (previewPost.status === 'published') {
+      previewDateLabel = "Published On";
+    }
+  }
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col relative mt-6 min-h-[600px] transition-colors duration-200">
@@ -378,7 +440,7 @@ export default function PostsList() {
           className="border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl text-sm font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-750"
         >
           <option value="Platform">Platform</option>
-          {PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
+          {platformFilterOptions}
         </select>
 
         <select
@@ -387,7 +449,7 @@ export default function PostsList() {
           className="border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl text-sm font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-750"
         >
           <option value="Status">Status</option>
-          {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+          {statusFilterOptions}
         </select>
 
         <select
@@ -396,7 +458,7 @@ export default function PostsList() {
           className="border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl text-sm font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-750"
         >
           <option value="Campaign">Campaign</option>
-          {CAMPAIGNS.map(c => <option key={c} value={c}>{c}</option>)}
+          {campaignFilterOptions}
         </select>
 
         <div className="relative">
@@ -716,11 +778,7 @@ export default function PostsList() {
               ) : (
                 <>
                   <h2 className="text-[22px] leading-tight font-black text-slate-900 dark:text-white mb-2">{previewPost.title}</h2>
-                  <div className="flex items-center gap-2 mb-6">
-                    {getPlatformIcon(previewPost.platform, 18)}
-                    <span className="font-bold text-sm text-slate-900 dark:text-slate-200">{previewPost.platform}</span>
-                    <span className="text-slate-400 text-sm">@{previewPost.handle}</span>
-                  </div>
+                  {renderPreviewPlatformBadges(previewPost)}
                 </>
               )}
 
@@ -740,7 +798,7 @@ export default function PostsList() {
 
               <div className="grid grid-cols-2 gap-4 mt-auto border-t border-slate-100 dark:border-slate-800 pt-6">
                 <div>
-                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Scheduled For</h4>
+                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">{previewDateLabel}</h4>
                   {isEditing ? (
                     <div className="flex flex-col gap-2">
                       <input
@@ -766,7 +824,7 @@ export default function PostsList() {
                       onChange={(e) => setEditForm({ ...editForm, campaign: e.target.value })}
                       className="px-3 py-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-sm font-bold text-slate-800 dark:text-white outline-none"
                     >
-                      {CAMPAIGNS.map(c => <option key={c} value={c}>{c}</option>)}
+                      {campaignFilterOptions}
                     </select>
                   ) : (
                     <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">{previewPost.campaign}</p>
