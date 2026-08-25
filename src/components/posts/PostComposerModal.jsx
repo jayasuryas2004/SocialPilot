@@ -101,9 +101,20 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
   if (!isOpen || !mounted) return null;
 
   const togglePlatform = (id) => {
-    setSelectedPlatforms(prev =>
-      prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
-    );
+    let nextPlatforms = [];
+    if (selectedPlatforms.includes(id)) {
+      for (let i = 0; i < selectedPlatforms.length; i++) {
+        if (selectedPlatforms[i] !== id) {
+          nextPlatforms.push(selectedPlatforms[i]);
+        }
+      }
+    } else {
+      for (let i = 0; i < selectedPlatforms.length; i++) {
+        nextPlatforms.push(selectedPlatforms[i]);
+      }
+      nextPlatforms.push(id);
+    }
+    setSelectedPlatforms(nextPlatforms);
   };
 
   const handleMediaUpload = async (e) => {
@@ -182,18 +193,50 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
 
   // 1. Direct Publish Now Handler
   const handlePublishNow = async () => {
-    if (selectedPlatforms.length === 0) return alert("Please select at least one platform (e.g., Facebook, LinkedIn).");
-    if (!content.trim() && !media) return alert("Please add some content or media.");
+    if (selectedPlatforms.length === 0) {
+      alert("Please select at least one platform (e.g., Facebook, LinkedIn).");
+      return;
+    }
+    if (!content.trim()) {
+      if (!media) {
+        alert("Please add some content or media.");
+        return;
+      }
+    }
 
     setIsPublishingNow(true);
-    const fullCaption = locationTag 
-      ? `${content.trim()}\n\n📍 ${locationTag}`
-      : content.trim();
+    let fullCaption = content.trim();
+    if (locationTag) {
+      fullCaption = content.trim() + "\n\n📍 " + locationTag;
+    }
+
+    let platformsArr = [];
+    for (let i = 0; i < selectedPlatforms.length; i++) {
+      let p = selectedPlatforms[i];
+      if (p) {
+        let cleanP = String(p).trim().toLowerCase();
+        if (cleanP.length > 0) {
+          if (!platformsArr.includes(cleanP)) {
+            platformsArr.push(cleanP);
+          }
+        }
+      }
+    }
+
+    let postTitle = "SocialPilot Post";
+    if (content.trim().length > 0) {
+      if (content.trim().length > 40) {
+        postTitle = content.trim().slice(0, 40);
+      } else {
+        postTitle = content.trim();
+      }
+    }
 
     const publishPayload = {
       content: fullCaption,
-      platforms: selectedPlatforms,
-      title: content.trim().slice(0, 40) || "SocialPilot Post",
+      platforms: platformsArr,
+      platform: platformsArr.join(", "),
+      title: postTitle,
       image_url: media,
       media_url: media,
       media_type: mediaType
@@ -204,12 +247,23 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
     try {
       const res = await publishMultiPlatform(publishPayload);
       console.log("Publish result:", res);
-      alert(res.message || "Post published successfully to selected platforms!");
+      let alertMsg = "Post published successfully to selected platforms!";
+      if (res && res.message) {
+        alertMsg = res.message;
+      }
+      alert(alertMsg);
       resetForm();
       onClose();
     } catch (err) {
       console.error("Failed to publish post:", err);
-      const detail = err.response?.data?.detail || "Failed to publish post. Please verify your connected social accounts.";
+      let detail = "Failed to publish post. Please verify your connected social accounts.";
+      if (err.response) {
+        if (err.response.data) {
+          if (err.response.data.detail) {
+            detail = err.response.data.detail;
+          }
+        }
+      }
       alert(detail);
     } finally {
       setIsPublishingNow(false);
@@ -218,20 +272,59 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
 
   // 2. Schedule Post Handler
   const handleSubmit = async () => {
-    if (selectedPlatforms.length === 0) return alert("Please select at least one platform.");
-    if (!content.trim() && !media) return alert("Please add some content or media.");
-    if (!scheduleDate || !scheduleTime) return alert("Please select a date and time to schedule, or click 'Publish Now'.");
+    if (selectedPlatforms.length === 0) {
+      alert("Please select at least one platform.");
+      return;
+    }
+    if (!content.trim()) {
+      if (!media) {
+        alert("Please add some content or media.");
+        return;
+      }
+    }
+    if (!scheduleDate || !scheduleTime) {
+      alert("Please select a date and time to schedule, or click 'Publish Now'.");
+      return;
+    }
 
     setIsSubmitting(true);
 
-    const fullCaption = locationTag 
-      ? `${content.trim()}\n\n📍 ${locationTag}`
-      : content.trim();
+    let fullCaption = content.trim();
+    if (locationTag) {
+      fullCaption = content.trim() + "\n\n📍 " + locationTag;
+    }
+
+    let platformsArr = [];
+    for (let i = 0; i < selectedPlatforms.length; i++) {
+      let p = selectedPlatforms[i];
+      if (p) {
+        let cleanP = String(p).trim().toLowerCase();
+        if (cleanP.length > 0) {
+          if (!platformsArr.includes(cleanP)) {
+            platformsArr.push(cleanP);
+          }
+        }
+      }
+    }
+
+    let postTitle = "SocialPilot Post";
+    if (content.trim().length > 0) {
+      if (content.trim().length > 40) {
+        postTitle = content.trim().slice(0, 40);
+      } else {
+        postTitle = content.trim();
+      }
+    }
+
+    let campIdNum = null;
+    if (campaignId) {
+      campIdNum = Number(campaignId);
+    }
 
     const postPayload = {
-      platforms: selectedPlatforms,
-      platform: selectedPlatforms.join(", "),
-      title: content.trim().slice(0, 40) || "SocialPilot Post",
+      platforms: platformsArr,
+      platform: platformsArr.join(", "),
+      title: postTitle,
       content: fullCaption,
       image_url: media,
       image: media,
@@ -242,8 +335,8 @@ export default function PostComposerModal({ isOpen, onClose, initialCampaignId =
       scheduledAt: `${scheduleDate}T${scheduleTime}`,
       scheduled_date: scheduleDate,
       scheduled_time: scheduleTime,
-      campaignId: campaignId ? Number(campaignId) : null,
-      campaign_id: campaignId ? Number(campaignId) : null,
+      campaignId: campIdNum,
+      campaign_id: campIdNum,
     };
 
     console.log("Submitting Post Payload:", postPayload);

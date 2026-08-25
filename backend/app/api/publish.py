@@ -164,13 +164,19 @@ async def publish_content_multi_platform(
     db.refresh(new_post)
 
     # 2. Fetch user's connected social accounts
-    accounts_query = db.query(SocialAccount)
+    user_accounts = []
     if user_id is not None:
-        user_accounts = accounts_query.filter(SocialAccount.user_id == user_id).all()
-        if len(user_accounts) == 0:
-            user_accounts = accounts_query.all()
-    else:
-        user_accounts = accounts_query.all()
+        user_accounts = db.query(SocialAccount).filter(SocialAccount.user_id == user_id).all()
+
+    if len(user_accounts) == 0:
+        new_post.status = "Failed"
+        db.add(new_post)
+        db.commit()
+        db.refresh(new_post)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No linked social accounts found for this user."
+        )
 
     results: Dict[str, Any] = {}
     overall_success = True

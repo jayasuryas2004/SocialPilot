@@ -23,10 +23,34 @@ async def publish_to_facebook(
     clean_message = str(message or "").strip()
     clean_media = str(media_url or image_url or "").strip()
 
-    if len(clean_page_id) == 0 or clean_page_id.lower() == "me":
+    if len(clean_page_id) == 0:
         return False, {
             "status": "failed",
-            "error": "Invalid or missing Facebook Page ID. User profile publishing is disabled; a valid Page ID is required."
+            "error": "Facebook API requires a connected Page ID, not a personal profile."
+        }
+
+    if clean_page_id.lower() == "me":
+        return False, {
+            "status": "failed",
+            "error": "Facebook API requires a connected Page ID, not a personal profile."
+        }
+
+    if clean_page_id.lower().startswith("user_"):
+        return False, {
+            "status": "failed",
+            "error": "Facebook API requires a connected Page ID, not a personal profile."
+        }
+
+    if clean_page_id.lower().startswith("profile_"):
+        return False, {
+            "status": "failed",
+            "error": "Facebook API requires a connected Page ID, not a personal profile."
+        }
+
+    if clean_page_id.lower() == "unknown":
+        return False, {
+            "status": "failed",
+            "error": "Facebook API requires a connected Page ID, not a personal profile."
         }
 
     if len(clean_token) == 0:
