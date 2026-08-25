@@ -134,7 +134,13 @@ def publish_posts():
 
                 # 3. Facebook dispatch
                 if "facebook" in platform_lower:
-                    fb_account = db.query(SocialAccount).filter(SocialAccount.platform == "facebook").first()
+                    fb_query = db.query(SocialAccount).filter(SocialAccount.platform == "facebook")
+                    fb_account = None
+                    if post.user_id is not None:
+                        fb_account = fb_query.filter(SocialAccount.user_id == post.user_id).first()
+                    if fb_account is None:
+                        fb_account = fb_query.first()
+
                     if not fb_account or not fb_account.access_token:
                         overall_success = False
                         failure_reasons.append("Facebook: No connected Facebook account in vault.")

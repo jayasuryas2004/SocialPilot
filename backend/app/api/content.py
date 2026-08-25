@@ -163,22 +163,38 @@ def format_combined_content(db: Session, current_user: User):
 
     # 1. Process real database records
     for p in posts:
-        target_platform = p.platforms or p.platform or "LinkedIn"
-        is_linkedin = "linkedin" in target_platform.lower()
+        target_platforms_raw = p.platforms
+        if target_platforms_raw is None:
+            target_platforms_raw = p.platform
+        if target_platforms_raw is None:
+            target_platforms_raw = "LinkedIn"
+
+        target_platform_single = p.platform
+        if target_platform_single is None:
+            target_platform_single = p.platforms
+        if target_platform_single is None:
+            target_platform_single = "LinkedIn"
+
+        is_linkedin = False
+        if "linkedin" in str(target_platforms_raw).lower():
+            is_linkedin = True
 
         # Extract date and time
         post_date = "2026-11-01"
-        if p.scheduled_date:
+        if p.scheduled_date is not None:
             post_date = str(p.scheduled_date)
-        elif p.scheduled_at:
+        elif p.scheduled_at is not None:
             post_date = p.scheduled_at.strftime("%Y-%m-%d")
 
         raw_time = p.scheduled_time
-        if not raw_time and p.scheduled_at:
-            raw_time = p.scheduled_at.strftime("%I:%M %p")
+        if raw_time is None:
+            if p.scheduled_at is not None:
+                raw_time = p.scheduled_at.strftime("%I:%M %p")
         post_time = format_time_ampm(raw_time)
 
-        camp_name = campaign_map.get(p.campaign_id, "General")
+        camp_name = "General"
+        if p.campaign_id in campaign_map:
+            camp_name = campaign_map[p.campaign_id]
 
         title_val = p.title
         if not title_val:
@@ -186,17 +202,29 @@ def format_combined_content(db: Session, current_user: User):
             if len(content_str) > 35:
                 title_val = content_str[:35] + "..."
             else:
-                title_val = content_str or f"Post #{p.id}"
+                if len(content_str) > 0:
+                    title_val = content_str
+                else:
+                    title_val = f"Post #{p.id}"
 
         subtitle_val = p.content or "No caption provided."
         if len(subtitle_val) > 60:
             subtitle_val = subtitle_val[:60] + "..."
 
-        status_val = (p.status or "Scheduled").capitalize()
+        status_val = "Scheduled"
+        if p.status is not None:
+            status_val = p.status.capitalize()
 
         img_val = p.image_url
         if not img_val:
-            img_val = "https://images.unsplash.com/photo-1611944212129-29977ae1398c?w=150&h=150&fit=crop" if is_linkedin else "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=150&h=150&fit=crop"
+            if is_linkedin:
+                img_val = "https://images.unsplash.com/photo-1611944212129-29977ae1398c?w=150&h=150&fit=crop"
+            else:
+                img_val = "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=150&h=150&fit=crop"
+
+        handle_val = "socialpilot_hq"
+        if is_linkedin:
+            handle_val = linkedin_user_name
 
         item = {
             "id": p.id,
@@ -205,8 +233,9 @@ def format_combined_content(db: Session, current_user: User):
             "content": p.content or "",
             "fullText": p.content or "",
             "description": p.content or "",
-            "platform": "LinkedIn" if is_linkedin else target_platform,
-            "handle": linkedin_user_name if is_linkedin else "socialpilot_hq",
+            "platforms": p.platforms,
+            "platform": p.platform or target_platform_single,
+            "handle": handle_val,
             "campaign": camp_name,
             "date": post_date,
             "time": post_time,
@@ -215,7 +244,7 @@ def format_combined_content(db: Session, current_user: User):
             "image": img_val,
             "media": p.image_url or img_val,
             "media_url": p.image_url or img_val,
-            "is_live": is_linkedin or True,
+            "is_live": True,
             "source": "live_db"
         }
         combined_items.append(item)

@@ -21,19 +21,54 @@ function getPlatformIcon(platform, size = 14) {
 }
 
 function parsePlatformsList(post) {
-  if (!post) return ['instagram'];
-  if (Array.isArray(post.targets) && post.targets.length > 0) {
-    return post.targets.map(t => String(t.platform || 'instagram').trim().toLowerCase());
+  let parsed = [];
+  if (!post) {
+    parsed.push('instagram');
+    return parsed;
   }
-  const platformList =
-    typeof post.platforms === 'string'
-      ? post.platforms.split(',').map((p) => p.trim().toLowerCase())
-      : (post.platforms || (post.platform ? [post.platform] : []));
 
-  if (Array.isArray(platformList) && platformList.length > 0) {
-    return platformList.map(p => String(p).trim().toLowerCase()).filter(Boolean);
+  if (typeof post.platforms === 'string') {
+    if (post.platforms.trim().length > 0) {
+      let parts = post.platforms.split(',');
+      for (let i = 0; i < parts.length; i++) {
+        let p = parts[i].trim().toLowerCase();
+        if (p.length > 0) {
+          if (!parsed.includes(p)) {
+            parsed.push(p);
+          }
+        }
+      }
+    }
+  } else if (Array.isArray(post.platforms)) {
+    for (let i = 0; i < post.platforms.length; i++) {
+      let p = post.platforms[i];
+      if (p) {
+        let cleanP = String(p).trim().toLowerCase();
+        if (cleanP.length > 0) {
+          if (!parsed.includes(cleanP)) {
+            parsed.push(cleanP);
+          }
+        }
+      }
+    }
+  } else if (typeof post.platform === 'string') {
+    if (post.platform.trim().length > 0) {
+      let parts = post.platform.split(',');
+      for (let i = 0; i < parts.length; i++) {
+        let p = parts[i].trim().toLowerCase();
+        if (p.length > 0) {
+          if (!parsed.includes(p)) {
+            parsed.push(p);
+          }
+        }
+      }
+    }
   }
-  return ['instagram'];
+
+  if (parsed.length === 0) {
+    parsed.push('instagram');
+  }
+  return parsed;
 }
 
 export default function PostTable({ posts = [], onDelete, onRetry }) {
