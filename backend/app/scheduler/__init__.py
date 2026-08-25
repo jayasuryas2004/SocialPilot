@@ -26,19 +26,26 @@ scheduler = BackgroundScheduler()
 def extract_post_datetime(post):
     """
     Safely resolves the scheduled datetime for a Post instance.
-    Handles timezone-aware and naive timestamps consistently.
-    Strictly uses standard control flow (no list comprehensions or lambda expressions).
+    Explicitly prioritizes the post.scheduled_at UTC column.
+    Strictly uses standard control flow (no list comprehensions, ternary operators, or lambda expressions).
     """
-    dt = getattr(post, "scheduled_at", None)
-    if dt is not None:
-        return dt
+    scheduled_at_val = getattr(post, "scheduled_at", None)
+    if scheduled_at_val is not None:
+        return scheduled_at_val
 
-    if post.scheduled_date:
-        d = post.scheduled_date
-        t_str = getattr(post, "scheduled_time", None) or "00:00"
+    scheduled_date_val = getattr(post, "scheduled_date", None)
+    if scheduled_date_val is not None:
+        t_str = getattr(post, "scheduled_time", None)
+        if t_str is None:
+            t_str = "00:00"
         try:
             t_str_clean = str(t_str).strip().upper()
-            if "AM" in t_str_clean or "PM" in t_str_clean:
+            if "AM" in t_str_clean:
+                if len(t_str_clean.split(":")) == 3:
+                    parsed_time = datetime.strptime(t_str_clean, "%I:%M:%S %p").time()
+                else:
+                    parsed_time = datetime.strptime(t_str_clean, "%I:%M %p").time()
+            elif "PM" in t_str_clean:
                 if len(t_str_clean.split(":")) == 3:
                     parsed_time = datetime.strptime(t_str_clean, "%I:%M:%S %p").time()
                 else:
@@ -47,9 +54,9 @@ def extract_post_datetime(post):
                 parsed_time = datetime.strptime(t_str_clean, "%H:%M:%S").time()
             else:
                 parsed_time = datetime.strptime(t_str_clean, "%H:%M").time()
-            return datetime.combine(d, parsed_time)
+            return datetime.combine(scheduled_date_val, parsed_time)
         except Exception:
-            return datetime.combine(d, time(0, 0))
+            return datetime.combine(scheduled_date_val, time(0, 0))
 
     return None
 
@@ -57,26 +64,28 @@ def extract_post_datetime(post):
 def is_post_due(post_due_time):
     """
     Evaluates whether a scheduled post is due for publication.
-    Normalizes timezone-aware and naive datetime objects to prevent UTC vs Local Time skips.
-    Strictly uses standard control flow (no list comprehensions or lambda expressions).
+    Normalizes timezone-aware and naive datetime objects to UTC to prevent timezone skips on UTC servers.
+    Strictly uses standard control flow (no list comprehensions, ternary operators, or lambda expressions).
     """
     if post_due_time is None:
         return True
 
     # 1. If timestamp is timezone-aware
-    if post_due_time.tzinfo is not None and post_due_time.tzinfo.utcoffset(post_due_time) is not None:
-        now_utc = datetime.now(timezone.utc)
-        post_utc = post_due_time.astimezone(timezone.utc)
-        return post_utc <= now_utc
+    if post_due_time.tzinfo is not None:
+        if post_due_time.tzinfo.utcoffset(post_due_time) is not None:
+            now_utc = datetime.now(timezone.utc)
+            post_utc = post_due_time.astimezone(timezone.utc)
+            if post_utc <= now_utc:
+                return True
+            return False
 
-    # 2. If timestamp is naive (local system time or UTC timestamp)
-    # Check against both local machine time and UTC
-    now_local = datetime.now()
+    # 2. If timestamp is naive UTC datetime
     now_utc_naive = datetime.utcnow()
-
-    if post_due_time <= now_local:
-        return True
     if post_due_time <= now_utc_naive:
+        return True
+
+    now_local = datetime.now()
+    if post_due_time <= now_local:
         return True
 
     return False
