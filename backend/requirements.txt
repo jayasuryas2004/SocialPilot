@@ -37,3 +37,4 @@ pytest-asyncio>=0.23.6
 anyio>=4.3.0
 
 pytz
+requests
