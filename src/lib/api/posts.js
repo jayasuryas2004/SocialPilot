@@ -135,28 +135,97 @@ export async function getPost(id) {
  */
 export async function createPost(payload) {
   let platformStr = "Instagram";
-  if (Array.isArray(payload.platforms) && payload.platforms.length > 0) {
-    platformStr = payload.platforms.join(", ");
-  } else if (typeof payload.platform === "string" && payload.platform.trim().length > 0) {
-    platformStr = payload.platform;
+  if (Array.isArray(payload.platforms)) {
+    if (payload.platforms.length > 0) {
+      platformStr = payload.platforms.join(", ");
+    }
+  } else if (typeof payload.platform === "string") {
+    if (payload.platform.trim().length > 0) {
+      platformStr = payload.platform.trim();
+    }
   }
 
-  const imgData = payload.image_url || payload.image || payload.media || payload.media_url || payload.mediaFile || null;
+  let imgData = null;
+  if (payload.image_url) {
+    imgData = payload.image_url;
+  } else if (payload.image) {
+    imgData = payload.image;
+  } else if (payload.media) {
+    imgData = payload.media;
+  } else if (payload.media_url) {
+    imgData = payload.media_url;
+  } else if (payload.mediaFile) {
+    imgData = payload.mediaFile;
+  }
+
+  let scheduledAtVal = null;
+  if (payload.scheduledAt) {
+    scheduledAtVal = payload.scheduledAt;
+  } else if (payload.scheduled_at) {
+    scheduledAtVal = payload.scheduled_at;
+  } else if (payload.scheduled_date && payload.scheduled_time) {
+    scheduledAtVal = `${payload.scheduled_date}T${payload.scheduled_time}`;
+  } else if (payload.scheduleDate && payload.scheduleTime) {
+    scheduledAtVal = `${payload.scheduleDate}T${payload.scheduleTime}`;
+  }
+
+  let scheduledDateVal = null;
+  if (payload.scheduled_date) {
+    scheduledDateVal = payload.scheduled_date;
+  } else if (payload.scheduleDate) {
+    scheduledDateVal = payload.scheduleDate;
+  } else if (scheduledAtVal && typeof scheduledAtVal === "string" && scheduledAtVal.includes("T")) {
+    scheduledDateVal = scheduledAtVal.split("T")[0];
+  }
+
+  let scheduledTimeVal = null;
+  if (payload.scheduled_time) {
+    scheduledTimeVal = payload.scheduled_time;
+  } else if (payload.scheduleTime) {
+    scheduledTimeVal = payload.scheduleTime;
+  } else if (scheduledAtVal && typeof scheduledAtVal === "string" && scheduledAtVal.includes("T")) {
+    scheduledTimeVal = scheduledAtVal.split("T")[1];
+  }
+
+  let campaignIdVal = null;
+  if (payload.campaign_id) {
+    campaignIdVal = Number(payload.campaign_id);
+  } else if (payload.campaignId) {
+    campaignIdVal = Number(payload.campaignId);
+  }
+
+  let postTitle = "Untitled Post";
+  if (payload.title) {
+    postTitle = payload.title;
+  } else if (payload.content) {
+    postTitle = payload.content.slice(0, 50);
+  }
+
+  let postStatus = "Scheduled";
+  if (payload.status) {
+    postStatus = payload.status;
+  }
+
+  let mediaTypeVal = "image";
+  if (payload.media_type) {
+    mediaTypeVal = payload.media_type;
+  }
 
   const backendPayload = {
     content: payload.content || "",
-    title: payload.title || (payload.content ? payload.content.slice(0, 50) : "Untitled Post"),
+    title: postTitle,
     platforms: platformStr,
     platform: platformStr,
-    scheduled_date: payload.scheduled_date || (payload.scheduledAt ? payload.scheduledAt.split("T")[0] : (payload.scheduleDate || null)),
-    scheduled_time: payload.scheduled_time || (payload.scheduledAt ? payload.scheduledAt.split("T")[1] : (payload.scheduleTime || null)),
-    status: payload.status || "Scheduled",
-    campaign_id: payload.campaign_id || payload.campaignId ? Number(payload.campaign_id || payload.campaignId) : null,
+    scheduled_at: scheduledAtVal,
+    scheduled_date: scheduledDateVal,
+    scheduled_time: scheduledTimeVal,
+    status: postStatus,
+    campaign_id: campaignIdVal,
     image_url: imgData,
     image: imgData,
     media: imgData,
     media_url: imgData,
-    media_type: payload.media_type || "image",
+    media_type: mediaTypeVal,
     mediaFile: imgData,
   };
 
@@ -166,7 +235,14 @@ export async function createPost(payload) {
   });
 
   const response = await client.post("/posts/", backendPayload);
-  const created = response.data?.data || response.data?.post || response.data;
+  let created = response.data;
+  if (response.data) {
+    if (response.data.data) {
+      created = response.data.data;
+    } else if (response.data.post) {
+      created = response.data.post;
+    }
+  }
   return normalizePost(created);
 }
 

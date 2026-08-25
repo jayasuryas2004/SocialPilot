@@ -154,16 +154,53 @@ def create_post(
             media_type_resolved = "video"
 
     scheduled_at_utc = None
-    scheduled_val = getattr(post, "scheduled_at", None) or getattr(post, "scheduled_for", None)
-    if scheduled_val is not None:
-        if isinstance(scheduled_val, str) and len(scheduled_val.strip()) > 0:
+    scheduled_val = getattr(post, "scheduled_at", None)
+    if scheduled_val is None:
+        scheduled_val = getattr(post, "scheduled_for", None)
+
+    if scheduled_val is None:
+        if post.scheduled_date is not None:
+            t_str = post.scheduled_time
+            if t_str is None:
+                t_str = "00:00"
             try:
-                scheduled_val = datetime.fromisoformat(scheduled_val.replace("Z", "+00:00"))
+                t_str_clean = str(t_str).strip().upper()
+                if "AM" in t_str_clean:
+                    if len(t_str_clean.split(":")) == 3:
+                        parsed_time = datetime.strptime(t_str_clean, "%I:%M:%S %p").time()
+                    else:
+                        parsed_time = datetime.strptime(t_str_clean, "%I:%M %p").time()
+                elif "PM" in t_str_clean:
+                    if len(t_str_clean.split(":")) == 3:
+                        parsed_time = datetime.strptime(t_str_clean, "%I:%M:%S %p").time()
+                    else:
+                        parsed_time = datetime.strptime(t_str_clean, "%I:%M %p").time()
+                elif len(t_str_clean.split(":")) == 3:
+                    parsed_time = datetime.strptime(t_str_clean, "%H:%M:%S").time()
+                else:
+                    parsed_time = datetime.strptime(t_str_clean, "%H:%M").time()
+                scheduled_val = datetime.combine(post.scheduled_date, parsed_time)
             except Exception:
-                pass
+                scheduled_val = datetime.combine(post.scheduled_date, time(0, 0))
+
+    if scheduled_val is not None:
+        if isinstance(scheduled_val, str):
+            if len(scheduled_val.strip()) > 0:
+                try:
+                    scheduled_val = datetime.fromisoformat(scheduled_val.replace("Z", "+00:00"))
+                except Exception:
+                    try:
+                        scheduled_val = datetime.strptime(scheduled_val.strip(), "%Y-%m-%d %H:%M:%S")
+                    except Exception:
+                        pass
         if isinstance(scheduled_val, datetime):
-            if scheduled_val.tzinfo is not None and scheduled_val.tzinfo.utcoffset(scheduled_val) is not None:
-                scheduled_at_utc = scheduled_val.astimezone(pytz.utc).replace(tzinfo=None)
+            if scheduled_val.tzinfo is not None:
+                if scheduled_val.tzinfo.utcoffset(scheduled_val) is not None:
+                    scheduled_at_utc = scheduled_val.astimezone(pytz.utc).replace(tzinfo=None)
+                else:
+                    ist_tz = pytz.timezone("Asia/Kolkata")
+                    localized_dt = ist_tz.localize(scheduled_val)
+                    scheduled_at_utc = localized_dt.astimezone(pytz.utc).replace(tzinfo=None)
             else:
                 # Localize naive datetime from Asia/Kolkata to UTC
                 ist_tz = pytz.timezone("Asia/Kolkata")
